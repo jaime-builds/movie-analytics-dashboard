@@ -2,7 +2,7 @@
 
 A full-stack web application for exploring and analyzing movie data using Flask, SQLAlchemy, and the TMDB API. This project demonstrates Python, SQL, web development, and data visualization skills.
 
-![Movie Analytics Dashboard](https://via.placeholder.com/800x400?text=Movie+Analytics+Dashboard)
+![Movie Analytics Dashboard](docs/screenshot.png)
 
 ## Features
 
