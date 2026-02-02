@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>{{ movie.title }}</h1>
+<div class="row">
+    <div class="col-md-4">
+        {% if movie.poster_path %}
+        <img src="{{ config.get_poster_url(movie.poster_path) }}" class="img-fluid" alt="{{ movie.title }}">
+        {% endif %}
+    </div>
+    <div class="col-md-8">
+        <p>{{ movie.overview }}</p>
+        <p><strong>Rating:</strong> {{ movie.vote_average }}/10</p>
+        <p><strong>Release Date:</strong> {{ movie.release_date }}</p>
+    </div>
+</div>
+{% endblock %}

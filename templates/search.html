@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Search Results for "{{ query }}"</h1>
+<div class="row">
+    {% for movie in movies %}
+    <div class="col-md-2 mb-3">
+        <a href="{{ url_for('movie_detail', movie_id=movie.id) }}">
+            <div class="card movie-card">
+                {% if movie.poster_path %}
+                <img src="{{ config.get_poster_url(movie.poster_path, 'w300') }}" class="card-img-top">
+                {% endif %}
+                <div class="card-body">
+                    <h6>{{ movie.title }}</h6>
+                </div>
+            </div>
+        </a>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

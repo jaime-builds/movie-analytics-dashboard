@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="jumbotron bg-light p-5 rounded mb-4">
+    <h1 class="display-4">Welcome to Movie Analytics</h1>
+    <p class="lead">Explore insights from {{ total_movies|default(100) }} movies in our database</p>
+    <hr class="my-4">
+    <p>Discover top-rated films, analyze trends, and find your next favorite movie.</p>
+    <a class="btn btn-primary btn-lg" href="{{ url_for('movies') }}" role="button">Browse Movies</a>
+    <a class="btn btn-secondary btn-lg" href="{{ url_for('analytics') }}" role="button">View Analytics</a>
+</div>
+
+<h2 class="mb-3">Top Rated Movies</h2>
+<div class="row mb-5">
+    {% for movie in top_movies %}
+    <div class="col-md-2 col-sm-4 col-6 mb-3">
+        <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+            <div class="card movie-card h-100">
+                {% if movie.poster_path %}
+                <img src="{{ config.get_poster_url(movie.poster_path, 'w300') }}" 
+                     class="card-img-top" 
+                     alt="{{ movie.title }}">
+                {% else %}
+                <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center" style="height: 450px;">
+                    <i class="bi bi-film" style="font-size: 3rem; color: #666;"></i>
+                </div>
+                {% endif %}
+                <div class="card-body p-2">
+                    <h6 class="card-title small mb-1">{{ movie.title }}</h6>
+                    <p class="card-text small text-muted mb-1">
+                        {% if movie.release_date %}
+                        {{ movie.release_date.year }}
+                        {% endif %}
+                    </p>
+                    <p class="card-text small">
+                        <span class="badge bg-warning text-dark">
+                            <i class="bi bi-star-fill"></i> {{ movie.vote_average }}
+                        </span>
+                    </p>
+                </div>
+            </div>
+        </a>
+    </div>
+    {% endfor %}
+</div>
+
+<h2 class="mb-3">Recent Releases</h2>
+<div class="row mb-5">
+    {% for movie in recent_movies %}
+    <div class="col-md-2 col-sm-4 col-6 mb-3">
+        <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+            <div class="card movie-card h-100">
+                {% if movie.poster_path %}
+                <img src="{{ config.get_poster_url(movie.poster_path, 'w300') }}" 
+                     class="card-img-top" 
+                     alt="{{ movie.title }}">
+                {% else %}
+                <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center" style="height: 450px;">
+                    <i class="bi bi-film" style="font-size: 3rem; color: #666;"></i>
+                </div>
+                {% endif %}
+                <div class="card-body p-2">
+                    <h6 class="card-title small mb-1">{{ movie.title }}</h6>
+                    <p class="card-text small text-muted mb-1">
+                        {% if movie.release_date %}
+                        {{ movie.release_date.year }}
+                        {% endif %}
+                    </p>
+                    <p class="card-text small">
+                        <span class="badge bg-warning text-dark">
+                            <i class="bi bi-star-fill"></i> {{ movie.vote_average }}
+                        </span>
+                    </p>
+                </div>
+            </div>
+        </a>
+    </div>
+    {% endfor %}
+</div>
+
+<h2 class="mb-3">Most Popular</h2>
+<div class="row">
+    {% for movie in popular_movies %}
+    <div class="col-md-2 col-sm-4 col-6 mb-3">
+        <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+            <div class="card movie-card h-100">
+                {% if movie.poster_path %}
+                <img src="{{ config.get_poster_url(movie.poster_path, 'w300') }}" 
+                     class="card-img-top" 
+                     alt="{{ movie.title }}">
+                {% else %}
+                <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center" style="height: 450px;">
+                    <i class="bi bi-film" style="font-size: 3rem; color: #666;"></i>
+                </div>
+                {% endif %}
+                <div class="card-body p-2">
+                    <h6 class="card-title small mb-1">{{ movie.title }}</h6>
+                    <p class="card-text small text-muted mb-1">
+                        {% if movie.release_date %}
+                        {{ movie.release_date.year }}
+                        {% endif %}
+                    </p>
+                    <p class="card-text small">
+                        <span class="badge bg-warning text-dark">
+                            <i class="bi bi-star-fill"></i> {{ movie.vote_average }}
+                        </span>
+                    </p>
+                </div>
+            </div>
+        </a>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
