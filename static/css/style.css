@@ -1,17 +1,41 @@
+/* --- Theme Variables --- */
+:root {
+    --bg-body: #f8f9fa;
+    --bg-card: #ffffff;
+    --bg-jumbotron: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --text-primary: #212529;
+    --text-muted: #6c757d;
+    --card-shadow: rgba(0, 0, 0, 0.1);
+    --card-shadow-hover: rgba(0, 0, 0, 0.2);
+}
+
+[data-bs-theme="dark"] {
+    --bg-body: #121212;
+    --bg-card: #1e1e1e;
+    --bg-jumbotron: linear-gradient(135deg, #3a1c71 0%, #d76d77 50%, #ffaf7b 100%);
+    --text-primary: #e0e0e0;
+    --text-muted: #adb5bd;
+    --card-shadow: rgba(0, 0, 0, 0.3);
+    --card-shadow-hover: rgba(0, 0, 0, 0.5);
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f8f9fa;
+    background-color: var(--bg-body);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .movie-card {
-    transition: transform 0.2s;
+    transition: transform 0.2s, box-shadow 0.3s, background-color 0.3s;
     border: none;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px var(--card-shadow);
+    background-color: var(--bg-card);
 }
 
 .movie-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 8px var(--card-shadow-hover);
 }
 
 .movie-card img {
@@ -20,8 +44,49 @@ body {
 }
 
 .jumbotron {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--bg-jumbotron);
     color: white;
+}
+
+/* Dark mode overrides */
+[data-bs-theme="dark"] .card {
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+}
+
+[data-bs-theme="dark"] .text-muted {
+    color: var(--text-muted) !important;
+}
+
+[data-bs-theme="dark"] h1,
+[data-bs-theme="dark"] h2,
+[data-bs-theme="dark"] h3,
+[data-bs-theme="dark"] h4,
+[data-bs-theme="dark"] h5,
+[data-bs-theme="dark"] h6 {
+    color: var(--text-primary);
+}
+
+/* Dark mode toggle button */
+.dark-mode-toggle {
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    color: white;
+    border-radius: 50%;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: border-color 0.3s, transform 0.2s;
+    font-size: 1.1rem;
+    padding: 0;
+}
+
+.dark-mode-toggle:hover {
+    border-color: white;
+    transform: scale(1.1);
 }
 
 .navbar-dark {
