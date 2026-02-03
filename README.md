@@ -6,16 +6,18 @@ A full-stack web application for exploring and analyzing movie data using Flask,
 
 ## Features
 
-- **Browse Movies**: Explore a collection of 100+ popular movies with poster images
-- **Detailed Movie Pages**: View comprehensive information including cast, crew, ratings, and revenue
+- **Browse Movies**: Explore a collection of 100+ popular movies with poster images and pagination
+- **Detailed Movie Pages**: View comprehensive information including cast, crew, ratings, revenue, and YouTube trailers
 - **Advanced Search**: Search movies by title or description
 - **Filter & Sort**: Filter by genre and sort by popularity, rating, or release date
-- **Analytics Dashboard**: Visualize trends including:
-  - Genre distribution
-  - Movies released by year
-  - Average ratings by genre
+- **Analytics Dashboard**: Interactive visualizations with Chart.js including:
+  - Genre distribution (pie chart)
+  - Movies released by year (bar chart)
+  - Average ratings by genre (horizontal bar chart)
   - Budget vs. revenue analysis
   - Top production companies
+- **Dark Mode**: Toggle between light and dark themes for comfortable viewing
+- **Movie Trailers**: Watch official YouTube trailers directly on movie detail pages
 
 ## Tech Stack
 
@@ -57,6 +59,7 @@ movie-analytics-dashboard/
 │   ├── css/               # Stylesheets
 │   ├── js/                # JavaScript files
 │   └── images/            # Images
+├── docs/                  # Documentation and screenshots
 ├── tests/                 # Unit tests
 ├── .gitignore
 ├── requirements.txt       # Python dependencies
@@ -156,7 +159,7 @@ ORDER BY avg_rating DESC;
 
 ### Python Skills
 - Object-oriented programming with SQLAlchemy models
-- API integration and data parsing
+- API integration and data parsing (TMDB API for trailers and metadata)
 - Error handling and data validation
 - Virtual environments and dependency management
 
@@ -171,7 +174,9 @@ ORDER BY avg_rating DESC;
 - RESTful routing with Flask
 - Template inheritance with Jinja2
 - Responsive design with Bootstrap
-- Data visualization with Chart.js
+- Interactive data visualization with Chart.js
+- Client-side state management (dark mode toggle with localStorage)
+- YouTube embed integration for trailers
 
 ### Git & Version Control
 - Meaningful commit messages
@@ -179,11 +184,28 @@ ORDER BY avg_rating DESC;
 - Branch management
 - Remote repository management
 
+## Analytics Visualizations
+
+The analytics dashboard features interactive Chart.js visualizations:
+
+- **Genre Distribution Pie Chart**: Visual breakdown of movies by genre
+- **Movies by Year Bar Chart**: Timeline of movie releases
+- **Average Ratings by Genre**: Horizontal bar chart showing which genres rate highest
+- **Budget vs Revenue Analysis**: Compare production costs to box office performance
+- **Top Production Companies**: Bar chart of most prolific studios
+
+All charts are fully responsive and adapt to dark mode for optimal viewing.
+
+![Analytics Dashboard in Dark Mode](docs/darkmode-analytics.png)
+
 ## Future Enhancements
 
 - [ ] User authentication and personalized recommendations
 - [ ] Movie ratings and reviews system
 - [ ] Advanced filtering (by decade, rating range, runtime)
+- [ ] Favorites/watchlist system
+- [ ] Hidden Gems page - high rated, low popularity movies
+- [ ] Director Spotlight page
 - [ ] Export analytics reports as PDF
 - [ ] RESTful API endpoints
 - [ ] PostgreSQL migration for production

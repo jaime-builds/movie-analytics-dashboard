@@ -3,18 +3,20 @@
 ## Completed ✅
 - [✅] Analytics Chart.js visualizations (pie/bar charts)
 - [✅] Dark mode toggle
+- [✅] Movie trailer links (YouTube embeds)
+- [✅] Update README with analytics chart details and screenshot
 
-## In Progress
-- [ ] Movie trailer links (YouTube embeds)
+## In Progress 🚧
+- [ ] Advanced filtering (year, decade, rating range, runtime)
+- [ ] Top Actors page - most frequently appearing actors
+- [ ] Hidden Gems page - high rated, low popularity movies
+- [ ] Import more movies (increase from 100 to 500+)
 
 ## Next Up (Priority)
 - [ ] Favorites/watchlist system
-- [ ] Advanced filtering (year, decade, rating range, runtime)
-- [ ] Hidden Gems page - high rated, low popularity movies
 - [ ] Director Spotlight page - directors and their filmographies
 
 ## Quick Wins
-- [ ] Update README with analytics chart details and screenshot
 - [ ] Style movie detail page with backdrop image banner
 - [ ] Add runtime, budget, and revenue to movie detail page
 - [ ] Add "no results found" message to search page
@@ -23,12 +25,11 @@
 
 ## SQL Showcase
 - [ ] Budget vs Revenue profitability analysis
-- [ ] Top Actors page - most frequently appearing actors
 - [ ] Average rating trends over time
 
 ## New Features
-- [ ] User authentication and login
 - [ ] Movie ratings and reviews
+- [ ] User authentication and login
 - [ ] Recommendations engine ("If you liked X, try Y")
 - [ ] Genre trending over time
 
@@ -39,7 +40,6 @@
 - [ ] Sort movies on detail page similar movies section
 
 ## Data & Backend
-- [ ] Import more movies (increase from 100 to 500+)
 - [ ] Auto-refresh data on a schedule
 - [ ] Export analytics reports as PDF/CSV
 - [ ] RESTful API endpoints

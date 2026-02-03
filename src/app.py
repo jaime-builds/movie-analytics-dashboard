@@ -1,8 +1,10 @@
 from flask import Flask, render_template, request, jsonify
 from sqlalchemy import func, desc
 from src.models import Session, Movie, Genre, Person, Cast, Crew, ProductionCompany
+from src.tmdb_api import TMDBClient
 from config.config import Config
 from datetime import datetime
+from typing import Optional, Dict
 
 app = Flask(__name__, 
             template_folder='../templates',
@@ -12,6 +14,28 @@ app.config.from_object(Config)
 def get_db_session():
     """Get a new database session"""
     return Session()
+
+def get_trailer_for_movie(tmdb_id: int) -> Optional[Dict]:
+    """Fetch the best YouTube trailer for a movie from TMDB API."""
+    client = TMDBClient()
+    videos_data = client.get_movie_videos(tmdb_id)
+    results = videos_data.get('results', [])
+
+    youtube_videos = [v for v in results if v.get('site') == 'YouTube']
+    if not youtube_videos:
+        return None
+
+    # Priority: official trailers > any trailer > teasers > any video
+    for filter_fn in [
+        lambda v: v.get('type') == 'Trailer' and v.get('official'),
+        lambda v: v.get('type') == 'Trailer',
+        lambda v: v.get('type') == 'Teaser',
+    ]:
+        matches = [v for v in youtube_videos if filter_fn(v)]
+        if matches:
+            return matches[0]
+
+    return youtube_videos[0]
 
 @app.route('/')
 def index():
@@ -136,12 +160,16 @@ def movie_detail(movie_id):
                 .all()
         else:
             similar_movies = []
-        
+
+        # Get trailer from TMDB API
+        trailer = get_trailer_for_movie(movie.tmdb_id)
+
         return render_template('movie_detail.html',
                              movie=movie,
                              cast=cast,
                              directors=directors,
                              similar_movies=similar_movies,
+                             trailer=trailer,
                              config=Config)
     finally:
         session.close()

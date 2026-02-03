@@ -48,6 +48,10 @@ class TMDBClient:
     def get_movie_credits(self, movie_id: int) -> Dict:
         """Get cast and crew for a movie"""
         return self._make_request(f'movie/{movie_id}/credits')
+
+    def get_movie_videos(self, movie_id: int) -> Dict:
+        """Get videos (trailers, teasers, etc.) for a movie"""
+        return self._make_request(f'movie/{movie_id}/videos')
     
     def search_movies(self, query: str, page: int = 1) -> Dict:
         """Search for movies"""
