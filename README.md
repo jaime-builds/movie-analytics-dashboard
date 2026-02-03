@@ -206,7 +206,7 @@ This project is open source and available under the [MIT License](LICENSE).
 
 ## Contact
 
-**John Doe**
+**JD**
 - GitHub: [@jdizzle18](https://github.com/jdizzle18)
 - Project Link: [https://github.com/jdizzle18/movie-analytics-dashboard](https://github.com/jdizzle18/movie-analytics-dashboard)
 
