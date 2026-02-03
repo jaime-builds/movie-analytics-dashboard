@@ -4,4 +4,46 @@
 <h1>Analytics Dashboard</h1>
 <p>Total Movies: {{ total_movies }}</p>
 <p>Average Rating: {{ avg_rating }}</p>
+
+<div class="row mt-4">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title text-center">Genre Distribution</h5>
+                <canvas id="genreChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const genreLabels = {{ genre_stats | map(attribute='name') | list | tojson }};
+    const genreCounts = {{ genre_stats | map(attribute='count') | list | tojson }};
+
+    new Chart(document.getElementById('genreChart'), {
+        type: 'pie',
+        data: {
+            labels: genreLabels,
+            datasets: [{
+                data: genreCounts,
+                backgroundColor: [
+                    '#6a0dad', '#e74c3c', '#3498db', '#2ecc71', '#f39c12',
+                    '#1abc9c', '#9b59b6', '#e67e22', '#34495e', '#16a085',
+                    '#c0392b', '#2980b9', '#8e44ad', '#27ae60', '#d35400',
+                    '#7f8c8d', '#2c3e50', '#f1c40f', '#e91e63', '#00bcd4'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'right'
+                }
+            }
+        }
+    });
+</script>
 {% endblock %}
