@@ -196,7 +196,7 @@ The analytics dashboard features interactive Chart.js visualizations:
 
 All charts are fully responsive and adapt to dark mode for optimal viewing.
 
-![Analytics Dashboard in Dark Mode](docs/darkmode-analytics.png)
+![Analytics Dashboard in Dark Mode](docs/darkmode-charts.png)
 
 ## Future Enhancements
 
