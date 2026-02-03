@@ -21,7 +21,7 @@ class TMDBClient:
             response = requests.get(url, params=params)
             response.raise_for_status()
             return response.json()
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             print(f"Error making request to {url}: {e}")
             return {}
     

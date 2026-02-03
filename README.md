@@ -226,6 +226,10 @@ This project is open source and available under the [MIT License](LICENSE).
 - Bootstrap for UI components
 - Chart.js for data visualization
 
+![Tests](https://github.com/jdizzle18/movie-analytics-dashboard/actions/workflows/tests.yml/badge.svg)
+![Coverage](https://img.shields.io/codecov/c/github/jdizzle18/movie-analytics-dashboard)
+![Python](https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)
+
 ## Contact
 
 **JD**

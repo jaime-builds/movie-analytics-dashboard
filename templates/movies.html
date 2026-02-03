@@ -21,29 +21,6 @@
     </div>
     {% endfor %}
 </div>
-{% extends "base.html" %}
-
-{% block content %}
-<h1>All Movies</h1>
-<div class="row">
-    {% for movie in movies %}
-    <div class="col-md-2 col-sm-4 col-6 mb-3">
-        <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
-            <div class="card movie-card h-100">
-                {% if movie.poster_path %}
-                <img src="{{ config.get_poster_url(movie.poster_path, 'w300') }}" class="card-img-top" alt="{{ movie.title }}">
-                {% endif %}
-                <div class="card-body p-2">
-                    <h6 class="card-title small">{{ movie.title }}</h6>
-                    <span class="badge bg-warning text-dark">
-                        <i class="bi bi-star-fill"></i> {{ movie.vote_average }}
-                    </span>
-                </div>
-            </div>
-        </a>
-    </div>
-    {% endfor %}
-</div>
 
 <!-- Pagination Controls -->
 <nav aria-label="Movie pagination" class="mt-4">
@@ -89,5 +66,4 @@
     </div>
 </nav>
 
-{% endblock %}
 {% endblock %}
