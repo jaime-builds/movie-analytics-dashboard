@@ -235,12 +235,12 @@ def analytics():
             .all()
         )
 
-        # Budget vs Revenue (top 20 movies with both)
-        budget_revenue = (
-            session.query(Movie)
+        # Get top 10 movies with budget/revenue data (optimized query)
+        top_budget_movies = (
+            session.query(Movie.title, Movie.budget, Movie.revenue)
             .filter(Movie.budget > 0, Movie.revenue > 0)
-            .order_by(desc(Movie.revenue))
-            .limit(20)
+            .order_by(Movie.revenue.desc())
+            .limit(10)
             .all()
         )
 

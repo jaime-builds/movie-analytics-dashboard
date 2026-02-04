@@ -5,12 +5,12 @@
 - [✅] Dark mode toggle
 - [✅] Movie trailer links (YouTube embeds)
 - [✅] Update README with analytics chart details and screenshot
+- [✅] Import more movies (increase from 100 to 500+)
 
 ## In Progress 🚧
 - [ ] Advanced filtering (year, decade, rating range, runtime)
 - [ ] Top Actors page - most frequently appearing actors
 - [ ] Hidden Gems page - high rated, low popularity movies
-- [ ] Import more movies (increase from 100 to 500+)
 
 ## Next Up (Priority)
 - [ ] Favorites/watchlist system

@@ -180,20 +180,49 @@ class DataImporter:
 
     def import_popular_movies(self, num_pages: int = 5):
         """Import popular movies (20 movies per page)"""
-        print(f"\nImporting popular movies ({num_pages} pages)...")
+        total_movies = num_pages * 20
+        print(f"\n🎬 Importing {total_movies} popular movies ({num_pages} pages)...")
+        print(f"{'='*60}")
+
+        movies_imported = 0
+        movies_skipped = 0
+        movies_failed = 0
 
         for page in range(1, num_pages + 1):
-            print(f"\nPage {page}/{num_pages}:")
+            # Progress indicator
+            progress = (page / num_pages) * 100
+            print(f"\n📄 Page {page}/{num_pages} ({progress:.1f}% complete)")
+            print(f"{'─'*60}")
+
             popular = self.client.get_popular_movies(page=page)
 
             if not popular or "results" not in popular:
-                print(f"Failed to get page {page}")
+                print(f"  ✗ Failed to get page {page}")
+                movies_failed += 20
                 continue
 
-            for movie_data in popular["results"]:
-                self.import_movie(movie_data["id"])
+            for idx, movie_data in enumerate(popular["results"], 1):
+                movie = self.import_movie(movie_data["id"])
+                if movie:
+                    if "already exists" in str(movie):
+                        movies_skipped += 1
+                    else:
+                        movies_imported += 1
+                else:
+                    movies_failed += 1
 
-        print(f"\n✓ Import complete!")
+            # Summary after each page
+            print(f"  📊 Page summary: {len(popular['results'])} movies processed")
+
+        # Final summary
+        print(f"\n{'='*60}")
+        print(f"✅ Import complete!")
+        print(f"{'='*60}")
+        print(f"  ✓ New movies imported:  {movies_imported}")
+        print(f"  - Movies skipped:       {movies_skipped}")
+        print(f"  ✗ Movies failed:        {movies_failed}")
+        print(f"  📊 Total processed:     {movies_imported + movies_skipped + movies_failed}")
+        print(f"{'='*60}\n")
 
     def close(self):
         """Close database session"""
@@ -208,8 +237,8 @@ if __name__ == "__main__":
         # First import genres
         importer.import_genres()
 
-        # Then import movies
-        importer.import_popular_movies(num_pages=5)  # Import 100 movies
+        # Then import 1000 movies (50 pages × 20 movies per page)
+        importer.import_popular_movies(num_pages=50)
 
     finally:
         importer.close()

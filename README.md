@@ -6,7 +6,7 @@ A full-stack web application for exploring and analyzing movie data using Flask,
 
 ## Features
 
-- **Browse Movies**: Explore a collection of 100+ popular movies with poster images and pagination
+- **Browse Movies**: Explore a collection of 1,000+ popular movies with poster images and pagination
 - **Detailed Movie Pages**: View comprehensive information including cast, crew, ratings, revenue, and YouTube trailers
 - **Advanced Search**: Search movies by title or description
 - **Filter & Sort**: Filter by genre and sort by popularity, rating, or release date
@@ -121,7 +121,7 @@ movie-analytics-dashboard/
 ```bash
    python -m src.data_import
 ```
-   This will import 100 popular movies with cast, crew, and metadata (takes 5-10 minutes).
+   This will import 1,000 popular movies with cast, crew, and metadata (takes 5-10 minutes).
 
 8. **Run the application**
 ```bash
