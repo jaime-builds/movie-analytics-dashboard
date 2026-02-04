@@ -6,10 +6,13 @@ A full-stack web application for exploring and analyzing movie data using Flask,
 
 ## Features
 
-- **Browse Movies**: Explore a collection of 1,000+ popular movies with poster images and pagination
+- **Browse Movies**: Explore 1,000+ popular movies with poster images and pagination
+- **Advanced Filtering**: Filter movies by year, decade, rating range, and runtime
 - **Detailed Movie Pages**: View comprehensive information including cast, crew, ratings, revenue, and YouTube trailers
+- **Top Actors**: Browse the most frequently appearing actors with filmography pages
+- **Hidden Gems**: Discover highly-rated, low-popularity movies using a gem score algorithm
 - **Advanced Search**: Search movies by title or description
-- **Filter & Sort**: Filter by genre and sort by popularity, rating, or release date
+- **Sort & Filter**: Sort by popularity, rating, release date, or title with genre filtering
 - **Analytics Dashboard**: Interactive visualizations with Chart.js including:
   - Genre distribution (pie chart)
   - Movies released by year (bar chart)
@@ -130,58 +133,110 @@ movie-analytics-dashboard/
 
    Open your browser to: `http://127.0.0.1:5000`
 
+## Key Features
+
+### Advanced Movie Filtering
+Filter movies by multiple criteria simultaneously:
+- **Year**: Specific release year
+- **Decade**: Browse movies by decade (1920s-2020s)
+- **Rating Range**: Minimum and maximum rating thresholds
+- **Runtime**: Filter by movie length in minutes
+- **Genre**: Single genre selection
+- All filters work with sorting and pagination
+
+### Top Actors Page
+Browse the most prolific actors in the database:
+- Ranked by number of movie appearances
+- Sort by movie count, average rating, popularity, or name
+- Click any actor to view their complete filmography
+- See character names and roles for each movie
+- View actor biography, birthplace, and career statistics
+
+### Hidden Gems Discovery
+Find underrated masterpieces using a smart discovery algorithm:
+- **Gem Score Formula**: Balances high ratings with low popularity
+- Adjustable thresholds for what counts as "hidden"
+- Filter by genre and decade
+- Sort by gem score, rating, obscurity, or release date
+- Perfect for discovering overlooked indie films and foreign cinema
+
+### Analytics Dashboard
+Interactive data visualizations powered by Chart.js:
+- Genre distribution across your movie collection
+- Release trends over time
+- Average ratings by genre
+- Budget vs. revenue profitability analysis
+- Top production companies by movie count
+
 ## SQL Queries Showcase
 
 This project demonstrates various SQL concepts:
 
 - **Complex JOINs**: Multi-table queries joining movies, genres, cast, and crew
 - **Aggregations**: GROUP BY, COUNT, AVG for analytics
+- **Window Functions**: Ranking and statistical analysis
 - **Subqueries**: Finding similar movies based on genre overlap
 - **Indexes**: Performance optimization on frequently queried columns
 - **Many-to-Many Relationships**: Junction tables for movies-genres and movies-companies
 
-Example query from the analytics dashboard:
+Example query from the Top Actors page:
 ```sql
 SELECT
-    g.name,
-    AVG(m.vote_average) as avg_rating,
-    COUNT(m.id) as movie_count
-FROM genres g
-JOIN movie_genres mg ON g.id = mg.genre_id
-JOIN movies m ON mg.movie_id = m.id
-WHERE m.vote_count > 50
-GROUP BY g.name
-HAVING COUNT(m.id) >= 3
-ORDER BY avg_rating DESC;
+    p.id,
+    p.name,
+    COUNT(c.movie_id) as movie_count,
+    AVG(m.vote_average) as avg_rating
+FROM people p
+JOIN cast c ON p.id = c.person_id
+JOIN movies m ON c.movie_id = m.id
+WHERE m.vote_count > 20
+GROUP BY p.id, p.name
+HAVING COUNT(c.movie_id) >= 2
+ORDER BY movie_count DESC;
 ```
 
-## Key Features Demonstrated
+Example query for Hidden Gems:
+```sql
+SELECT *
+FROM movies
+WHERE vote_average >= 7.0
+  AND popularity <= 20.0
+  AND vote_count >= 50
+ORDER BY (vote_average / LOG(popularity + 2)) DESC;
+```
+
+## Key Skills Demonstrated
 
 ### Python Skills
 - Object-oriented programming with SQLAlchemy models
-- API integration and data parsing (TMDB API for trailers and metadata)
+- API integration and data parsing (TMDB API)
+- Complex query building with SQLAlchemy ORM
+- Data aggregation and statistical analysis
 - Error handling and data validation
 - Virtual environments and dependency management
 
 ### SQL Skills
 - Database schema design with normalization
-- Complex queries with multiple JOINs
-- Aggregate functions and GROUP BY
-- Many-to-many relationships
+- Complex queries with multiple JOINs and subqueries
+- Aggregate functions (COUNT, AVG, SUM) with GROUP BY
+- HAVING clauses for filtered aggregations
+- Many-to-many relationships via junction tables
 - Query optimization with indexes
 
 ### Web Development
 - RESTful routing with Flask
 - Template inheritance with Jinja2
-- Responsive design with Bootstrap
+- Responsive design with Bootstrap 5
 - Interactive data visualization with Chart.js
-- Client-side state management (dark mode toggle with localStorage)
-- YouTube embed integration for trailers
+- Client-side state management (dark mode with localStorage)
+- Dynamic filtering with URL parameters
+- Pagination for large datasets
+- YouTube embed integration
 
 ### Git & Version Control
+- Feature branch workflow
 - Meaningful commit messages
 - Proper .gitignore configuration
-- Branch management
 - Remote repository management
 
 ## Analytics Visualizations
@@ -202,15 +257,13 @@ All charts are fully responsive and adapt to dark mode for optimal viewing.
 
 - [ ] User authentication and personalized recommendations
 - [ ] Movie ratings and reviews system
-- [ ] Advanced filtering (by decade, rating range, runtime)
 - [ ] Favorites/watchlist system
-- [ ] Hidden Gems page - high rated, low popularity movies
-- [ ] Director Spotlight page
-- [ ] Export analytics reports as PDF
+- [ ] Director Spotlight page with filmographies
+- [ ] Export analytics reports as PDF/CSV
 - [ ] RESTful API endpoints
 - [ ] PostgreSQL migration for production
 - [ ] Docker containerization
-- [ ] Deployment to Heroku/Railway
+- [ ] Deployment to cloud platform
 
 ## Contributing
 
