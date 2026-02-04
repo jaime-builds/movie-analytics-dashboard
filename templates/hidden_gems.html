@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-4">
+    <h1><i class="bi bi-gem"></i> Hidden Gems</h1>
+    <p class="lead text-muted">Discover highly-rated movies that flew under the radar</p>
+</div>
+
+<!-- Filter Section -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <button class="btn btn-link text-decoration-none w-100 text-start" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="true">
+                <i class="bi bi-funnel"></i> Filters & Sorting
+                <i class="bi bi-chevron-down float-end"></i>
+            </button>
+        </h5>
+    </div>
+    <div class="collapse show" id="filterCollapse">
+        <div class="card-body">
+            <form method="get" action="{{ url_for('hidden_gems') }}" id="filterForm">
+                <div class="row g-3">
+                    <!-- Genre Filter -->
+                    <div class="col-md-3">
+                        <label for="genre" class="form-label">Genre</label>
+                        <select class="form-select" name="genre" id="genre">
+                            <option value="">All Genres</option>
+                            {% for genre in genres %}
+                            <option value="{{ genre.id }}" {% if current_genre == genre.id %}selected{% endif %}>
+                                {{ genre.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Decade Filter -->
+                    <div class="col-md-3">
+                        <label for="decade" class="form-label">Decade</label>
+                        <select class="form-select" name="decade" id="decade">
+                            <option value="">Any Decade</option>
+                            {% for decade in available_decades %}
+                            <option value="{{ decade }}" {% if current_decade == decade %}selected{% endif %}>
+                                {{ decade }}s
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Minimum Rating -->
+                    <div class="col-md-3">
+                        <label for="min_rating" class="form-label">Minimum Rating</label>
+                        <input type="number" class="form-control" name="min_rating" id="min_rating"
+                               min="0" max="10" step="0.1" value="{{ min_rating }}"
+                               placeholder="7.0">
+                    </div>
+
+                    <!-- Maximum Popularity -->
+                    <div class="col-md-3">
+                        <label for="max_popularity" class="form-label">Max Popularity</label>
+                        <input type="number" class="form-control" name="max_popularity" id="max_popularity"
+                               min="0" step="1" value="{{ max_popularity }}"
+                               placeholder="20.0">
+                        <small class="text-muted">Lower = more hidden</small>
+                    </div>
+
+                    <!-- Sort By -->
+                    <div class="col-md-4">
+                        <label for="sort" class="form-label">Sort By</label>
+                        <select class="form-select" name="sort" id="sort">
+                            <option value="gem_score" {% if current_sort == 'gem_score' %}selected{% endif %}>Gem Score (Best Overall)</option>
+                            <option value="rating" {% if current_sort == 'rating' %}selected{% endif %}>Highest Rating</option>
+                            <option value="most_hidden" {% if current_sort == 'most_hidden' %}selected{% endif %}>Most Hidden</option>
+                            <option value="release_date" {% if current_sort == 'release_date' %}selected{% endif %}>Newest First</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Filter Actions -->
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search"></i> Find Gems
+                        </button>
+                        <a href="{{ url_for('hidden_gems') }}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Reset
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Info Box -->
+<div class="alert alert-info mb-4" role="alert">
+    <i class="bi bi-info-circle"></i>
+    <strong>What makes a Hidden Gem?</strong>
+    High ratings ({{ min_rating }}+) with low popularity (≤{{ max_popularity }}).
+    These are critically acclaimed movies that deserve more attention!
+    <br>
+    <strong>Found {{ total_gems }} hidden gems</strong> matching your criteria.
+</div>
+
+<!-- Movies Grid -->
+<div class="row">
+    {% if movies %}
+        {% for movie in movies %}
+        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-4">
+            <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+                <div class="card movie-card h-100 position-relative">
+                    <!-- Gem Badge -->
+                    <div class="position-absolute top-0 start-0 m-2" style="z-index: 10;">
+                        <span class="badge bg-success" title="Gem Score: {{ movie.gem_score }}">
+                            <i class="bi bi-gem"></i> {{ movie.gem_score }}
+                        </span>
+                    </div>
+
+                    {% if movie.poster_path %}
+                    <img src="{{ config.get_poster_url(movie.poster_path, 'w300') }}"
+                         class="card-img-top"
+                         alt="{{ movie.title }}">
+                    {% else %}
+                    <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center" style="height: 450px;">
+                        <i class="bi bi-film" style="font-size: 3rem; color: #666;"></i>
+                    </div>
+                    {% endif %}
+
+                    <div class="card-body p-2">
+                        <h6 class="card-title small mb-1">{{ movie.title }}</h6>
+                        <p class="card-text small text-muted mb-1">
+                            {% if movie.release_date %}
+                            {{ movie.release_date.year }}
+                            {% endif %}
+                            {% if movie.runtime %}
+                            • {{ movie.runtime }}m
+                            {% endif %}
+                        </p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="badge bg-warning text-dark">
+                                <i class="bi bi-star-fill"></i> {{ movie.vote_average }}
+                            </span>
+                            <small class="text-muted">Pop: {{ "%.1f"|format(movie.popularity) }}</small>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="col-12">
+            <div class="alert alert-warning" role="alert">
+                <i class="bi bi-exclamation-triangle"></i>
+                No hidden gems found with these criteria. Try adjusting your filters:
+                <ul class="mb-0 mt-2">
+                    <li>Lower the minimum rating</li>
+                    <li>Increase the maximum popularity</li>
+                    <li>Try a different genre or decade</li>
+                </ul>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Pagination Controls -->
+{% if total_pages > 1 %}
+<nav aria-label="Hidden gems pagination" class="mt-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <p class="text-muted mb-0">
+            Page {{ page }} of {{ total_pages }} ({{ total_gems }} gems)
+        </p>
+
+        <ul class="pagination mb-0">
+            <!-- Previous Button -->
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link" href="?page={{ page - 1 }}&sort={{ current_sort }}&min_rating={{ min_rating }}&max_popularity={{ max_popularity }}{% if current_genre %}&genre={{ current_genre }}{% endif %}{% if current_decade %}&decade={{ current_decade }}{% endif %}">
+                    Previous
+                </a>
+            </li>
+
+            <!-- Page Numbers -->
+            {% for p in range(1, total_pages + 1) %}
+                {% if p == page %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ p }}</span>
+                    </li>
+                {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ p }}&sort={{ current_sort }}&min_rating={{ min_rating }}&max_popularity={{ max_popularity }}{% if current_genre %}&genre={{ current_genre }}{% endif %}{% if current_decade %}&decade={{ current_decade }}{% endif %}">
+                            {{ p }}
+                        </a>
+                    </li>
+                {% elif p == page - 3 or p == page + 3 %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            <!-- Next Button -->
+            <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                <a class="page-link" href="?page={{ page + 1 }}&sort={{ current_sort }}&min_rating={{ min_rating }}&max_popularity={{ max_popularity }}{% if current_genre %}&genre={{ current_genre }}{% endif %}{% if current_decade %}&decade={{ current_decade }}{% endif %}">
+                    Next
+                </a>
+            </li>
+        </ul>
+    </div>
+</nav>
+{% endif %}
+
+<style>
+.movie-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.movie-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+}
+</style>
+
+{% endblock %}

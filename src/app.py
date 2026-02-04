@@ -188,6 +188,103 @@ def movies():
         session.close()
 
 
+@app.route("/hidden-gems")
+def hidden_gems():
+    """Hidden gems page - high rated, low popularity movies"""
+    session = get_db_session()
+
+    try:
+        # Get filter parameters
+        genre_id = request.args.get("genre", type=int)
+        decade = request.args.get("decade", type=int)
+        min_rating = request.args.get("min_rating", default=7.0, type=float)
+        max_popularity = request.args.get("max_popularity", default=20.0, type=float)
+        sort_by = request.args.get("sort", default="gem_score")
+        page = request.args.get("page", default=1, type=int)
+        per_page = 24
+
+        # Base query for hidden gems
+        # High rating, low popularity, sufficient votes for credibility
+        query = session.query(Movie).filter(
+            Movie.vote_average >= min_rating,
+            Movie.popularity <= max_popularity,
+            Movie.vote_count >= 50,  # Ensure credible ratings
+        )
+
+        # Apply genre filter
+        if genre_id:
+            query = query.join(Movie.genres).filter(Genre.id == genre_id)
+
+        # Apply decade filter
+        if decade:
+            decade_start = decade
+            decade_end = decade + 9
+            query = query.filter(
+                extract("year", Movie.release_date) >= decade_start,
+                extract("year", Movie.release_date) <= decade_end,
+            )
+
+        # Apply sorting
+        if sort_by == "rating":
+            query = query.order_by(desc(Movie.vote_average))
+        elif sort_by == "most_hidden":
+            # Most hidden = lowest popularity
+            query = query.order_by(Movie.popularity)
+        elif sort_by == "release_date":
+            query = query.filter(Movie.release_date.isnot(None)).order_by(desc(Movie.release_date))
+        else:  # gem_score (default)
+            # Gem score = balance of high rating and low popularity
+            # Formula: (rating / 10) * (1 / log(popularity + 1))
+            # Higher score = better gem
+            query = query.order_by(desc(Movie.vote_average / (func.log(Movie.popularity + 2) * 2)))
+
+        # Get total count for pagination
+        total_gems = query.count()
+
+        # Apply pagination
+        offset = (page - 1) * per_page
+        gems = query.limit(per_page).offset(offset).all()
+
+        # Calculate gem score for each movie (for display)
+        for movie in gems:
+            # Simple gem score formula - convert Decimal to float first
+            rating = float(movie.vote_average)
+            popularity = float(movie.popularity)
+
+        if popularity > 0:
+            movie.gem_score = round((rating / 10.0) * (100.0 / (popularity + 10)), 2)
+        else:
+            movie.gem_score = round(rating, 2)
+
+        # Get all genres for filter
+        all_genres = session.query(Genre).order_by(Genre.name).all()
+
+        # Generate decade options
+        current_year = datetime.now().year
+        available_decades = list(range(1920, current_year + 1, 10))
+
+        # Calculate pagination info
+        total_pages = (total_gems + per_page - 1) // per_page
+
+        return render_template(
+            "hidden_gems.html",
+            movies=gems,
+            genres=all_genres,
+            current_genre=genre_id,
+            current_decade=decade,
+            current_sort=sort_by,
+            min_rating=min_rating,
+            max_popularity=max_popularity,
+            page=page,
+            total_pages=total_pages,
+            total_gems=total_gems,
+            available_decades=available_decades,
+            config=Config,
+        )
+    finally:
+        session.close()
+
+
 @app.route("/top-actors")
 def top_actors():
     """Top actors page - most frequently appearing actors"""
@@ -200,7 +297,6 @@ def top_actors():
         per_page = 24  # 4 rows of 6 actors
 
         # Query to get actors with their movie counts and average ratings
-        # We use a subquery to get movie statistics per actor
         actor_stats = (
             session.query(
                 Person.id,
@@ -213,9 +309,9 @@ def top_actors():
             )
             .join(Cast, Person.id == Cast.person_id)
             .join(Movie, Cast.movie_id == Movie.id)
-            .filter(Movie.vote_count > 20)  # Only count movies with sufficient votes
+            .filter(Movie.vote_count > 20)
             .group_by(Person.id, Person.name, Person.profile_path, Person.popularity)
-            .having(func.count(Cast.movie_id) >= 2)  # At least 2 movies
+            .having(func.count(Cast.movie_id) >= 2)
         )
 
         # Apply sorting
