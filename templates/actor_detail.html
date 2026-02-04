@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <!-- Actor Profile Section -->
+    <div class="col-md-3">
+        <div class="card mb-4">
+            {% if actor.profile_path %}
+            <img src="{{ config.get_poster_url(actor.profile_path, 'w500') }}"
+                 class="card-img-top"
+                 alt="{{ actor.name }}">
+            {% else %}
+            <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center" style="height: 500px;">
+                <i class="bi bi-person-circle" style="font-size: 8rem; color: #666;"></i>
+            </div>
+            {% endif %}
+            <div class="card-body">
+                <h4 class="card-title">{{ actor.name }}</h4>
+
+                {% if actor.birthday %}
+                <p class="card-text small text-muted">
+                    <i class="bi bi-calendar"></i> Born: {{ actor.birthday|format_date }}
+                </p>
+                {% endif %}
+
+                {% if actor.place_of_birth %}
+                <p class="card-text small text-muted">
+                    <i class="bi bi-geo-alt"></i> {{ actor.place_of_birth }}
+                </p>
+                {% endif %}
+
+                <!-- Statistics -->
+                <div class="mt-3">
+                    <h6>Career Statistics</h6>
+                    <ul class="list-unstyled small">
+                        <li><strong>Movies:</strong> {{ total_movies }}</li>
+                        {% if avg_rating %}
+                        <li><strong>Avg Rating:</strong> <i class="bi bi-star-fill text-warning"></i> {{ avg_rating }}</li>
+                        {% endif %}
+                        {% if actor.popularity %}
+                        <li><strong>Popularity:</strong> {{ "%.1f"|format(actor.popularity) }}</li>
+                        {% endif %}
+                    </ul>
+                </div>
+
+                <!-- Top Genres -->
+                {% if top_genres %}
+                <div class="mt-3">
+                    <h6>Top Genres</h6>
+                    <div>
+                        {% for genre, count in top_genres %}
+                        <span class="badge bg-secondary me-1 mb-1">{{ genre }} ({{ count }})</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Biography -->
+        {% if actor.biography %}
+        <div class="card mb-4">
+            <div class="card-body">
+                <h6 class="card-title">Biography</h6>
+                <p class="card-text small" style="max-height: 300px; overflow-y: auto;">
+                    {{ actor.biography }}
+                </p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Filmography Section -->
+    <div class="col-md-9">
+        <h2 class="mb-4">Filmography ({{ total_movies }} movies)</h2>
+
+        {% if filmography %}
+        <div class="row">
+            {% for movie, character, cast_order in filmography %}
+            <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-4">
+                <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+                    <div class="card movie-card h-100">
+                        {% if movie.poster_path %}
+                        <img src="{{ config.get_poster_url(movie.poster_path, 'w300') }}"
+                             class="card-img-top"
+                             alt="{{ movie.title }}">
+                        {% else %}
+                        <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center" style="height: 450px;">
+                            <i class="bi bi-film" style="font-size: 3rem; color: #666;"></i>
+                        </div>
+                        {% endif %}
+                        <div class="card-body p-2">
+                            <h6 class="card-title small mb-1">{{ movie.title }}</h6>
+                            <p class="card-text small text-muted mb-1">
+                                {% if movie.release_date %}
+                                {{ movie.release_date.year }}
+                                {% endif %}
+                            </p>
+                            {% if character %}
+                            <p class="card-text small text-info mb-1" style="font-style: italic;">
+                                as {{ character }}
+                            </p>
+                            {% endif %}
+                            <span class="badge bg-warning text-dark">
+                                <i class="bi bi-star-fill"></i> {{ movie.vote_average }}
+                            </span>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="alert alert-info" role="alert">
+            <i class="bi bi-info-circle"></i> No filmography available.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.movie-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.movie-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+}
+</style>
+
+{% endblock %}
