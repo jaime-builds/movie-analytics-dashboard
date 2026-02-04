@@ -55,11 +55,11 @@ def index():
             .all()
         )
 
-        # Get recent movies
+        # Get upcoming releases (soonest first)
         recent_movies = (
             session.query(Movie)
-            .filter(Movie.release_date.isnot(None))
-            .order_by(desc(Movie.release_date))
+            .filter(Movie.release_date >= datetime.now().date())
+            .order_by(Movie.release_date)
             .limit(12)
             .all()
         )
@@ -86,7 +86,7 @@ def movies():
     try:
         # Get filter parameters
         genre_id = request.args.get("genre", type=int)
-        sort_by = request.args.get("sort", default="popularity")
+        sort_by = request.args.get("sort", default="title")
         page = request.args.get("page", default=1, type=int)
 
         # Base query
@@ -324,6 +324,14 @@ def format_runtime(minutes):
     hours = minutes // 60
     mins = minutes % 60
     return f"{hours}h {mins}m"
+
+
+@app.template_filter("format_date")
+def format_date(date_obj):
+    """Format date as 'Month Day, Year' (e.g., March 23, 2026)"""
+    if not date_obj:
+        return "N/A"
+    return date_obj.strftime("%B %d, %Y")
 
 
 if __name__ == "__main__":

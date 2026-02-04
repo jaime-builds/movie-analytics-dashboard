@@ -44,7 +44,7 @@
     {% endfor %}
 </div>
 
-<h2 class="mb-3">Recent Releases</h2>
+<h2 class="mb-3">Upcoming Releases</h2>
 <div class="row mb-5">
     {% for movie in recent_movies %}
     <div class="col-md-2 col-sm-4 col-6 mb-3">
@@ -63,7 +63,7 @@
                     <h6 class="card-title small mb-1">{{ movie.title }}</h6>
                     <p class="card-text small text-muted mb-1">
                         {% if movie.release_date %}
-                        {{ movie.release_date.year }}
+                        {{ movie.release_date|format_date }}
                         {% endif %}
                     </p>
                     <p class="card-text small">
