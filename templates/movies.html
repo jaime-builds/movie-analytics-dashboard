@@ -2,27 +2,201 @@
 
 {% block content %}
 <h1>All Movies</h1>
-<div class="row">
-    {% for movie in movies %}
-    <div class="col-md-2 col-sm-4 col-6 mb-3">
-        <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
-            <div class="card movie-card h-100">
-                {% if movie.poster_path %}
-                <img src="{{ config.get_poster_url(movie.poster_path, 'w300') }}" class="card-img-top" alt="{{ movie.title }}">
-                {% endif %}
-                <div class="card-body p-2">
-                    <h6 class="card-title small">{{ movie.title }}</h6>
-                    <span class="badge bg-warning text-dark">
-                        <i class="bi bi-star-fill"></i> {{ movie.vote_average }}
-                    </span>
-                </div>
-            </div>
-        </a>
+
+<!-- Filter Section -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <button class="btn btn-link text-decoration-none w-100 text-start" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="true" aria-controls="filterCollapse">
+                <i class="bi bi-funnel"></i> Filters & Sorting
+                <i class="bi bi-chevron-down float-end"></i>
+            </button>
+        </h5>
     </div>
-    {% endfor %}
+    <div class="collapse show" id="filterCollapse">
+        <div class="card-body">
+            <form method="get" action="{{ url_for('movies') }}" id="filterForm">
+                <div class="row g-3">
+                    <!-- Genre Filter -->
+                    <div class="col-md-3">
+                        <label for="genre" class="form-label">Genre</label>
+                        <select class="form-select" name="genre" id="genre">
+                            <option value="">All Genres</option>
+                            {% for genre in genres %}
+                            <option value="{{ genre.id }}" {% if current_genre == genre.id %}selected{% endif %}>
+                                {{ genre.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Sort By -->
+                    <div class="col-md-3">
+                        <label for="sort" class="form-label">Sort By</label>
+                        <select class="form-select" name="sort" id="sort">
+                            <option value="popularity" {% if current_sort == 'popularity' %}selected{% endif %}>Popularity</option>
+                            <option value="rating" {% if current_sort == 'rating' %}selected{% endif %}>Rating</option>
+                            <option value="release_date" {% if current_sort == 'release_date' %}selected{% endif %}>Release Date</option>
+                            <option value="title" {% if current_sort == 'title' %}selected{% endif %}>Title</option>
+                        </select>
+                    </div>
+
+                    <!-- Year Filter -->
+                    <div class="col-md-3">
+                        <label for="year" class="form-label">Year</label>
+                        <select class="form-select" name="year" id="year">
+                            <option value="">Any Year</option>
+                            {% for year in available_years %}
+                            <option value="{{ year }}" {% if selected_year == year %}selected{% endif %}>
+                                {{ year }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Decade Filter -->
+                    <div class="col-md-3">
+                        <label for="decade" class="form-label">Decade</label>
+                        <select class="form-select" name="decade" id="decade">
+                            <option value="">Any Decade</option>
+                            {% for decade in available_decades %}
+                            <option value="{{ decade }}" {% if selected_decade == decade %}selected{% endif %}>
+                                {{ decade }}s
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Rating Range -->
+                    <div class="col-md-6">
+                        <label class="form-label">Rating Range</label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <input type="number" class="form-control" name="rating_min"
+                                       placeholder="Min (0.0)" min="0" max="10" step="0.1"
+                                       value="{% if selected_rating_min %}{{ selected_rating_min }}{% endif %}">
+                            </div>
+                            <div class="col-6">
+                                <input type="number" class="form-control" name="rating_max"
+                                       placeholder="Max (10.0)" min="0" max="10" step="0.1"
+                                       value="{% if selected_rating_max %}{{ selected_rating_max }}{% endif %}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Runtime Range -->
+                    <div class="col-md-6">
+                        <label class="form-label">Runtime (minutes)</label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <input type="number" class="form-control" name="runtime_min"
+                                       placeholder="Min" min="0"
+                                       value="{% if selected_runtime_min %}{{ selected_runtime_min }}{% endif %}">
+                            </div>
+                            <div class="col-6">
+                                <input type="number" class="form-control" name="runtime_max"
+                                       placeholder="Max" min="0"
+                                       value="{% if selected_runtime_max %}{{ selected_runtime_max }}{% endif %}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filter Actions -->
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search"></i> Apply Filters
+                        </button>
+                        <a href="{{ url_for('movies') }}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Clear All
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Active Filters Display -->
+{% set has_filters = current_genre or selected_year or selected_decade or selected_rating_min or selected_rating_max or selected_runtime_min or selected_runtime_max %}
+{% if has_filters %}
+<div class="alert alert-info d-flex align-items-center mb-3" role="alert">
+    <i class="bi bi-info-circle me-2"></i>
+    <div>
+        <strong>Active Filters:</strong>
+        {% if current_genre %}
+            {% for genre in genres %}
+                {% if genre.id == current_genre %}
+                    <span class="badge bg-primary me-1">Genre: {{ genre.name }}</span>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+        {% if selected_year %}
+            <span class="badge bg-primary me-1">Year: {{ selected_year }}</span>
+        {% endif %}
+        {% if selected_decade %}
+            <span class="badge bg-primary me-1">Decade: {{ selected_decade }}s</span>
+        {% endif %}
+        {% if selected_rating_min %}
+            <span class="badge bg-primary me-1">Rating ≥ {{ selected_rating_min }}</span>
+        {% endif %}
+        {% if selected_rating_max %}
+            <span class="badge bg-primary me-1">Rating ≤ {{ selected_rating_max }}</span>
+        {% endif %}
+        {% if selected_runtime_min %}
+            <span class="badge bg-primary me-1">Runtime ≥ {{ selected_runtime_min }}m</span>
+        {% endif %}
+        {% if selected_runtime_max %}
+            <span class="badge bg-primary me-1">Runtime ≤ {{ selected_runtime_max }}m</span>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Movie Grid -->
+<div class="row">
+    {% if movies %}
+        {% for movie in movies %}
+        <div class="col-md-2 col-sm-4 col-6 mb-3">
+            <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+                <div class="card movie-card h-100">
+                    {% if movie.poster_path %}
+                    <img src="{{ config.get_poster_url(movie.poster_path, 'w300') }}" class="card-img-top" alt="{{ movie.title }}">
+                    {% else %}
+                    <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center" style="height: 450px;">
+                        <i class="bi bi-film" style="font-size: 3rem; color: #666;"></i>
+                    </div>
+                    {% endif %}
+                    <div class="card-body p-2">
+                        <h6 class="card-title small mb-1">{{ movie.title }}</h6>
+                        <p class="card-text small text-muted mb-1">
+                            {% if movie.release_date %}
+                            {{ movie.release_date.year }}
+                            {% endif %}
+                            {% if movie.runtime %}
+                            • {{ movie.runtime }}m
+                            {% endif %}
+                        </p>
+                        <span class="badge bg-warning text-dark">
+                            <i class="bi bi-star-fill"></i> {{ movie.vote_average }}
+                        </span>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="col-12">
+            <div class="alert alert-warning" role="alert">
+                <i class="bi bi-exclamation-triangle"></i> No movies found matching your filters. Try adjusting your search criteria.
+            </div>
+        </div>
+    {% endif %}
 </div>
 
 <!-- Pagination Controls -->
+{% if total_pages > 1 %}
 <nav aria-label="Movie pagination" class="mt-4">
     <div class="d-flex justify-content-between align-items-center">
         <p class="text-muted mb-0">
@@ -32,7 +206,7 @@
         <ul class="pagination mb-0">
             <!-- Previous Button -->
             <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-                <a class="page-link" href="?page={{ page - 1 }}&sort={{ current_sort }}{% if current_genre %}&genre={{ current_genre }}{% endif %}">
+                <a class="page-link" href="?page={{ page - 1 }}&sort={{ current_sort }}{% if current_genre %}&genre={{ current_genre }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_decade %}&decade={{ selected_decade }}{% endif %}{% if selected_rating_min %}&rating_min={{ selected_rating_min }}{% endif %}{% if selected_rating_max %}&rating_max={{ selected_rating_max }}{% endif %}{% if selected_runtime_min %}&runtime_min={{ selected_runtime_min }}{% endif %}{% if selected_runtime_max %}&runtime_max={{ selected_runtime_max }}{% endif %}">
                     Previous
                 </a>
             </li>
@@ -45,7 +219,7 @@
                     </li>
                 {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ p }}&sort={{ current_sort }}{% if current_genre %}&genre={{ current_genre }}{% endif %}">
+                        <a class="page-link" href="?page={{ p }}&sort={{ current_sort }}{% if current_genre %}&genre={{ current_genre }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_decade %}&decade={{ selected_decade }}{% endif %}{% if selected_rating_min %}&rating_min={{ selected_rating_min }}{% endif %}{% if selected_rating_max %}&rating_max={{ selected_rating_max }}{% endif %}{% if selected_runtime_min %}&runtime_min={{ selected_runtime_min }}{% endif %}{% if selected_runtime_max %}&runtime_max={{ selected_runtime_max }}{% endif %}">
                             {{ p }}
                         </a>
                     </li>
@@ -58,12 +232,28 @@
 
             <!-- Next Button -->
             <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
-                <a class="page-link" href="?page={{ page + 1 }}&sort={{ current_sort }}{% if current_genre %}&genre={{ current_genre }}{% endif %}">
+                <a class="page-link" href="?page={{ page + 1 }}&sort={{ current_sort }}{% if current_genre %}&genre={{ current_genre }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_decade %}&decade={{ selected_decade }}{% endif %}{% if selected_rating_min %}&rating_min={{ selected_rating_min }}{% endif %}{% if selected_rating_max %}&rating_max={{ selected_rating_max }}{% endif %}{% if selected_runtime_min %}&runtime_min={{ selected_runtime_min }}{% endif %}{% if selected_runtime_max %}&runtime_max={{ selected_runtime_max }}{% endif %}">
                     Next
                 </a>
             </li>
         </ul>
     </div>
 </nav>
+{% endif %}
+
+<script>
+// Auto-clear year when decade is selected and vice versa
+document.getElementById('year').addEventListener('change', function() {
+    if (this.value) {
+        document.getElementById('decade').value = '';
+    }
+});
+
+document.getElementById('decade').addEventListener('change', function() {
+    if (this.value) {
+        document.getElementById('year').value = '';
+    }
+});
+</script>
 
 {% endblock %}
