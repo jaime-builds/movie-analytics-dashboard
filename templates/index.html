@@ -17,8 +17,8 @@
         <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
             <div class="card movie-card h-100">
                 {% if movie.poster_path %}
-                <img src="{{ config.get_poster_url(movie.poster_path, 'w300') }}" 
-                     class="card-img-top" 
+                <img src="{{ config.get_poster_url(movie.poster_path, 'w300') }}"
+                     class="card-img-top"
                      alt="{{ movie.title }}">
                 {% else %}
                 <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center" style="height: 450px;">
@@ -51,8 +51,8 @@
         <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
             <div class="card movie-card h-100">
                 {% if movie.poster_path %}
-                <img src="{{ config.get_poster_url(movie.poster_path, 'w300') }}" 
-                     class="card-img-top" 
+                <img src="{{ config.get_poster_url(movie.poster_path, 'w300') }}"
+                     class="card-img-top"
                      alt="{{ movie.title }}">
                 {% else %}
                 <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center" style="height: 450px;">
@@ -85,8 +85,8 @@
         <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
             <div class="card movie-card h-100">
                 {% if movie.poster_path %}
-                <img src="{{ config.get_poster_url(movie.poster_path, 'w300') }}" 
-                     class="card-img-top" 
+                <img src="{{ config.get_poster_url(movie.poster_path, 'w300') }}"
+                     class="card-img-top"
                      alt="{{ movie.title }}">
                 {% else %}
                 <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center" style="height: 450px;">

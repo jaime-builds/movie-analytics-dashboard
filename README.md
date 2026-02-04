@@ -85,10 +85,10 @@ movie-analytics-dashboard/
 2. **Create and activate virtual environment**
 ```bash
    python -m venv venv
-   
+
    # On Windows
    .\venv\Scripts\activate
-   
+
    # On macOS/Linux
    source venv/bin/activate
 ```
@@ -105,7 +105,7 @@ movie-analytics-dashboard/
    - Copy your API Key (v3 auth)
 
 5. **Configure environment variables**
-   
+
    Create `config/.env`:
 ```
    TMDB_API_KEY=your_api_key_here
@@ -127,7 +127,7 @@ movie-analytics-dashboard/
 ```bash
    python -m src.app
 ```
-   
+
    Open your browser to: `http://127.0.0.1:5000`
 
 ## SQL Queries Showcase
@@ -142,7 +142,7 @@ This project demonstrates various SQL concepts:
 
 Example query from the analytics dashboard:
 ```sql
-SELECT 
+SELECT
     g.name,
     AVG(m.vote_average) as avg_rating,
     COUNT(m.id) as movie_count

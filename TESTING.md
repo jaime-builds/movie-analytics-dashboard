@@ -95,10 +95,10 @@ def test_search_finds_movies(client, sample_movie):
     """Test that search finds movies by title"""
     # Make request to search endpoint
     response = client.get('/search?q=Fight')
-    
+
     # Assert response is successful
     assert response.status_code == 200
-    
+
     # Assert movie title is in response
     assert b'Fight Club' in response.data
 ```
@@ -201,7 +201,7 @@ def test_create_model(db_session):
     model = Movie(title="Test", tmdb_id=123)
     db_session.add(model)
     db_session.commit()
-    
+
     assert model.id is not None
     assert model.title == "Test"
 ```
@@ -217,7 +217,7 @@ def test_api_call(mock_get):
     mock_response.status_code = 200
     mock_response.json.return_value = {'results': []}
     mock_get.return_value = mock_response
-    
+
     # Your test code here
 ```
 
@@ -228,10 +228,10 @@ def test_relationship(db_session):
     movie = Movie(title="Test", tmdb_id=1)
     genre = Genre(name="Action", tmdb_id=28)
     movie.genres.append(genre)
-    
+
     db_session.add(movie)
     db_session.commit()
-    
+
     assert len(movie.genres) == 1
     assert genre in movie.genres
 ```
@@ -271,7 +271,7 @@ pytest --ff  # failed first
    # Good
    def test_movie_title(sample_movie):
        assert sample_movie.title == "Fight Club"
-   
+
    def test_movie_rating(sample_movie):
        assert sample_movie.vote_average == 8.4
    ```
@@ -280,7 +280,7 @@ pytest --ff  # failed first
    ```python
    # Good
    def test_search_finds_movies_by_title()
-   
+
    # Bad
    def test_search()
    ```
@@ -290,10 +290,10 @@ pytest --ff  # failed first
    def test_example():
        # Arrange - set up test data
        movie = Movie(title="Test")
-       
+
        # Act - perform the action
        result = movie.title.upper()
-       
+
        # Assert - verify the result
        assert result == "TEST"
    ```
@@ -346,14 +346,14 @@ For testing with many movies:
 ```python
 def test_performance(db_session):
     import time
-    
+
     # Create 1000 movies
     start = time.time()
     movies = [Movie(title=f"Movie {i}", tmdb_id=i) for i in range(1000)]
     db_session.add_all(movies)
     db_session.commit()
     duration = time.time() - start
-    
+
     # Should complete in reasonable time
     assert duration < 5.0  # 5 seconds
 ```
