@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Dict, Optional
 
 from flask import Flask, jsonify, render_template, request
-from sqlalchemy import desc, func
+from sqlalchemy import and_, desc, extract, func
 
 from config.config import Config
 from src.models import Cast, Crew, Genre, Movie, Person, ProductionCompany, Session
@@ -89,12 +89,45 @@ def movies():
         sort_by = request.args.get("sort", default="title")
         page = request.args.get("page", default=1, type=int)
 
+        # Advanced filter parameters
+        year = request.args.get("year", type=int)
+        decade = request.args.get("decade", type=int)
+        rating_min = request.args.get("rating_min", type=float)
+        rating_max = request.args.get("rating_max", type=float)
+        runtime_min = request.args.get("runtime_min", type=int)
+        runtime_max = request.args.get("runtime_max", type=int)
+
         # Base query
         query = session.query(Movie)
 
         # Apply genre filter
         if genre_id:
             query = query.join(Movie.genres).filter(Genre.id == genre_id)
+
+        # Apply year filter
+        if year:
+            query = query.filter(extract("year", Movie.release_date) == year)
+
+        # Apply decade filter (takes precedence over year if both provided)
+        if decade:
+            decade_start = decade
+            decade_end = decade + 9
+            query = query.filter(
+                extract("year", Movie.release_date) >= decade_start,
+                extract("year", Movie.release_date) <= decade_end,
+            )
+
+        # Apply rating range filter
+        if rating_min is not None:
+            query = query.filter(Movie.vote_average >= rating_min)
+        if rating_max is not None:
+            query = query.filter(Movie.vote_average <= rating_max)
+
+        # Apply runtime range filter
+        if runtime_min is not None:
+            query = query.filter(Movie.runtime >= runtime_min)
+        if runtime_max is not None:
+            query = query.filter(Movie.runtime <= runtime_max)
 
         # Apply sorting
         if sort_by == "rating":
@@ -115,6 +148,20 @@ def movies():
         # Get all genres for filter dropdown
         all_genres = session.query(Genre).order_by(Genre.name).all()
 
+        # Get available years for filter (distinct years from movies)
+        available_years = (
+            session.query(extract("year", Movie.release_date).label("year"))
+            .filter(Movie.release_date.isnot(None))
+            .distinct()
+            .order_by(desc("year"))
+            .all()
+        )
+        available_years = [int(y[0]) for y in available_years if y[0]]
+
+        # Generate decade options (1920s to 2020s)
+        current_year = datetime.now().year
+        available_decades = list(range(1920, current_year + 1, 10))
+
         # Calculate pagination info
         total_pages = (total_movies + per_page - 1) // per_page
 
@@ -127,6 +174,14 @@ def movies():
             page=page,
             total_pages=total_pages,
             total_movies=total_movies,
+            available_years=available_years,
+            available_decades=available_decades,
+            selected_year=year,
+            selected_decade=decade,
+            selected_rating_min=rating_min,
+            selected_rating_max=rating_max,
+            selected_runtime_min=runtime_min,
+            selected_runtime_max=runtime_max,
             config=Config,
         )
     finally:
