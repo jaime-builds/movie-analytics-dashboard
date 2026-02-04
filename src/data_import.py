@@ -1,8 +1,10 @@
-from src.tmdb_api import TMDBClient
-from src.models import Session, Movie, Genre, Person, Cast, Crew, ProductionCompany
 from datetime import datetime
-from sqlalchemy.exc import IntegrityError
 from typing import Optional
+
+from sqlalchemy.exc import IntegrityError
+
+from src.models import Cast, Crew, Genre, Movie, Person, ProductionCompany, Session
+from src.tmdb_api import TMDBClient
 
 
 class DataImporter:

@@ -1,6 +1,8 @@
-import requests
-from config.config import Config
 from typing import Dict, List, Optional
+
+import requests
+
+from config.config import Config
 
 
 class TMDBClient:

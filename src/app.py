@@ -1,10 +1,12 @@
-from flask import Flask, render_template, request, jsonify
-from sqlalchemy import func, desc
-from src.models import Session, Movie, Genre, Person, Cast, Crew, ProductionCompany
-from src.tmdb_api import TMDBClient
-from config.config import Config
 from datetime import datetime
-from typing import Optional, Dict
+from typing import Dict, Optional
+
+from flask import Flask, jsonify, render_template, request
+from sqlalchemy import desc, func
+
+from config.config import Config
+from src.models import Cast, Crew, Genre, Movie, Person, ProductionCompany, Session
+from src.tmdb_api import TMDBClient
 
 app = Flask(__name__, template_folder="../templates", static_folder="../static")
 app.config.from_object(Config)

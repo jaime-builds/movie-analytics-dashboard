@@ -1,19 +1,21 @@
+from datetime import datetime
+
 from sqlalchemy import (
-    create_engine,
-    Column,
-    Integer,
-    String,
-    Text,
-    Date,
     DECIMAL,
     BigInteger,
+    Column,
+    Date,
     DateTime,
     ForeignKey,
+    Integer,
+    String,
     Table,
+    Text,
+    create_engine,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
-from datetime import datetime
+
 from config.config import Config
 
 Base = declarative_base()
