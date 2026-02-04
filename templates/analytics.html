@@ -72,23 +72,11 @@
         </div>
     </div>
 </div>
-
-<!-- Budget vs Revenue -->
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title text-center">Budget vs Revenue (Top 10)</h5>
-                <canvas id="budgetRevenueChart" style="min-height: 500px;"></canvas>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    // --- Genre Distribution Pie Chart (existing) ---
+    // --- Genre Distribution Pie Chart ---
     const genreLabels = {{ genre_stats | map(attribute='name') | list | tojson }};
     const genreCounts = {{ genre_stats | map(attribute='count') | list | tojson }};
 
@@ -223,68 +211,6 @@
                     callbacks: {
                         afterLabel: function(context) {
                             return 'Avg Rating: ' + parseFloat(companyRatings[context.dataIndex]).toFixed(1);
-                        }
-                    }
-                }
-            }
-        }
-    });
-
-    // --- Budget vs Revenue Grouped Horizontal Bar Chart ---
-    const brLabels = [
-        {% for movie in budget_revenue %}'{{ movie.title | replace("'", "\\'") }}'{% if not loop.last %}, {% endif %}{% endfor %}
-    ];
-    const brBudgets = [
-        {% for movie in budget_revenue %}{{ movie.budget }}{% if not loop.last %}, {% endif %}{% endfor %}
-    ];
-    const brRevenues = [
-        {% for movie in budget_revenue %}{{ movie.revenue }}{% if not loop.last %}, {% endif %}{% endfor %}
-    ];
-
-    new Chart(document.getElementById('budgetRevenueChart'), {
-        type: 'bar',
-        data: {
-            labels: brLabels,
-            datasets: [
-                {
-                    label: 'Budget',
-                    data: brBudgets,
-                    backgroundColor: '#e74c3c',
-                    borderColor: '#c0392b',
-                    borderWidth: 1
-                },
-                {
-                    label: 'Revenue',
-                    data: brRevenues,
-                    backgroundColor: '#2ecc71',
-                    borderColor: '#27ae60',
-                    borderWidth: 1
-                }
-            ]
-        },
-        options: {
-            indexAxis: 'y',
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: {
-                    beginAtZero: true,
-                    title: { display: true, text: 'Amount (USD)' },
-                    ticks: {
-                        callback: function(value) {
-                            if (value >= 1e9) return '$' + (value / 1e9).toFixed(1) + 'B';
-                            if (value >= 1e6) return '$' + (value / 1e6).toFixed(0) + 'M';
-                            return '$' + value;
-                        }
-                    }
-                }
-            },
-            plugins: {
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            var val = context.raw;
-                            return context.dataset.label + ': $' + val.toLocaleString();
                         }
                     }
                 }

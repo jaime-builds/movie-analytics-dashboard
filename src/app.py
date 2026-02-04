@@ -272,7 +272,7 @@ def analytics():
             genre_stats=genre_stats,
             year_stats=year_stats,
             genre_ratings=genre_ratings,
-            budget_revenue=budget_revenue,
+            budget_revenue=top_budget_movies,
             top_companies=top_companies,
             total_movies=total_movies,
             avg_rating=round(avg_rating, 1) if avg_rating else 0,
