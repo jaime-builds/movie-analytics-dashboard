@@ -188,6 +188,124 @@ def movies():
         session.close()
 
 
+@app.route("/top-actors")
+def top_actors():
+    """Top actors page - most frequently appearing actors"""
+    session = get_db_session()
+
+    try:
+        # Get query parameters for sorting and pagination
+        sort_by = request.args.get("sort", default="movie_count")
+        page = request.args.get("page", default=1, type=int)
+        per_page = 24  # 4 rows of 6 actors
+
+        # Query to get actors with their movie counts and average ratings
+        # We use a subquery to get movie statistics per actor
+        actor_stats = (
+            session.query(
+                Person.id,
+                Person.name,
+                Person.profile_path,
+                Person.popularity,
+                func.count(Cast.movie_id).label("movie_count"),
+                func.avg(Movie.vote_average).label("avg_rating"),
+                func.max(Movie.release_date).label("latest_movie_date"),
+            )
+            .join(Cast, Person.id == Cast.person_id)
+            .join(Movie, Cast.movie_id == Movie.id)
+            .filter(Movie.vote_count > 20)  # Only count movies with sufficient votes
+            .group_by(Person.id, Person.name, Person.profile_path, Person.popularity)
+            .having(func.count(Cast.movie_id) >= 2)  # At least 2 movies
+        )
+
+        # Apply sorting
+        if sort_by == "rating":
+            actor_stats = actor_stats.order_by(desc("avg_rating"))
+        elif sort_by == "name":
+            actor_stats = actor_stats.order_by(Person.name)
+        elif sort_by == "popularity":
+            actor_stats = actor_stats.order_by(desc(Person.popularity))
+        else:  # movie_count (default)
+            actor_stats = actor_stats.order_by(desc("movie_count"), desc("avg_rating"))
+
+        # Get total count for pagination
+        total_actors = actor_stats.count()
+
+        # Apply pagination
+        offset = (page - 1) * per_page
+        actors = actor_stats.limit(per_page).offset(offset).all()
+
+        # Calculate pagination info
+        total_pages = (total_actors + per_page - 1) // per_page
+
+        return render_template(
+            "top_actors.html",
+            actors=actors,
+            current_sort=sort_by,
+            page=page,
+            total_pages=total_pages,
+            total_actors=total_actors,
+            config=Config,
+        )
+    finally:
+        session.close()
+
+
+@app.route("/actor/<int:actor_id>")
+def actor_detail(actor_id):
+    """Actor detail page showing their filmography"""
+    session = get_db_session()
+
+    try:
+        # Get actor info
+        actor = session.query(Person).filter_by(id=actor_id).first()
+
+        if not actor:
+            return "Actor not found", 404
+
+        # Get all movies featuring this actor with their character names
+        filmography = (
+            session.query(Movie, Cast.character_name, Cast.cast_order)
+            .join(Cast, Movie.id == Cast.movie_id)
+            .filter(Cast.person_id == actor_id)
+            .order_by(desc(Movie.release_date))
+            .all()
+        )
+
+        # Calculate statistics
+        total_movies = len(filmography)
+        avg_rating = (
+            session.query(func.avg(Movie.vote_average))
+            .join(Cast, Movie.id == Cast.movie_id)
+            .filter(Cast.person_id == actor_id, Movie.vote_count > 20)
+            .scalar()
+        )
+
+        # Get genres this actor appears in most
+        top_genres = (
+            session.query(Genre.name, func.count(Movie.id).label("count"))
+            .join(Movie.genres)
+            .join(Cast, Movie.id == Cast.movie_id)
+            .filter(Cast.person_id == actor_id)
+            .group_by(Genre.name)
+            .order_by(desc("count"))
+            .limit(5)
+            .all()
+        )
+
+        return render_template(
+            "actor_detail.html",
+            actor=actor,
+            filmography=filmography,
+            total_movies=total_movies,
+            avg_rating=round(avg_rating, 1) if avg_rating else None,
+            top_genres=top_genres,
+            config=Config,
+        )
+    finally:
+        session.close()
+
+
 @app.route("/movie/<int:movie_id>")
 def movie_detail(movie_id):
     """Movie detail page"""
