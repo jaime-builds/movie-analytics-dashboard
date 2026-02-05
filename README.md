@@ -284,9 +284,9 @@ This project is open source and available under the [MIT License](LICENSE).
 
 ## Contact
 
-**JD**
-- GitHub: [@jdizzle18](https://github.com/jdizzle18)
-- Project Link: [https://github.com/jdizzle18/movie-analytics-dashboard](https://github.com/jdizzle18/movie-analytics-dashboard)
+**Jaime De La Paz**
+- GitHub: [@jaime-builds](https://github.com/jaime-builds)
+- Project Link: [https://github.com/jaime-builds/movie-analytics-dashboard](https://github.com/jaime-builds/movie-analytics-dashboard)
 
 ---
 
