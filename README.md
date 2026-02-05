@@ -1,18 +1,23 @@
 # Movie Analytics Dashboard
 
+![Tests](https://github.com/jaime-builds/movie-analytics-dashboard/actions/workflows/tests.yml/badge.svg)
+![Python](https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)
+
 A full-stack web application for exploring and analyzing movie data using Flask, SQLAlchemy, and the TMDB API. This project demonstrates Python, SQL, web development, and data visualization skills.
 
 ![Movie Analytics Dashboard](docs/screenshot.png)
 
 ## Features
 
-- **Browse Movies**: Explore 1,000+ popular movies with poster images and pagination
+- **Browse Movies**: Explore 1,000+ popular movies with poster images and full pagination controls
 - **Advanced Filtering**: Filter movies by year, decade, rating range, and runtime
-- **Detailed Movie Pages**: View comprehensive information including cast, crew, ratings, revenue, and YouTube trailers
+- **Detailed Movie Pages**: Stunning backdrop banners with comprehensive information including cast, crew, ratings, budget, revenue, and YouTube trailers
+- **Financial Analysis**: View detailed budget, revenue, and ROI calculations with visual profit/loss indicators
 - **Top Actors**: Browse the most frequently appearing actors with filmography pages
 - **Hidden Gems**: Discover highly-rated, low-popularity movies using a gem score algorithm
-- **Advanced Search**: Search movies by title or description
+- **Smart Search**: Search movies by title or description with helpful "no results" messaging
 - **Sort & Filter**: Sort by popularity, rating, release date, or title with genre filtering
+- **Intelligent Recommendations**: Similar movies section sorted by genre match, rating, and popularity
 - **Analytics Dashboard**: Interactive visualizations with Chart.js including:
   - Genre distribution (pie chart)
   - Movies released by year (bar chart)
@@ -21,6 +26,7 @@ A full-stack web application for exploring and analyzing movie data using Flask,
   - Top production companies
 - **Dark Mode**: Toggle between light and dark themes for comfortable viewing
 - **Movie Trailers**: Watch official YouTube trailers directly on movie detail pages
+- **Responsive Pagination**: Navigate large datasets with first/previous/next/last controls
 
 ## Tech Stack
 
@@ -34,7 +40,7 @@ A full-stack web application for exploring and analyzing movie data using Flask,
 
 The application uses a normalized relational database with the following tables:
 
-- `movies` - Core movie information
+- `movies` - Core movie information (including backdrop_path for banner images)
 - `genres` - Movie genres
 - `movie_genres` - Many-to-many relationship between movies and genres
 - `people` - Actors, directors, and crew members
@@ -81,7 +87,7 @@ movie-analytics-dashboard/
 
 1. **Clone the repository**
 ```bash
-   git clone https://github.com/jdizzle18/movie-analytics-dashboard.git
+   git clone https://github.com/jaime-builds/movie-analytics-dashboard.git
    cd movie-analytics-dashboard
 ```
 
@@ -124,7 +130,7 @@ movie-analytics-dashboard/
 ```bash
    python -m src.data_import
 ```
-   This will import 1,000 popular movies with cast, crew, and metadata (takes 5-10 minutes).
+   This will import 1,000 popular movies with cast, crew, metadata, and backdrop images (takes 5-10 minutes).
 
 8. **Run the application**
 ```bash
@@ -135,6 +141,14 @@ movie-analytics-dashboard/
 
 ## Key Features
 
+### Cinematic Movie Detail Pages
+Each movie features:
+- **Backdrop Banner**: Full-width backdrop image with gradient overlay and movie title
+- **Financial Details**: Comprehensive budget, revenue, profit/loss, and ROI analysis
+- **Visual ROI Indicator**: Progress bar showing return on investment
+- **Smart Recommendations**: Similar movies sorted by shared genres and ratings
+- **Complete Cast & Crew**: Top actors with character names and directors
+
 ### Advanced Movie Filtering
 Filter movies by multiple criteria simultaneously:
 - **Year**: Specific release year
@@ -143,6 +157,21 @@ Filter movies by multiple criteria simultaneously:
 - **Runtime**: Filter by movie length in minutes
 - **Genre**: Single genre selection
 - All filters work with sorting and pagination
+
+### Enhanced Pagination
+Navigate large movie collections with ease:
+- First/Previous/Next/Last page buttons
+- Direct page number selection
+- Page ellipsis for large page counts
+- Filter preservation across page navigation
+- Shows current position (e.g., "Showing 1-20 of 1,000 movies")
+
+### Intelligent Search
+Search for movies with helpful features:
+- Search by title or description
+- Results sorted by popularity
+- Friendly "no results found" message with search tips
+- Quick links to browse all movies or discover hidden gems
 
 ### Top Actors Page
 Browse the most prolific actors in the database:
@@ -175,7 +204,7 @@ This project demonstrates various SQL concepts:
 - **Complex JOINs**: Multi-table queries joining movies, genres, cast, and crew
 - **Aggregations**: GROUP BY, COUNT, AVG for analytics
 - **Window Functions**: Ranking and statistical analysis
-- **Subqueries**: Finding similar movies based on genre overlap
+- **Subqueries**: Finding similar movies based on genre overlap with match counting
 - **Indexes**: Performance optimization on frequently queried columns
 - **Many-to-Many Relationships**: Junction tables for movies-genres and movies-companies
 
@@ -205,15 +234,28 @@ WHERE vote_average >= 7.0
 ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 ```
 
+Advanced query for similar movies (sorted by genre match):
+```sql
+SELECT m.*, COUNT(mg.genre_id) as match_count
+FROM movies m
+JOIN movie_genres mg ON m.id = mg.movie_id
+WHERE mg.genre_id IN (SELECT genre_id FROM movie_genres WHERE movie_id = ?)
+  AND m.id != ?
+GROUP BY m.id
+ORDER BY match_count DESC, m.vote_average DESC, m.popularity DESC
+LIMIT 6;
+```
+
 ## Key Skills Demonstrated
 
 ### Python Skills
 - Object-oriented programming with SQLAlchemy models
 - API integration and data parsing (TMDB API)
-- Complex query building with SQLAlchemy ORM
+- Complex query building with SQLAlchemy ORM including subqueries
 - Data aggregation and statistical analysis
 - Error handling and data validation
 - Virtual environments and dependency management
+- Advanced SQLAlchemy queries with CTEs and window functions
 
 ### SQL Skills
 - Database schema design with normalization
@@ -222,6 +264,7 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 - HAVING clauses for filtered aggregations
 - Many-to-many relationships via junction tables
 - Query optimization with indexes
+- Advanced sorting with multiple criteria
 
 ### Web Development
 - RESTful routing with Flask
@@ -230,8 +273,9 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 - Interactive data visualization with Chart.js
 - Client-side state management (dark mode with localStorage)
 - Dynamic filtering with URL parameters
-- Pagination for large datasets
+- Pagination for large datasets with filter preservation
 - YouTube embed integration
+- Progressive enhancement for user experience
 
 ### Git & Version Control
 - Feature branch workflow
@@ -252,6 +296,15 @@ The analytics dashboard features interactive Chart.js visualizations:
 All charts are fully responsive and adapt to dark mode for optimal viewing.
 
 ![Analytics Dashboard in Dark Mode](docs/darkmode-charts.png)
+
+## Recent Updates
+
+### Latest Features (February 2026)
+- ✨ **Backdrop Banners**: Cinematic full-width backdrop images on movie detail pages
+- 💰 **Financial Analysis**: Detailed budget, revenue, profit/loss, and ROI calculations
+- 🔍 **Smart Search**: Enhanced search with "no results found" messaging and helpful tips
+- 📄 **Advanced Pagination**: Full pagination controls with first/last/numbered pages
+- 🎬 **Intelligent Recommendations**: Similar movies sorted by genre match and ratings
 
 ## Future Enhancements
 
@@ -278,9 +331,6 @@ This project is open source and available under the [MIT License](LICENSE).
 - Movie data provided by [The Movie Database (TMDB)](https://www.themoviedb.org/)
 - Bootstrap for UI components
 - Chart.js for data visualization
-
-![Tests](https://github.com/jdizzle18/movie-analytics-dashboard/actions/workflows/tests.yml/badge.svg)
-![Python](https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)
 
 ## Contact
 

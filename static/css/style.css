@@ -101,7 +101,7 @@ body {
     -webkit-box-orient: vertical;
 }
 
-/* Movie detail page - backdrop header */
+/* Movie detail page - original backdrop header (kept for compatibility) */
 .movie-backdrop {
     height: 300px;
     background-size: cover;
@@ -123,4 +123,362 @@ body {
 /* Movie detail page - trailer embed */
 .card .ratio iframe {
     border: none;
+}
+
+
+/* ========================================
+   FEATURE 1: Enhanced Backdrop Banner Styles
+   ======================================== */
+
+/* Backdrop Banner */
+.backdrop-banner {
+    position: relative;
+    width: calc(100% + 30px);
+    height: 400px;
+    overflow: hidden;
+    border-radius: 8px;
+    margin-left: -15px;
+    margin-right: -15px;
+    margin-top: -15px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.backdrop-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+}
+
+.backdrop-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0.3) 0%,
+        rgba(0, 0, 0, 0.6) 70%,
+        rgba(0, 0, 0, 0.9) 100%
+    );
+}
+
+.backdrop-content {
+    position: absolute;
+    bottom: 40px;
+    left: 40px;
+    right: 40px;
+    z-index: 10;
+}
+
+.backdrop-content h1 {
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.backdrop-content p {
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* Dark mode backdrop adjustments */
+[data-bs-theme="dark"] .backdrop-overlay {
+    background: linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0.5) 0%,
+        rgba(0, 0, 0, 0.8) 70%,
+        rgba(18, 18, 18, 0.95) 100%
+    );
+}
+
+[data-bs-theme="dark"] .backdrop-banner {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* Responsive adjustments for backdrop */
+@media (max-width: 768px) {
+    .backdrop-banner {
+        height: 300px;
+        margin-left: -10px;
+        margin-right: -10px;
+        width: calc(100% + 20px);
+    }
+
+    .backdrop-content {
+        bottom: 20px;
+        left: 20px;
+        right: 20px;
+    }
+
+    .backdrop-content h1 {
+        font-size: 2rem !important;
+    }
+
+    .backdrop-content p {
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .backdrop-banner {
+        height: 250px;
+    }
+
+    .backdrop-content h1 {
+        font-size: 1.5rem !important;
+    }
+}
+
+
+/* ========================================
+   FEATURE 4: Pagination Styles
+   ======================================== */
+
+/* Pagination */
+.pagination-wrapper {
+    margin-top: 3rem;
+    margin-bottom: 2rem;
+}
+
+.pagination {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+}
+
+.page-link {
+    color: #007bff;
+    border-radius: 4px;
+    margin: 0 2px;
+    transition: all 0.2s ease;
+    border: 1px solid #dee2e6;
+    padding: 0.5rem 0.75rem;
+}
+
+.page-link:hover {
+    background-color: #e9ecef;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.page-link:focus {
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.page-item.active .page-link {
+    background-color: #007bff;
+    border-color: #007bff;
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+    color: white;
+    font-weight: 600;
+}
+
+.page-item.disabled .page-link {
+    color: #6c757d;
+    background-color: #fff;
+    border-color: #dee2e6;
+    cursor: not-allowed;
+}
+
+/* Dark mode pagination */
+[data-bs-theme="dark"] .page-link {
+    background-color: #2d2d2d;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+[data-bs-theme="dark"] .page-link:hover {
+    background-color: #3d3d3d;
+    border-color: #555;
+}
+
+[data-bs-theme="dark"] .page-item.active .page-link {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: white;
+}
+
+[data-bs-theme="dark"] .page-item.disabled .page-link {
+    background-color: #1a1a1a;
+    border-color: #333;
+    color: #555;
+}
+
+/* Responsive pagination */
+@media (max-width: 576px) {
+    .page-link {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.875rem;
+    }
+
+    .pagination {
+        margin-top: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+}
+
+
+/* ========================================
+   FEATURE 5: Similar Movies Card Hover Effects
+   ======================================== */
+
+.similar-movie-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.similar-movie-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.similar-movie-card img {
+    transition: opacity 0.2s ease;
+}
+
+.similar-movie-card:hover img {
+    opacity: 0.9;
+}
+
+/* Dark mode adjustments for similar movies */
+[data-bs-theme="dark"] .similar-movie-card {
+    background-color: #2d2d2d;
+    border-color: #444;
+}
+
+[data-bs-theme="dark"] .similar-movie-card:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+}
+
+
+/* ========================================
+   Additional General Improvements
+   ======================================== */
+
+/* Smooth scrolling */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Loading animation for images */
+img {
+    image-rendering: -webkit-optimize-contrast;
+}
+
+/* Better link hover states */
+a {
+    transition: color 0.2s ease;
+}
+
+/* Badge improvements */
+.badge {
+    font-weight: 500;
+    padding: 0.35em 0.65em;
+}
+
+/* Alert improvements */
+.alert {
+    border-radius: 8px;
+}
+
+/* Card improvements */
+.card {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Progress bar improvements */
+.progress {
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    transition: width 0.6s ease;
+}
+
+/* Button improvements */
+.btn {
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+/* Form improvements */
+.form-select,
+.form-control {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-select:focus,
+.form-control:focus {
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15);
+}
+
+/* Dark mode form improvements */
+[data-bs-theme="dark"] .form-select,
+[data-bs-theme="dark"] .form-control {
+    background-color: #2d2d2d;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+[data-bs-theme="dark"] .form-select:focus,
+[data-bs-theme="dark"] .form-control:focus {
+    background-color: #3d3d3d;
+    border-color: #007bff;
+}
+
+/* Utility classes */
+.text-shadow {
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.shadow-soft {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Responsive utilities */
+@media (max-width: 768px) {
+    .container {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    h1 {
+        font-size: 1.75rem;
+    }
+
+    h2 {
+        font-size: 1.5rem;
+    }
+
+    h3 {
+        font-size: 1.25rem;
+    }
+}
+
+/* Print styles */
+@media print {
+    .backdrop-banner,
+    .pagination,
+    .btn,
+    .navbar {
+        display: none;
+    }
+
+    body {
+        background: white;
+        color: black;
+    }
+
+    .card {
+        border: 1px solid #ddd;
+        break-inside: avoid;
+    }
 }
