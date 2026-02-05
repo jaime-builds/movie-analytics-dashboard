@@ -2,10 +2,19 @@ from datetime import datetime
 from typing import Dict, Optional
 
 from flask import Flask, jsonify, render_template, request
-from sqlalchemy import and_, desc, extract, func
+from sqlalchemy import and_, desc, extract, func, select
 
 from config.config import Config
-from src.models import Cast, Crew, Genre, Movie, Person, ProductionCompany, Session
+from src.models import (
+    Cast,
+    Crew,
+    Genre,
+    Movie,
+    Person,
+    ProductionCompany,
+    Session,
+    movie_genres_table,
+)
 from src.tmdb_api import TMDBClient
 
 app = Flask(__name__, template_folder="../templates", static_folder="../static")
@@ -38,6 +47,60 @@ def get_trailer_for_movie(tmdb_id: int) -> Optional[Dict]:
             return matches[0]
 
     return youtube_videos[0]
+
+
+def get_similar_movies(session, movie_id, limit=6):
+    """
+    Get similar movies based on shared genres.
+    Sorted by:
+    1. Number of matching genres (descending)
+    2. Vote average (descending)
+    3. Popularity (descending)
+    """
+    # Get the current movie
+    movie = session.query(Movie).filter_by(id=movie_id).first()
+
+    if not movie or not movie.genres:
+        # If no movie or no genres, return popular movies
+        return (
+            session.query(Movie)
+            .filter(Movie.id != movie_id)
+            .filter(Movie.vote_count > 20)
+            .order_by(desc(Movie.popularity))
+            .limit(limit)
+            .all()
+        )
+
+    # Get genre IDs for the current movie
+    movie_genre_ids = [genre.id for genre in movie.genres]
+
+    # Create subquery to count matching genres for each movie
+    genre_match_subquery = (
+        select(
+            movie_genres_table.c.movie_id,
+            func.count(movie_genres_table.c.genre_id).label("match_count"),
+        )
+        .where(movie_genres_table.c.genre_id.in_(movie_genre_ids))
+        .group_by(movie_genres_table.c.movie_id)
+        .subquery()
+    )
+
+    # Query for similar movies with genre match count
+    similar_movies = (
+        session.query(Movie)
+        .join(genre_match_subquery, Movie.id == genre_match_subquery.c.movie_id)
+        .filter(Movie.id != movie_id)
+        .filter(Movie.vote_count > 20)
+        .order_by(
+            desc(genre_match_subquery.c.match_count),  # Most genre matches first
+            desc(Movie.vote_average),  # Then by rating
+            desc(Movie.popularity),  # Then by popularity
+        )
+        .limit(limit)
+        .all()
+    )
+
+    return similar_movies
 
 
 @app.route("/")
@@ -80,13 +143,13 @@ def index():
 
 @app.route("/movies")
 def movies():
-    """All movies page with filters"""
+    """All movies page with filters and pagination"""
     session = get_db_session()
 
     try:
         # Get filter parameters
         genre_id = request.args.get("genre", type=int)
-        sort_by = request.args.get("sort", default="title")
+        sort_by = request.args.get("sort", default="popularity")
         page = request.args.get("page", default=1, type=int)
 
         # Advanced filter parameters
@@ -243,20 +306,9 @@ def hidden_gems():
 
         # Apply pagination
         offset = (page - 1) * per_page
-        gems = query.limit(per_page).offset(offset).all()
+        gems_list = query.limit(per_page).offset(offset).all()
 
-        # Calculate gem score for each movie (for display)
-        for movie in gems:
-            # Simple gem score formula - convert Decimal to float first
-            rating = float(movie.vote_average)
-            popularity = float(movie.popularity)
-
-        if popularity > 0:
-            movie.gem_score = round((rating / 10.0) * (100.0 / (popularity + 10)), 2)
-        else:
-            movie.gem_score = round(rating, 2)
-
-        # Get all genres for filter
+        # Get all genres for filter dropdown
         all_genres = session.query(Genre).order_by(Genre.name).all()
 
         # Generate decade options
@@ -268,13 +320,13 @@ def hidden_gems():
 
         return render_template(
             "hidden_gems.html",
-            movies=gems,
+            gems=gems_list,
             genres=all_genres,
-            current_genre=genre_id,
-            current_decade=decade,
-            current_sort=sort_by,
+            selected_genre=genre_id,
+            selected_decade=decade,
             min_rating=min_rating,
             max_popularity=max_popularity,
+            sort_by=sort_by,
             page=page,
             total_pages=total_pages,
             total_gems=total_gems,
@@ -287,57 +339,53 @@ def hidden_gems():
 
 @app.route("/top-actors")
 def top_actors():
-    """Top actors page - most frequently appearing actors"""
+    """Top actors page - actors who appear in most movies"""
     session = get_db_session()
 
     try:
-        # Get query parameters for sorting and pagination
         sort_by = request.args.get("sort", default="movie_count")
         page = request.args.get("page", default=1, type=int)
-        per_page = 24  # 4 rows of 6 actors
+        per_page = 24
 
-        # Query to get actors with their movie counts and average ratings
-        actor_stats = (
+        # Base query - count movies per actor
+        query = (
             session.query(
-                Person.id,
-                Person.name,
-                Person.profile_path,
-                Person.popularity,
+                Person,
                 func.count(Cast.movie_id).label("movie_count"),
                 func.avg(Movie.vote_average).label("avg_rating"),
-                func.max(Movie.release_date).label("latest_movie_date"),
+                func.avg(Movie.popularity).label("avg_popularity"),
             )
             .join(Cast, Person.id == Cast.person_id)
             .join(Movie, Cast.movie_id == Movie.id)
-            .filter(Movie.vote_count > 20)
-            .group_by(Person.id, Person.name, Person.profile_path, Person.popularity)
-            .having(func.count(Cast.movie_id) >= 2)
+            .filter(Movie.vote_count > 20)  # Only count movies with significant votes
+            .group_by(Person.id)
+            .having(func.count(Cast.movie_id) >= 2)  # At least 2 movies
         )
 
         # Apply sorting
-        if sort_by == "rating":
-            actor_stats = actor_stats.order_by(desc("avg_rating"))
+        if sort_by == "avg_rating":
+            query = query.order_by(desc("avg_rating"))
+        elif sort_by == "avg_popularity":
+            query = query.order_by(desc("avg_popularity"))
         elif sort_by == "name":
-            actor_stats = actor_stats.order_by(Person.name)
-        elif sort_by == "popularity":
-            actor_stats = actor_stats.order_by(desc(Person.popularity))
+            query = query.order_by(Person.name)
         else:  # movie_count (default)
-            actor_stats = actor_stats.order_by(desc("movie_count"), desc("avg_rating"))
+            query = query.order_by(desc("movie_count"))
 
         # Get total count for pagination
-        total_actors = actor_stats.count()
+        total_actors = query.count()
 
         # Apply pagination
         offset = (page - 1) * per_page
-        actors = actor_stats.limit(per_page).offset(offset).all()
+        actors_list = query.limit(per_page).offset(offset).all()
 
         # Calculate pagination info
         total_pages = (total_actors + per_page - 1) // per_page
 
         return render_template(
             "top_actors.html",
-            actors=actors,
-            current_sort=sort_by,
+            actors=actors_list,
+            sort_by=sort_by,
             page=page,
             total_pages=total_pages,
             total_actors=total_actors,
@@ -349,7 +397,7 @@ def top_actors():
 
 @app.route("/actor/<int:actor_id>")
 def actor_detail(actor_id):
-    """Actor detail page showing their filmography"""
+    """Actor detail page with filmography"""
     session = get_db_session()
 
     try:
@@ -359,9 +407,9 @@ def actor_detail(actor_id):
         if not actor:
             return "Actor not found", 404
 
-        # Get all movies featuring this actor with their character names
+        # Get filmography (movies with this actor)
         filmography = (
-            session.query(Movie, Cast.character_name, Cast.cast_order)
+            session.query(Movie, Cast)
             .join(Cast, Movie.id == Cast.movie_id)
             .filter(Cast.person_id == actor_id)
             .order_by(desc(Movie.release_date))
@@ -431,20 +479,8 @@ def movie_detail(movie_id):
             .all()
         )
 
-        # Get similar movies (same genres)
-        if movie.genres:
-            genre_ids = [g.id for g in movie.genres]
-            similar_movies = (
-                session.query(Movie)
-                .join(Movie.genres)
-                .filter(Genre.id.in_(genre_ids))
-                .filter(Movie.id != movie_id)
-                .order_by(desc(Movie.popularity))
-                .limit(6)
-                .all()
-            )
-        else:
-            similar_movies = []
+        # Get similar movies (sorted by genre match and rating)
+        similar_movies = get_similar_movies(session, movie_id, limit=6)
 
         # Get trailer from TMDB API
         trailer = get_trailer_for_movie(movie.tmdb_id)

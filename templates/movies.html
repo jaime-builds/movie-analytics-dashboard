@@ -37,7 +37,7 @@
                             <option value="popularity" {% if current_sort == 'popularity' %}selected{% endif %}>Popularity</option>
                             <option value="rating" {% if current_sort == 'rating' %}selected{% endif %}>Rating</option>
                             <option value="release_date" {% if current_sort == 'release_date' %}selected{% endif %}>Release Date</option>
-                            <option value="title" {% if current_sort == 'title' %}selected{% endif %}>Title</option>
+                            <option value="title" {% if current_sort == 'title' %}selected{% endif %}>Title (A-Z)</option>
                         </select>
                     </div>
 
@@ -154,6 +154,14 @@
 </div>
 {% endif %}
 
+<!-- Movies Count -->
+{% if movies %}
+<p class="text-muted mb-3">
+    <i class="bi bi-film me-1"></i>
+    Showing {{ ((page - 1) * 20) + 1 }} - {{ [page * 20, total_movies]|min }} of {{ total_movies }} movies
+</p>
+{% endif %}
+
 <!-- Movie Grid -->
 <div class="row">
     {% if movies %}
@@ -179,7 +187,7 @@
                             {% endif %}
                         </p>
                         <span class="badge bg-warning text-dark">
-                            <i class="bi bi-star-fill"></i> {{ movie.vote_average }}
+                            <i class="bi bi-star-fill"></i> {{ "%.1f"|format(movie.vote_average) }}
                         </span>
                     </div>
                 </div>
@@ -195,35 +203,70 @@
     {% endif %}
 </div>
 
-<!-- Pagination Controls -->
+<!-- Feature 4: Enhanced Pagination Controls -->
 {% if total_pages > 1 %}
-<nav aria-label="Movie pagination" class="mt-4">
-    <div class="d-flex justify-content-between align-items-center">
+<div class="pagination-wrapper mt-5 mb-4">
+    <!-- Page Info - Top -->
+    <div class="text-center mb-3">
         <p class="text-muted mb-0">
-            Showing {{ ((page - 1) * 20) + 1 }} - {{ [page * 20, total_movies]|min }} of {{ total_movies }} movies
+            Page <strong>{{ page }}</strong> of <strong>{{ total_pages }}</strong>
         </p>
+    </div>
 
-        <ul class="pagination mb-0">
+    <!-- Pagination Navigation -->
+    <nav aria-label="Movie pagination">
+        <ul class="pagination justify-content-center flex-wrap">
+
+            <!-- First Page -->
+            <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                {% if page > 1 %}
+                    <a class="page-link"
+                       href="?page=1&sort={{ current_sort }}{% if current_genre %}&genre={{ current_genre }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_decade %}&decade={{ selected_decade }}{% endif %}{% if selected_rating_min %}&rating_min={{ selected_rating_min }}{% endif %}{% if selected_rating_max %}&rating_max={{ selected_rating_max }}{% endif %}{% if selected_runtime_min %}&runtime_min={{ selected_runtime_min }}{% endif %}{% if selected_runtime_max %}&runtime_max={{ selected_runtime_max }}{% endif %}"
+                       title="First page">
+                        <i class="bi bi-chevron-double-left"></i>
+                    </a>
+                {% else %}
+                    <span class="page-link">
+                        <i class="bi bi-chevron-double-left"></i>
+                    </span>
+                {% endif %}
+            </li>
+
             <!-- Previous Button -->
             <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-                <a class="page-link" href="?page={{ page - 1 }}&sort={{ current_sort }}{% if current_genre %}&genre={{ current_genre }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_decade %}&decade={{ selected_decade }}{% endif %}{% if selected_rating_min %}&rating_min={{ selected_rating_min }}{% endif %}{% if selected_rating_max %}&rating_max={{ selected_rating_max }}{% endif %}{% if selected_runtime_min %}&runtime_min={{ selected_runtime_min }}{% endif %}{% if selected_runtime_max %}&runtime_max={{ selected_runtime_max }}{% endif %}">
-                    Previous
-                </a>
+                {% if page > 1 %}
+                    <a class="page-link"
+                       href="?page={{ page - 1 }}&sort={{ current_sort }}{% if current_genre %}&genre={{ current_genre }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_decade %}&decade={{ selected_decade }}{% endif %}{% if selected_rating_min %}&rating_min={{ selected_rating_min }}{% endif %}{% if selected_rating_max %}&rating_max={{ selected_rating_max }}{% endif %}{% if selected_runtime_min %}&runtime_min={{ selected_runtime_min }}{% endif %}{% if selected_runtime_max %}&runtime_max={{ selected_runtime_max }}{% endif %}"
+                       title="Previous page">
+                        <i class="bi bi-chevron-left"></i> <span class="d-none d-sm-inline">Previous</span>
+                    </a>
+                {% else %}
+                    <span class="page-link">
+                        <i class="bi bi-chevron-left"></i> <span class="d-none d-sm-inline">Previous</span>
+                    </span>
+                {% endif %}
             </li>
 
             <!-- Page Numbers -->
             {% for p in range(1, total_pages + 1) %}
                 {% if p == page %}
-                    <li class="page-item active">
-                        <span class="page-link">{{ p }}</span>
+                    <!-- Current Page -->
+                    <li class="page-item active" aria-current="page">
+                        <span class="page-link">
+                            {{ p }}
+                            <span class="visually-hidden">(current)</span>
+                        </span>
                     </li>
                 {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+                    <!-- Other Pages (show first, last, and 2 around current) -->
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ p }}&sort={{ current_sort }}{% if current_genre %}&genre={{ current_genre }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_decade %}&decade={{ selected_decade }}{% endif %}{% if selected_rating_min %}&rating_min={{ selected_rating_min }}{% endif %}{% if selected_rating_max %}&rating_max={{ selected_rating_max }}{% endif %}{% if selected_runtime_min %}&runtime_min={{ selected_runtime_min }}{% endif %}{% if selected_runtime_max %}&runtime_max={{ selected_runtime_max }}{% endif %}">
+                        <a class="page-link"
+                           href="?page={{ p }}&sort={{ current_sort }}{% if current_genre %}&genre={{ current_genre }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_decade %}&decade={{ selected_decade }}{% endif %}{% if selected_rating_min %}&rating_min={{ selected_rating_min }}{% endif %}{% if selected_rating_max %}&rating_max={{ selected_rating_max }}{% endif %}{% if selected_runtime_min %}&runtime_min={{ selected_runtime_min }}{% endif %}{% if selected_runtime_max %}&runtime_max={{ selected_runtime_max }}{% endif %}">
                             {{ p }}
                         </a>
                     </li>
                 {% elif p == page - 3 or p == page + 3 %}
+                    <!-- Ellipsis -->
                     <li class="page-item disabled">
                         <span class="page-link">...</span>
                     </li>
@@ -232,13 +275,37 @@
 
             <!-- Next Button -->
             <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
-                <a class="page-link" href="?page={{ page + 1 }}&sort={{ current_sort }}{% if current_genre %}&genre={{ current_genre }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_decade %}&decade={{ selected_decade }}{% endif %}{% if selected_rating_min %}&rating_min={{ selected_rating_min }}{% endif %}{% if selected_rating_max %}&rating_max={{ selected_rating_max }}{% endif %}{% if selected_runtime_min %}&runtime_min={{ selected_runtime_min }}{% endif %}{% if selected_runtime_max %}&runtime_max={{ selected_runtime_max }}{% endif %}">
-                    Next
-                </a>
+                {% if page < total_pages %}
+                    <a class="page-link"
+                       href="?page={{ page + 1 }}&sort={{ current_sort }}{% if current_genre %}&genre={{ current_genre }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_decade %}&decade={{ selected_decade }}{% endif %}{% if selected_rating_min %}&rating_min={{ selected_rating_min }}{% endif %}{% if selected_rating_max %}&rating_max={{ selected_rating_max }}{% endif %}{% if selected_runtime_min %}&runtime_min={{ selected_runtime_min }}{% endif %}{% if selected_runtime_max %}&runtime_max={{ selected_runtime_max }}{% endif %}"
+                       title="Next page">
+                        <span class="d-none d-sm-inline">Next</span> <i class="bi bi-chevron-right"></i>
+                    </a>
+                {% else %}
+                    <span class="page-link">
+                        <span class="d-none d-sm-inline">Next</span> <i class="bi bi-chevron-right"></i>
+                    </span>
+                {% endif %}
             </li>
+
+            <!-- Last Page -->
+            <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+                {% if page < total_pages %}
+                    <a class="page-link"
+                       href="?page={{ total_pages }}&sort={{ current_sort }}{% if current_genre %}&genre={{ current_genre }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_decade %}&decade={{ selected_decade }}{% endif %}{% if selected_rating_min %}&rating_min={{ selected_rating_min }}{% endif %}{% if selected_rating_max %}&rating_max={{ selected_rating_max }}{% endif %}{% if selected_runtime_min %}&runtime_min={{ selected_runtime_min }}{% endif %}{% if selected_runtime_max %}&runtime_max={{ selected_runtime_max }}{% endif %}"
+                       title="Last page">
+                        <i class="bi bi-chevron-double-right"></i>
+                    </a>
+                {% else %}
+                    <span class="page-link">
+                        <i class="bi bi-chevron-double-right"></i>
+                    </span>
+                {% endif %}
+            </li>
+
         </ul>
-    </div>
-</nav>
+    </nav>
+</div>
 {% endif %}
 
 <script>

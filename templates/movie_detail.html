@@ -3,17 +3,27 @@
 {% block title %}{{ movie.title }} - Movie Analytics Dashboard{% endblock %}
 
 {% block content %}
+
+<!-- Feature 1: Backdrop Banner -->
 {% if movie.backdrop_path %}
-<div class="movie-backdrop mb-4" style="background-image: url('{{ config.get_backdrop_url(movie.backdrop_path) }}');">
-    <div class="backdrop-overlay">
-        <h1 class="display-5 text-white">{{ movie.title }}</h1>
+<div class="backdrop-banner mb-4">
+    <img src="{{ config.get_backdrop_url(movie.backdrop_path) }}"
+         alt="{{ movie.title }} backdrop"
+         class="backdrop-image">
+    <div class="backdrop-overlay"></div>
+    <div class="backdrop-content">
+        <h1 class="display-4 fw-bold text-white mb-0">{{ movie.title }}</h1>
         {% if movie.tagline %}
-        <p class="lead text-white-50">{{ movie.tagline }}</p>
+        <p class="lead text-white-50 mb-0">{{ movie.tagline }}</p>
         {% endif %}
     </div>
 </div>
 {% else %}
+<!-- Title if no backdrop -->
 <h1 class="mb-4">{{ movie.title }}</h1>
+{% if movie.tagline %}
+<p class="lead text-muted mb-3">{{ movie.tagline }}</p>
+{% endif %}
 {% endif %}
 
 <div class="row">
@@ -32,16 +42,18 @@
 
     <!-- Details + Trailer -->
     <div class="col-md-9">
+        <!-- Overview -->
         <p class="lead">{{ movie.overview }}</p>
 
-        <div class="row mt-3">
+        <!-- Quick Stats -->
+        <div class="row mt-3 mb-3">
             <div class="col-sm-6 col-md-3 mb-2">
                 <strong><i class="bi bi-star-fill text-warning"></i> Rating</strong>
                 <p>{{ movie.vote_average }}/10 ({{ movie.vote_count }} votes)</p>
             </div>
             <div class="col-sm-6 col-md-3 mb-2">
                 <strong><i class="bi bi-calendar"></i> Release Date</strong>
-                <p>{{ movie.release_date }}</p>
+                <p>{{ movie.release_date|format_date }}</p>
             </div>
             {% if movie.runtime %}
             <div class="col-sm-6 col-md-3 mb-2">
@@ -49,22 +61,27 @@
                 <p>{{ movie.runtime|format_runtime }}</p>
             </div>
             {% endif %}
-            {% if movie.budget and movie.budget > 0 %}
+            {% if movie.original_language %}
             <div class="col-sm-6 col-md-3 mb-2">
-                <strong><i class="bi bi-cash"></i> Budget</strong>
-                <p>{{ movie.budget|format_currency }}</p>
+                <strong><i class="bi bi-translate"></i> Language</strong>
+                <p>{{ movie.original_language|upper }}</p>
             </div>
             {% endif %}
         </div>
 
+        <!-- Genres -->
         {% if movie.genres %}
         <div class="mb-3">
+            <strong>Genres:</strong>
             {% for genre in movie.genres %}
-            <span class="badge bg-primary me-1">{{ genre.name }}</span>
+            <a href="{{ url_for('movies', genre=genre.id) }}" class="badge bg-primary text-decoration-none me-1">
+                {{ genre.name }}
+            </a>
             {% endfor %}
         </div>
         {% endif %}
 
+        <!-- Directors -->
         {% if directors %}
         <p><strong>Director{{ 's' if directors|length > 1 }}:</strong>
             {% for crew, person in directors %}
@@ -98,21 +115,144 @@
     </div>
 </div>
 
+<!-- Feature 2: Runtime, Budget, and Revenue Details -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title mb-3">
+                    <i class="bi bi-info-circle me-2"></i>Financial Details
+                </h5>
+                <div class="row">
+                    <!-- Runtime (detailed) -->
+                    <div class="col-md-3 mb-3 mb-md-0">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-clock me-2 text-primary fs-4"></i>
+                            <div>
+                                <small class="text-muted d-block">Runtime</small>
+                                <strong>
+                                    {% if movie.runtime %}
+                                        {{ movie.runtime }} min ({{ movie.runtime // 60 }}h {{ movie.runtime % 60 }}m)
+                                    {% else %}
+                                        <span class="text-muted">Not available</span>
+                                    {% endif %}
+                                </strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Budget -->
+                    <div class="col-md-3 mb-3 mb-md-0">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-cash me-2 text-success fs-4"></i>
+                            <div>
+                                <small class="text-muted d-block">Budget</small>
+                                <strong>
+                                    {% if movie.budget and movie.budget > 0 %}
+                                        {{ movie.budget|format_currency }}
+                                    {% else %}
+                                        <span class="text-muted">Not disclosed</span>
+                                    {% endif %}
+                                </strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Revenue -->
+                    <div class="col-md-3 mb-3 mb-md-0">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-graph-up me-2 text-info fs-4"></i>
+                            <div>
+                                <small class="text-muted d-block">Revenue</small>
+                                <strong>
+                                    {% if movie.revenue and movie.revenue > 0 %}
+                                        {{ movie.revenue|format_currency }}
+                                    {% else %}
+                                        <span class="text-muted">Not disclosed</span>
+                                    {% endif %}
+                                </strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Profit/Loss -->
+                    <div class="col-md-3">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-calculator me-2 text-warning fs-4"></i>
+                            <div>
+                                <small class="text-muted d-block">Profit/Loss</small>
+                                {% if movie.budget and movie.budget > 0 and movie.revenue and movie.revenue > 0 %}
+                                    {% set profit = movie.revenue - movie.budget %}
+                                    {% set roi = ((movie.revenue / movie.budget - 1) * 100) %}
+                                    <strong class="{% if profit > 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {% if profit > 0 %}
+                                            +{{ profit|format_currency }}
+                                        {% else %}
+                                            {{ profit|format_currency }}
+                                        {% endif %}
+                                    </strong>
+                                    <br>
+                                    <small class="{% if roi > 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {{ "%.1f"|format(roi) }}% ROI
+                                    </small>
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Optional: ROI Progress Bar -->
+                {% if movie.budget and movie.budget > 0 and movie.revenue and movie.revenue > 0 %}
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <small class="text-muted d-block mb-1">Return on Investment</small>
+                        {% set roi_percent = ((movie.revenue / movie.budget) * 100) %}
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar {% if roi_percent >= 100 %}bg-success{% else %}bg-danger{% endif %}"
+                                 role="progressbar"
+                                 style="width: {{ [roi_percent, 100]|min }}%;"
+                                 aria-valuenow="{{ roi_percent }}"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100">
+                                <strong>{{ "%.0f"|format(roi_percent) }}%</strong>
+                            </div>
+                        </div>
+                        {% if roi_percent < 100 %}
+                        <small class="text-danger d-block mt-1">
+                            <i class="bi bi-exclamation-triangle-fill"></i> Box office did not cover production budget
+                        </small>
+                        {% else %}
+                        <small class="text-success d-block mt-1">
+                            <i class="bi bi-check-circle-fill"></i> Profitable release
+                        </small>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Cast -->
 {% if cast %}
-<h3 class="mt-4 mb-3">Top Cast</h3>
+<h3 class="mt-4 mb-3">
+    <i class="bi bi-people-fill me-2"></i>Top Cast
+</h3>
 <div class="row">
     {% for cast_member, person in cast %}
     <div class="col-md-2 col-sm-4 col-6 mb-3 text-center">
         {% if person.profile_path %}
         <img src="{{ config.get_poster_url(person.profile_path, 'w185') }}"
-             class="rounded-circle mb-2"
-             style="width: 80px; height: 80px; object-fit: cover;"
+             class="rounded-circle mb-2 shadow-sm"
+             style="width: 100px; height: 100px; object-fit: cover;"
              alt="{{ person.name }}">
         {% else %}
-        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center mb-2 mx-auto"
-             style="width: 80px; height: 80px;">
-            <i class="bi bi-person" style="font-size: 1.5rem; color: #999;"></i>
+        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center mb-2 mx-auto shadow-sm"
+             style="width: 100px; height: 100px;">
+            <i class="bi bi-person" style="font-size: 2rem; color: #999;"></i>
         </div>
         {% endif %}
         <p class="small mb-0"><strong>{{ person.name }}</strong></p>
@@ -122,29 +262,91 @@
 </div>
 {% endif %}
 
-<!-- Similar Movies -->
+<!-- Feature 5: Similar Movies (Sorted by Genre Match & Rating) -->
 {% if similar_movies %}
-<h3 class="mt-4 mb-3">Similar Movies</h3>
+<h3 class="mt-5 mb-3">
+    <i class="bi bi-collection-play me-2"></i>Similar Movies
+    <small class="text-muted fs-6">Based on shared genres and ratings</small>
+</h3>
 <div class="row">
     {% for sim_movie in similar_movies %}
-    <div class="col-md-2 col-sm-4 col-6 mb-3">
+    <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-3">
         <a href="{{ url_for('movie_detail', movie_id=sim_movie.id) }}" class="text-decoration-none">
             <div class="card movie-card h-100">
-                {% if sim_movie.poster_path %}
-                <img src="{{ config.get_poster_url(sim_movie.poster_path, 'w300') }}"
-                     class="card-img-top"
-                     alt="{{ sim_movie.title }}">
-                {% endif %}
+                <!-- Poster -->
+                <div class="position-relative">
+                    {% if sim_movie.poster_path %}
+                    <img src="{{ config.get_poster_url(sim_movie.poster_path, 'w300') }}"
+                         class="card-img-top"
+                         alt="{{ sim_movie.title }}">
+                    {% else %}
+                    <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center"
+                         style="height: 400px;">
+                        <i class="bi bi-film" style="font-size: 3rem; color: #666;"></i>
+                    </div>
+                    {% endif %}
+
+                    <!-- Rating Badge Overlay -->
+                    <div class="position-absolute top-0 end-0 m-2">
+                        <span class="badge bg-dark bg-opacity-75">
+                            <i class="bi bi-star-fill text-warning"></i>
+                            {{ "%.1f"|format(sim_movie.vote_average) }}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Card Body -->
                 <div class="card-body p-2">
-                    <h6 class="card-title small">{{ sim_movie.title }}</h6>
-                    <span class="badge bg-warning text-dark">
-                        <i class="bi bi-star-fill"></i> {{ sim_movie.vote_average }}
-                    </span>
+                    <h6 class="card-title small fw-bold mb-1" title="{{ sim_movie.title }}">
+                        {{ sim_movie.title[:40] }}{% if sim_movie.title|length > 40 %}...{% endif %}
+                    </h6>
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="bi bi-calendar me-1"></i>
+                            {% if sim_movie.release_date %}
+                                {{ sim_movie.release_date.year }}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </small>
+                    </div>
                 </div>
             </div>
         </a>
     </div>
     {% endfor %}
 </div>
+
+<!-- View More Button -->
+<div class="row mt-3">
+    <div class="col-12 text-center">
+        {% if movie.genres %}
+        <a href="{{ url_for('movies', genre=movie.genres[0].id) }}"
+           class="btn btn-outline-primary">
+            <i class="bi bi-film me-2"></i>
+            Explore More {{ movie.genres[0].name }} Movies
+        </a>
+        {% else %}
+        <a href="{{ url_for('movies') }}"
+           class="btn btn-outline-primary">
+            <i class="bi bi-film me-2"></i>
+            Browse All Movies
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+{% else %}
+<!-- No Similar Movies -->
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            No similar movies found for this title.
+        </div>
+    </div>
+</div>
 {% endif %}
+
 {% endblock %}
