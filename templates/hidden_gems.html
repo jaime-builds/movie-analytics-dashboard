@@ -26,7 +26,7 @@
                         <select class="form-select" name="genre" id="genre">
                             <option value="">All Genres</option>
                             {% for genre in genres %}
-                            <option value="{{ genre.id }}" {% if current_genre == genre.id %}selected{% endif %}>
+                            <option value="{{ genre.id }}" {% if selected_genre == genre.id %}selected{% endif %}>
                                 {{ genre.name }}
                             </option>
                             {% endfor %}
@@ -39,7 +39,7 @@
                         <select class="form-select" name="decade" id="decade">
                             <option value="">Any Decade</option>
                             {% for decade in available_decades %}
-                            <option value="{{ decade }}" {% if current_decade == decade %}selected{% endif %}>
+                            <option value="{{ decade }}" {% if selected_decade == decade %}selected{% endif %}>
                                 {{ decade }}s
                             </option>
                             {% endfor %}
@@ -67,10 +67,10 @@
                     <div class="col-md-4">
                         <label for="sort" class="form-label">Sort By</label>
                         <select class="form-select" name="sort" id="sort">
-                            <option value="gem_score" {% if current_sort == 'gem_score' %}selected{% endif %}>Gem Score (Best Overall)</option>
-                            <option value="rating" {% if current_sort == 'rating' %}selected{% endif %}>Highest Rating</option>
-                            <option value="most_hidden" {% if current_sort == 'most_hidden' %}selected{% endif %}>Most Hidden</option>
-                            <option value="release_date" {% if current_sort == 'release_date' %}selected{% endif %}>Newest First</option>
+                            <option value="gem_score" {% if sort_by == 'gem_score' %}selected{% endif %}>Gem Score (Best Overall)</option>
+                            <option value="rating" {% if sort_by == 'rating' %}selected{% endif %}>Highest Rating</option>
+                            <option value="most_hidden" {% if sort_by == 'most_hidden' %}selected{% endif %}>Most Hidden</option>
+                            <option value="release_date" {% if sort_by == 'release_date' %}selected{% endif %}>Newest First</option>
                         </select>
                     </div>
                 </div>
@@ -103,15 +103,15 @@
 
 <!-- Movies Grid -->
 <div class="row">
-    {% if movies %}
-        {% for movie in movies %}
+    {% if gems %}
+        {% for movie in gems %}
         <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-4">
             <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
                 <div class="card movie-card h-100 position-relative">
                     <!-- Gem Badge -->
                     <div class="position-absolute top-0 start-0 m-2" style="z-index: 10;">
-                        <span class="badge bg-success" title="Gem Score: {{ movie.gem_score }}">
-                            <i class="bi bi-gem"></i> {{ movie.gem_score }}
+                        <span class="badge bg-success">
+                            <i class="bi bi-gem"></i>
                         </span>
                     </div>
 
@@ -172,7 +172,7 @@
         <ul class="pagination mb-0">
             <!-- Previous Button -->
             <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-                <a class="page-link" href="?page={{ page - 1 }}&sort={{ current_sort }}&min_rating={{ min_rating }}&max_popularity={{ max_popularity }}{% if current_genre %}&genre={{ current_genre }}{% endif %}{% if current_decade %}&decade={{ current_decade }}{% endif %}">
+                <a class="page-link" href="?page={{ page - 1 }}&sort={{ sort_by }}&min_rating={{ min_rating }}&max_popularity={{ max_popularity }}{% if selected_genre %}&genre={{ selected_genre }}{% endif %}{% if selected_decade %}&decade={{ selected_decade }}{% endif %}">
                     Previous
                 </a>
             </li>
@@ -185,7 +185,7 @@
                     </li>
                 {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ p }}&sort={{ current_sort }}&min_rating={{ min_rating }}&max_popularity={{ max_popularity }}{% if current_genre %}&genre={{ current_genre }}{% endif %}{% if current_decade %}&decade={{ current_decade }}{% endif %}">
+                        <a class="page-link" href="?page={{ p }}&sort={{ sort_by }}&min_rating={{ min_rating }}&max_popularity={{ max_popularity }}{% if selected_genre %}&genre={{ selected_genre }}{% endif %}{% if selected_decade %}&decade={{ selected_decade }}{% endif %}">
                             {{ p }}
                         </a>
                     </li>
@@ -198,7 +198,7 @@
 
             <!-- Next Button -->
             <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
-                <a class="page-link" href="?page={{ page + 1 }}&sort={{ current_sort }}&min_rating={{ min_rating }}&max_popularity={{ max_popularity }}{% if current_genre %}&genre={{ current_genre }}{% endif %}{% if current_decade %}&decade={{ current_decade }}{% endif %}">
+                <a class="page-link" href="?page={{ page + 1 }}&sort={{ sort_by }}&min_rating={{ min_rating }}&max_popularity={{ max_popularity }}{% if selected_genre %}&genre={{ selected_genre }}{% endif %}{% if selected_decade %}&decade={{ selected_decade }}{% endif %}">
                     Next
                 </a>
             </li>
