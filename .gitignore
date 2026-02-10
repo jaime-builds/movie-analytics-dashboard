@@ -10,3 +10,9 @@ config/secrets.py
 .vscode/
 .idea/
 *.log
+
+# SQLite files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
