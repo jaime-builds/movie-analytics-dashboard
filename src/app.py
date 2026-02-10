@@ -1,7 +1,9 @@
 from datetime import datetime
 from typing import Dict, Optional
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, flash, jsonify, redirect, render_template, request
+from flask import session as flask_session
+from flask import url_for
 from sqlalchemy import and_, desc, extract, func, select
 
 from config.config import Config
@@ -13,17 +15,27 @@ from src.models import (
     Person,
     ProductionCompany,
     Session,
+    User,
     movie_genres_table,
 )
 from src.tmdb_api import TMDBClient
 
 app = Flask(__name__, template_folder="../templates", static_folder="../static")
 app.config.from_object(Config)
+app.secret_key = Config.SECRET_KEY
 
 
 def get_db_session():
     """Get a new database session"""
     return Session()
+
+
+def get_current_user(session_db):
+    """Get the currently logged-in user from session"""
+    user_id = flask_session.get("user_id")
+    if not user_id:
+        return None
+    return session_db.query(User).filter_by(id=user_id).first()
 
 
 def get_trailer_for_movie(tmdb_id: int) -> Optional[Dict]:
@@ -103,12 +115,424 @@ def get_similar_movies(session, movie_id, limit=6):
     return similar_movies
 
 
+# ==========================================
+# USER AUTHENTICATION ROUTES
+# ==========================================
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    session_db = get_db_session()
+    try:
+        if request.method == "POST":
+            username = request.form.get("username", "").strip()
+            password = request.form.get("password", "")
+            password_confirm = request.form.get("password_confirm", "")
+
+            # Validation
+            if not username or not password:
+                flash("Username and password are required", "danger")
+                return render_template("register.html")
+
+            if len(username) < 3:
+                flash("Username must be at least 3 characters", "danger")
+                return render_template("register.html")
+
+            if len(password) < 6:
+                flash("Password must be at least 6 characters", "danger")
+                return render_template("register.html")
+
+            if password != password_confirm:
+                flash("Passwords do not match", "danger")
+                return render_template("register.html")
+
+            # Check if username exists
+            if session_db.query(User).filter_by(username=username).first():
+                flash("Username already exists. Please choose another.", "danger")
+                return render_template("register.html")
+
+            # Create new user
+            user = User(username=username)
+            user.set_password(password)
+            session_db.add(user)
+            session_db.commit()
+
+            # Log the user in
+            flask_session["user_id"] = user.id
+            flash(f"Welcome, {username}! Your account has been created.", "success")
+            return redirect(url_for("index"))
+
+        return render_template("register.html")
+    finally:
+        session_db.close()
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    session_db = get_db_session()
+    try:
+        if request.method == "POST":
+            username = request.form.get("username", "").strip()
+            password = request.form.get("password", "")
+
+            user = session_db.query(User).filter_by(username=username).first()
+
+            if user and user.check_password(password):
+                flask_session["user_id"] = user.id
+                flash(f"Welcome back, {username}!", "success")
+
+                # Redirect to 'next' page if it exists, otherwise home
+                next_page = request.args.get("next")
+                return redirect(next_page if next_page else url_for("index"))
+
+            flash("Invalid username or password", "danger")
+            return render_template("login.html")
+
+        return render_template("login.html")
+    finally:
+        session_db.close()
+
+
+@app.route("/logout")
+def logout():
+    flask_session.pop("user_id", None)
+    flash("You have been logged out successfully.", "info")
+    return redirect(url_for("index"))
+
+
+# ==========================================
+# FAVORITES / WATCHLIST ROUTES
+# ==========================================
+
+
+@app.route("/favorites")
+def favorites():
+    """Display user's favorite movies"""
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+        if not user:
+            flash("Please log in to view your favorites", "warning")
+            return redirect(url_for("login", next=request.url))
+
+        # Convert dynamic relationship to list
+        favorites = user.favorites.all()
+
+        return render_template(
+            "favorites.html", favorites=favorites, current_user=user, config=Config
+        )
+    finally:
+        session_db.close()
+
+
+@app.route("/watchlist")
+def watchlist():
+    """Display user's watchlist"""
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+        if not user:
+            flash("Please log in to view your watchlist", "warning")
+            return redirect(url_for("login", next=request.url))
+
+        # Convert dynamic relationship to list
+        watchlist = user.watchlist.all()
+
+        return render_template(
+            "watchlist.html", watchlist=watchlist, current_user=user, config=Config
+        )
+    finally:
+        session_db.close()
+
+
+@app.route("/movie/<int:movie_id>/favorite", methods=["POST"])
+def add_favorite(movie_id):
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+        if not user:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        movie = session_db.query(Movie).filter_by(id=movie_id).first()
+        if not movie:
+            return jsonify({"error": "Movie not found"}), 404
+
+        # Check if already in favorites
+        if movie not in user.favorites.all():
+            user.favorites.append(movie)
+            session_db.commit()
+            return jsonify({"status": "added"})
+
+        return jsonify({"status": "already_added"})
+    finally:
+        session_db.close()
+
+
+@app.route("/movie/<int:movie_id>/unfavorite", methods=["POST"])
+def remove_favorite(movie_id):
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+        if not user:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        movie = session_db.query(Movie).filter_by(id=movie_id).first()
+        if not movie:
+            return jsonify({"error": "Movie not found"}), 404
+
+        if movie in user.favorites.all():
+            user.favorites.remove(movie)
+            session_db.commit()
+            return jsonify({"status": "removed"})
+
+        return jsonify({"status": "not_found"})
+    finally:
+        session_db.close()
+
+
+@app.route("/movie/<int:movie_id>/watchlist", methods=["POST"])
+def add_watchlist(movie_id):
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+        if not user:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        movie = session_db.query(Movie).filter_by(id=movie_id).first()
+        if not movie:
+            return jsonify({"error": "Movie not found"}), 404
+
+        if movie not in user.watchlist.all():
+            user.watchlist.append(movie)
+            session_db.commit()
+            return jsonify({"status": "added"})
+
+        return jsonify({"status": "already_added"})
+    finally:
+        session_db.close()
+
+
+@app.route("/movie/<int:movie_id>/unwatchlist", methods=["POST"])
+def remove_watchlist(movie_id):
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+        if not user:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        movie = session_db.query(Movie).filter_by(id=movie_id).first()
+        if not movie:
+            return jsonify({"error": "Movie not found"}), 404
+
+        if movie in user.watchlist.all():
+            user.watchlist.remove(movie)
+            session_db.commit()
+            return jsonify({"status": "removed"})
+
+        return jsonify({"status": "not_found"})
+    finally:
+        session_db.close()
+
+
+# ==========================================
+# DIRECTOR ROUTES (NEW!)
+# ==========================================
+
+
+@app.route("/directors")
+def directors():
+    """Director spotlight page"""
+    session_db = get_db_session()
+    try:
+        page = request.args.get("page", 1, type=int)
+        per_page = 24
+
+        user = get_current_user(session_db)
+
+        # Get directors who have directed at least 3 movies
+        directors_query = (
+            session_db.query(
+                Person.id,
+                Person.name,
+                func.count(Movie.id).label("movie_count"),
+                func.avg(Movie.vote_average).label("avg_rating"),
+                func.sum(Movie.revenue).label("total_revenue"),
+            )
+            .join(Crew, Person.id == Crew.person_id)
+            .join(Movie, Crew.movie_id == Movie.id)
+            .filter(Crew.job == "Director")
+            .filter(Movie.vote_count > 10)
+            .group_by(Person.id, Person.name)
+            .having(func.count(Movie.id) >= 3)
+            .order_by(desc("movie_count"))
+        )
+
+        # Pagination
+        total = directors_query.count()
+        total_pages = (total + per_page - 1) // per_page
+
+        directors_data = directors_query.limit(per_page).offset((page - 1) * per_page).all()
+
+        # Get top movies for each director
+        directors_list = []
+        for director_data in directors_data:
+            # Get top 3 movies by rating
+            top_movies = (
+                session_db.query(Movie)
+                .join(Crew, Movie.id == Crew.movie_id)
+                .filter(Crew.person_id == director_data.id)
+                .filter(Crew.job == "Director")
+                .filter(Movie.vote_count > 10)
+                .order_by(desc(Movie.vote_average))
+                .limit(3)
+                .all()
+            )
+
+            directors_list.append(
+                {
+                    "id": director_data.id,
+                    "name": director_data.name,
+                    "movie_count": director_data.movie_count,
+                    "avg_rating": director_data.avg_rating or 0,
+                    "total_revenue": director_data.total_revenue or 0,
+                    "top_movies": [
+                        {
+                            "id": m.id,
+                            "title": m.title,
+                            "year": m.release_date.year if m.release_date else None,
+                            "vote_average": m.vote_average,
+                        }
+                        for m in top_movies
+                    ],
+                }
+            )
+
+        return render_template(
+            "directors.html",
+            directors=directors_list,
+            page=page,
+            total_pages=total_pages,
+            current_user=user,
+            config=Config,
+        )
+    finally:
+        session_db.close()
+
+
+@app.route("/director/<int:director_id>")
+def director_detail(director_id):
+    """Individual director filmography page"""
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+
+        # Get director info
+        director = session_db.query(Person).filter_by(id=director_id).first()
+        if not director:
+            return "Director not found", 404
+
+        # Get all movies directed by this person
+        movies_query = (
+            session_db.query(Movie)
+            .join(Crew, Movie.id == Crew.movie_id)
+            .filter(Crew.person_id == director_id)
+            .filter(Crew.job == "Director")
+            .order_by(desc(Movie.release_date))
+        )
+
+        movies = movies_query.all()
+
+        # Calculate statistics
+        total_movies = len(movies)
+        avg_rating = (
+            sum(m.vote_average or 0 for m in movies) / total_movies if total_movies > 0 else 0
+        )
+        total_revenue = sum(m.revenue or 0 for m in movies)
+
+        years = [m.release_date.year for m in movies if m.release_date]
+        first_year = min(years) if years else None
+        last_year = max(years) if years else None
+        years_active = (last_year - first_year + 1) if first_year and last_year else 0
+
+        # Genre distribution
+        genre_counts = {}
+        for movie in movies:
+            for genre in movie.genres:
+                genre_counts[genre.name] = genre_counts.get(genre.name, 0) + 1
+
+        genres = [
+            {"name": name, "count": count}
+            for name, count in sorted(genre_counts.items(), key=lambda x: x[1], reverse=True)
+        ]
+
+        # Chart data (movies by year)
+        year_data = {}
+        for movie in movies:
+            if movie.release_date:
+                year = movie.release_date.year
+                if year not in year_data:
+                    year_data[year] = {"ratings": [], "revenues": []}
+                year_data[year]["ratings"].append(movie.vote_average or 0)
+                year_data[year]["revenues"].append((movie.revenue or 0) / 1000000)
+
+        chart_years = sorted(year_data.keys())
+        chart_ratings = [
+            sum(year_data[y]["ratings"]) / len(year_data[y]["ratings"]) for y in chart_years
+        ]
+        chart_revenues = [sum(year_data[y]["revenues"]) for y in chart_years]
+
+        stats = {
+            "total_movies": total_movies,
+            "avg_rating": avg_rating,
+            "total_revenue": total_revenue,
+            "years_active": years_active,
+            "first_year": first_year,
+            "last_year": last_year,
+            "genres": genres,
+        }
+
+        chart_data = {"years": chart_years, "ratings": chart_ratings, "revenues": chart_revenues}
+
+        movies_list = [
+            {
+                "id": m.id,
+                "title": m.title,
+                "year": m.release_date.year if m.release_date else None,
+                "poster_path": m.poster_path,
+                "vote_average": m.vote_average,
+                "revenue": m.revenue,
+                "runtime": m.runtime,
+                "genres": [g.name for g in m.genres],
+            }
+            for m in movies
+        ]
+
+        return render_template(
+            "director_detail.html",
+            director=director,
+            movies=movies_list,
+            stats=stats,
+            chart_data=chart_data,
+            current_user=user,
+            config=Config,
+        )
+    finally:
+        session_db.close()
+
+
+# ==========================================
+# EXISTING ROUTES (UPDATED WITH current_user)
+# ==========================================
+
+
 @app.route("/")
 def index():
     """Homepage with featured movies"""
     session = get_db_session()
 
     try:
+        user = get_current_user(session)
+
         # Get top rated movies
         top_movies = (
             session.query(Movie)
@@ -135,6 +559,7 @@ def index():
             top_movies=top_movies,
             recent_movies=recent_movies,
             popular_movies=popular_movies,
+            current_user=user,
             config=Config,
         )
     finally:
@@ -147,6 +572,8 @@ def movies():
     session = get_db_session()
 
     try:
+        user = get_current_user(session)
+
         # Get filter parameters
         genre_id = request.args.get("genre", type=int)
         sort_by = request.args.get("sort", default="popularity")
@@ -245,6 +672,7 @@ def movies():
             selected_rating_max=rating_max,
             selected_runtime_min=runtime_min,
             selected_runtime_max=runtime_max,
+            current_user=user,
             config=Config,
         )
     finally:
@@ -257,6 +685,8 @@ def hidden_gems():
     session = get_db_session()
 
     try:
+        user = get_current_user(session)
+
         # Get filter parameters
         genre_id = request.args.get("genre", type=int)
         decade = request.args.get("decade", type=int)
@@ -267,11 +697,10 @@ def hidden_gems():
         per_page = 24
 
         # Base query for hidden gems
-        # High rating, low popularity, sufficient votes for credibility
         query = session.query(Movie).filter(
             Movie.vote_average >= min_rating,
             Movie.popularity <= max_popularity,
-            Movie.vote_count >= 50,  # Ensure credible ratings
+            Movie.vote_count >= 50,
         )
 
         # Apply genre filter
@@ -291,14 +720,10 @@ def hidden_gems():
         if sort_by == "rating":
             query = query.order_by(desc(Movie.vote_average))
         elif sort_by == "most_hidden":
-            # Most hidden = lowest popularity
             query = query.order_by(Movie.popularity)
         elif sort_by == "release_date":
             query = query.filter(Movie.release_date.isnot(None)).order_by(desc(Movie.release_date))
         else:  # gem_score (default)
-            # Gem score = balance of high rating and low popularity
-            # Formula: (rating / 10) * (1 / log(popularity + 1))
-            # Higher score = better gem
             query = query.order_by(desc(Movie.vote_average / (func.log(Movie.popularity + 2) * 2)))
 
         # Get total count for pagination
@@ -331,6 +756,7 @@ def hidden_gems():
             total_pages=total_pages,
             total_gems=total_gems,
             available_decades=available_decades,
+            current_user=user,
             config=Config,
         )
     finally:
@@ -343,6 +769,8 @@ def top_actors():
     session = get_db_session()
 
     try:
+        user = get_current_user(session)
+
         sort_by = request.args.get("sort", default="movie_count")
         page = request.args.get("page", default=1, type=int)
         per_page = 24
@@ -357,9 +785,9 @@ def top_actors():
             )
             .join(Cast, Person.id == Cast.person_id)
             .join(Movie, Cast.movie_id == Movie.id)
-            .filter(Movie.vote_count > 20)  # Only count movies with significant votes
+            .filter(Movie.vote_count > 20)
             .group_by(Person.id)
-            .having(func.count(Cast.movie_id) >= 2)  # At least 2 movies
+            .having(func.count(Cast.movie_id) >= 2)
         )
 
         # Apply sorting
@@ -369,7 +797,7 @@ def top_actors():
             query = query.order_by(desc("avg_popularity"))
         elif sort_by == "name":
             query = query.order_by(Person.name)
-        else:  # movie_count (default)
+        else:
             query = query.order_by(desc("movie_count"))
 
         # Get total count for pagination
@@ -377,7 +805,18 @@ def top_actors():
 
         # Apply pagination
         offset = (page - 1) * per_page
-        actors_list = query.limit(per_page).offset(offset).all()
+        actors_raw = query.limit(per_page).offset(offset).all()
+
+        # Unpack tuples into a more template-friendly format
+        actors_list = [
+            {
+                "person": row[0],
+                "movie_count": row[1],
+                "avg_rating": row[2],
+                "avg_popularity": row[3],
+            }
+            for row in actors_raw
+        ]
 
         # Calculate pagination info
         total_pages = (total_actors + per_page - 1) // per_page
@@ -389,6 +828,7 @@ def top_actors():
             page=page,
             total_pages=total_pages,
             total_actors=total_actors,
+            current_user=user,
             config=Config,
         )
     finally:
@@ -401,20 +841,34 @@ def actor_detail(actor_id):
     session = get_db_session()
 
     try:
+        user = get_current_user(session)
+
         # Get actor info
         actor = session.query(Person).filter_by(id=actor_id).first()
 
         if not actor:
             return "Actor not found", 404
 
-        # Get filmography (movies with this actor)
-        filmography = (
+        # Get filmography (movies with this actor) - fixed to return proper tuple
+        filmography_raw = (
             session.query(Movie, Cast)
             .join(Cast, Movie.id == Cast.movie_id)
             .filter(Cast.person_id == actor_id)
             .order_by(desc(Movie.release_date))
             .all()
         )
+
+        # Convert to format expected by template: (movie, character, cast_order)
+        filmography = []
+        for movie, cast in filmography_raw:
+            # Get character name from Cast if it exists
+            character = (
+                getattr(cast, "character_name", None)
+                or getattr(cast, "character", None)
+                or "Unknown"
+            )
+            cast_order = cast.cast_order if hasattr(cast, "cast_order") else 0
+            filmography.append((movie, character, cast_order))
 
         # Calculate statistics
         total_movies = len(filmography)
@@ -444,6 +898,7 @@ def actor_detail(actor_id):
             total_movies=total_movies,
             avg_rating=round(avg_rating, 1) if avg_rating else None,
             top_genres=top_genres,
+            current_user=user,
             config=Config,
         )
     finally:
@@ -456,6 +911,8 @@ def movie_detail(movie_id):
     session = get_db_session()
 
     try:
+        user = get_current_user(session)
+
         movie = session.query(Movie).filter_by(id=movie_id).first()
 
         if not movie:
@@ -485,6 +942,13 @@ def movie_detail(movie_id):
         # Get trailer from TMDB API
         trailer = get_trailer_for_movie(movie.tmdb_id)
 
+        # Check if movie is in user's favorites/watchlist
+        is_favorited = False
+        is_in_watchlist = False
+        if user:
+            is_favorited = movie in user.favorites.all()
+            is_in_watchlist = movie in user.watchlist.all()
+
         return render_template(
             "movie_detail.html",
             movie=movie,
@@ -492,6 +956,9 @@ def movie_detail(movie_id):
             directors=directors,
             similar_movies=similar_movies,
             trailer=trailer,
+            current_user=user,
+            is_favorited=is_favorited,
+            is_in_watchlist=is_in_watchlist,
             config=Config,
         )
     finally:
@@ -504,6 +971,8 @@ def analytics():
     session = get_db_session()
 
     try:
+        user = get_current_user(session)
+
         # Genre distribution
         genre_stats = (
             session.query(Genre.name, func.count(Movie.id).label("count"))
@@ -540,7 +1009,7 @@ def analytics():
             .all()
         )
 
-        # Get top 10 movies with budget/revenue data (optimized query)
+        # Get top 10 movies with budget/revenue data
         top_budget_movies = (
             session.query(Movie.title, Movie.budget, Movie.revenue)
             .filter(Movie.budget > 0, Movie.revenue > 0)
@@ -582,6 +1051,7 @@ def analytics():
             total_movies=total_movies,
             avg_rating=round(avg_rating, 1) if avg_rating else 0,
             total_revenue=total_revenue or 0,
+            current_user=user,
             config=Config,
         )
     finally:
@@ -594,10 +1064,14 @@ def search():
     session = get_db_session()
 
     try:
+        user = get_current_user(session)
+
         query = request.args.get("q", "")
 
         if not query:
-            return render_template("search.html", movies=[], query="", config=Config)
+            return render_template(
+                "search.html", movies=[], query="", current_user=user, config=Config
+            )
 
         # Search in title and overview
         movies_list = (
@@ -608,7 +1082,9 @@ def search():
             .all()
         )
 
-        return render_template("search.html", movies=movies_list, query=query, config=Config)
+        return render_template(
+            "search.html", movies=movies_list, query=query, current_user=user, config=Config
+        )
     finally:
         session.close()
 

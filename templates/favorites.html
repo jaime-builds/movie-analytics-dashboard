@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}My Favorites - Movie Analytics Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>
+        <i class="bi bi-heart-fill text-danger me-2"></i>My Favorite Movies
+    </h1>
+</div>
+
+{% if favorites %}
+    <p class="text-muted mb-4">You have {{ favorites|length }} favorite movie{{ 's' if favorites|length != 1 }}</p>
+
+    <div class="row">
+        {% for movie in favorites %}
+        <div class="col-md-3 col-sm-6 mb-4">
+            <div class="card h-100 shadow-sm hover-card">
+                <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+                    {% if movie.poster_path %}
+                    <img src="{{ config.get_poster_url(movie.poster_path) }}"
+                         class="card-img-top"
+                         alt="{{ movie.title }}"
+                         style="height: 400px; object-fit: cover;">
+                    {% else %}
+                    <div class="bg-secondary d-flex align-items-center justify-content-center"
+                         style="height: 400px;">
+                        <i class="bi bi-film" style="font-size: 3rem; color: #666;"></i>
+                    </div>
+                    {% endif %}
+
+                    <div class="card-body">
+                        <h5 class="card-title text-dark">{{ movie.title }}</h5>
+                        <p class="card-text">
+                            <small class="text-muted">
+                                {% if movie.release_date %}
+                                {{ movie.release_date.year }}
+                                {% endif %}
+                                {% if movie.genres %}
+                                • {{ movie.genres[0].name }}
+                                {% endif %}
+                            </small>
+                        </p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="badge bg-warning text-dark">
+                                <i class="bi bi-star-fill"></i> {{ movie.vote_average }}
+                            </span>
+                            <button
+                                class="btn btn-sm btn-outline-danger"
+                                onclick="event.preventDefault(); removeFavorite({{ movie.id }}, this);">
+                                <i class="bi bi-heart-fill"></i> Remove
+                            </button>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="alert alert-info" role="alert">
+        <h4 class="alert-heading">
+            <i class="bi bi-info-circle me-2"></i>No favorites yet
+        </h4>
+        <p>You haven't added any movies to your favorites yet.</p>
+        <hr>
+        <p class="mb-0">
+            <a href="{{ url_for('movies') }}" class="alert-link">Browse movies</a> and click the "Favorite" button to save your favorites!
+        </p>
+    </div>
+{% endif %}
+
+<style>
+.hover-card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.hover-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2) !important;
+}
+</style>
+
+<script>
+async function removeFavorite(movieId, button) {
+    const url = `/movie/${movieId}/unfavorite`;
+    const res = await fetch(url, { method: 'POST' });
+
+    if (res.ok) {
+        // Remove the movie card from the page
+        const card = button.closest('.col-md-3');
+        card.remove();
+
+        // Check if there are any favorites left
+        const remaining = document.querySelectorAll('.col-md-3').length;
+        if (remaining === 0) {
+            location.reload(); // Reload to show "no favorites" message
+        }
+    }
+}
+</script>
+{% endblock %}

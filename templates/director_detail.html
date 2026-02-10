@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+
+{% block title %}{{ director.name }} - Director - Movie Analytics Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Director Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/">Home</a></li>
+                    <li class="breadcrumb-item"><a href="/directors">Directors</a></li>
+                    <li class="breadcrumb-item active">{{ director.name }}</li>
+                </ol>
+            </nav>
+
+            <h1 class="display-4 mb-3">
+                <i class="bi bi-person-circle text-primary"></i>
+                {{ director.name }}
+            </h1>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center shadow-sm">
+                <div class="card-body">
+                    <h3 class="display-4 text-primary">{{ stats.total_movies }}</h3>
+                    <p class="text-muted mb-0">Movies Directed</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center shadow-sm">
+                <div class="card-body">
+                    <h3 class="display-4 text-warning">
+                        <i class="bi bi-star-fill"></i>
+                        {{ "%.2f"|format(stats.avg_rating) }}
+                    </h3>
+                    <p class="text-muted mb-0">Average Rating</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center shadow-sm">
+                <div class="card-body">
+                    <h3 class="display-4 text-success">
+                        ${{ "%.0f"|format(stats.total_revenue / 1000000) }}M
+                    </h3>
+                    <p class="text-muted mb-0">Total Box Office</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center shadow-sm">
+                <div class="card-body">
+                    <h3 class="display-4 text-info">
+                        {{ stats.years_active }}
+                    </h3>
+                    <p class="text-muted mb-0">Years Active</p>
+                    <small class="text-muted">{{ stats.first_year }} - {{ stats.last_year }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Ratings Over Time</h5>
+                    <canvas id="ratingsChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Box Office Performance</h5>
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Genre Distribution -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="bi bi-tags"></i>
+                        Genre Distribution
+                    </h5>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for genre in stats.genres %}
+                        <span class="badge bg-primary" style="font-size: 0.9rem; padding: 0.5rem 1rem;">
+                            {{ genre.name }} ({{ genre.count }})
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filmography -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-film"></i>
+                            Complete Filmography
+                        </h5>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-secondary active" data-view="grid">
+                                <i class="bi bi-grid-3x3-gap"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" data-view="list">
+                                <i class="bi bi-list-ul"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Grid View -->
+                    <div id="gridView" class="row row-cols-2 row-cols-md-4 row-cols-lg-5 g-3">
+                        {% for movie in movies %}
+                        <div class="col">
+                            <a href="/movie/{{ movie.id }}" class="text-decoration-none">
+                                <div class="card h-100 movie-card">
+                                    {% if movie.poster_path %}
+                                    <img src="https://image.tmdb.org/t/p/w342{{ movie.poster_path }}"
+                                         class="card-img-top"
+                                         alt="{{ movie.title }}"
+                                         loading="lazy">
+                                    {% else %}
+                                    <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center"
+                                         style="height: 200px;">
+                                        <i class="bi bi-film text-white" style="font-size: 3rem;"></i>
+                                    </div>
+                                    {% endif %}
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title small mb-1">{{ movie.title }}</h6>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted">{{ movie.year }}</small>
+                                            {% if movie.vote_average %}
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="bi bi-star-fill"></i>
+                                                {{ "%.1f"|format(movie.vote_average) }}
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- List View (initially hidden) -->
+                    <div id="listView" class="d-none">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Year</th>
+                                        <th>Title</th>
+                                        <th>Rating</th>
+                                        <th>Revenue</th>
+                                        <th>Runtime</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for movie in movies %}
+                                    <tr onclick="window.location.href='/movie/{{ movie.id }}'" style="cursor: pointer;">
+                                        <td>{{ movie.year }}</td>
+                                        <td>
+                                            <strong>{{ movie.title }}</strong>
+                                            {% if movie.genres %}
+                                            <br>
+                                            <small class="text-muted">
+                                                {{ movie.genres|join(', ') }}
+                                            </small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if movie.vote_average %}
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="bi bi-star-fill"></i>
+                                                {{ "%.1f"|format(movie.vote_average) }}
+                                            </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if movie.revenue %}
+                                            ${{ "%.1f"|format(movie.revenue / 1000000) }}M
+                                            {% else %}
+                                            -
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if movie.runtime %}
+                                            {{ movie.runtime }} min
+                                            {% else %}
+                                            -
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.movie-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+}
+
+.movie-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.card-img-top {
+    height: 250px;
+    object-fit: cover;
+}
+
+@media (max-width: 768px) {
+    .card-img-top {
+        height: 200px;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // View toggle
+    const gridBtn = document.querySelector('[data-view="grid"]');
+    const listBtn = document.querySelector('[data-view="list"]');
+    const gridView = document.getElementById('gridView');
+    const listView = document.getElementById('listView');
+
+    gridBtn.addEventListener('click', function() {
+        gridView.classList.remove('d-none');
+        listView.classList.add('d-none');
+        gridBtn.classList.add('active');
+        listBtn.classList.remove('active');
+    });
+
+    listBtn.addEventListener('click', function() {
+        gridView.classList.add('d-none');
+        listView.classList.remove('d-none');
+        listBtn.classList.add('active');
+        gridBtn.classList.remove('active');
+    });
+
+    // Ratings Chart
+    const ratingsCtx = document.getElementById('ratingsChart').getContext('2d');
+    new Chart(ratingsCtx, {
+        type: 'line',
+        data: {
+            labels: {{ chart_data.years|tojson }},
+            datasets: [{
+                label: 'Average Rating',
+                data: {{ chart_data.ratings|tojson }},
+                borderColor: 'rgb(255, 193, 7)',
+                backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    min: 0,
+                    max: 10
+                }
+            }
+        }
+    });
+
+    // Revenue Chart
+    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+    new Chart(revenueCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ chart_data.years|tojson }},
+            datasets: [{
+                label: 'Revenue (Millions)',
+                data: {{ chart_data.revenues|tojson }},
+                backgroundColor: 'rgba(25, 135, 84, 0.7)',
+                borderColor: 'rgb(25, 135, 84)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value + 'M';
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

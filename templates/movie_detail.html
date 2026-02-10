@@ -19,7 +19,6 @@
     </div>
 </div>
 {% else %}
-<!-- Title if no backdrop -->
 <h1 class="mb-4">{{ movie.title }}</h1>
 {% if movie.tagline %}
 <p class="lead text-muted mb-3">{{ movie.tagline }}</p>
@@ -36,6 +35,34 @@
         {% else %}
         <div class="bg-secondary rounded d-flex align-items-center justify-content-center" style="height: 450px;">
             <i class="bi bi-film" style="font-size: 3rem; color: #666;"></i>
+        </div>
+        {% endif %}
+
+        <!-- Favorites / Watchlist Buttons -->
+        {% if current_user %}
+        <div class="mt-3 d-grid gap-2">
+            <button
+                id="favorite-btn"
+                class="btn btn-{% if is_favorited %}danger{% else %}outline-danger{% endif %}"
+                onclick="toggleFavorite({{ movie.id }})"
+            >
+                <i class="bi bi-heart-fill me-1"></i>
+                {% if is_favorited %}Unfavorite{% else %}Favorite{% endif %}
+            </button>
+            <button
+                id="watchlist-btn"
+                class="btn btn-{% if is_in_watchlist %}primary{% else %}outline-primary{% endif %}"
+                onclick="toggleWatchlist({{ movie.id }})"
+            >
+                <i class="bi bi-bookmark-fill me-1"></i>
+                {% if is_in_watchlist %}Remove from Watchlist{% else %}Add to Watchlist{% endif %}
+            </button>
+        </div>
+        {% else %}
+        <div class="mt-3">
+            <div class="alert alert-info text-center small py-2">
+                <a href="{{ url_for('login', next=request.path) }}" class="alert-link">Log in</a> to save this movie to your favorites or watchlist
+            </div>
         </div>
         {% endif %}
     </div>
@@ -116,6 +143,7 @@
 </div>
 
 <!-- Feature 2: Runtime, Budget, and Revenue Details -->
+{% if movie.budget or movie.revenue or movie.runtime %}
 <div class="row mb-4">
     <div class="col-md-12">
         <div class="card">
@@ -124,117 +152,43 @@
                     <i class="bi bi-info-circle me-2"></i>Financial Details
                 </h5>
                 <div class="row">
-                    <!-- Runtime (detailed) -->
-                    <div class="col-md-3 mb-3 mb-md-0">
-                        <div class="d-flex align-items-center">
-                            <i class="bi bi-clock me-2 text-primary fs-4"></i>
-                            <div>
-                                <small class="text-muted d-block">Runtime</small>
-                                <strong>
-                                    {% if movie.runtime %}
-                                        {{ movie.runtime }} min ({{ movie.runtime // 60 }}h {{ movie.runtime % 60 }}m)
-                                    {% else %}
-                                        <span class="text-muted">Not available</span>
-                                    {% endif %}
-                                </strong>
-                            </div>
-                        </div>
+                    {% if movie.budget %}
+                    <div class="col-md-3 mb-3">
+                        <h6 class="text-muted">Budget</h6>
+                        <p class="h5">{{ movie.budget|format_currency }}</p>
+                    </div>
+                    {% endif %}
+
+                    {% if movie.revenue %}
+                    <div class="col-md-3 mb-3">
+                        <h6 class="text-muted">Revenue</h6>
+                        <p class="h5">{{ movie.revenue|format_currency }}</p>
+                    </div>
+                    {% endif %}
+
+                    {% if movie.budget and movie.revenue %}
+                    <div class="col-md-3 mb-3">
+                        <h6 class="text-muted">Profit/Loss</h6>
+                        {% set profit = movie.revenue - movie.budget %}
+                        <p class="h5 {% if profit > 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ profit|format_currency }}
+                        </p>
                     </div>
 
-                    <!-- Budget -->
-                    <div class="col-md-3 mb-3 mb-md-0">
-                        <div class="d-flex align-items-center">
-                            <i class="bi bi-cash me-2 text-success fs-4"></i>
-                            <div>
-                                <small class="text-muted d-block">Budget</small>
-                                <strong>
-                                    {% if movie.budget and movie.budget > 0 %}
-                                        {{ movie.budget|format_currency }}
-                                    {% else %}
-                                        <span class="text-muted">Not disclosed</span>
-                                    {% endif %}
-                                </strong>
-                            </div>
-                        </div>
+                    <div class="col-md-3 mb-3">
+                        <h6 class="text-muted">ROI</h6>
+                        {% set roi = ((movie.revenue - movie.budget) / movie.budget * 100) if movie.budget > 0 else 0 %}
+                        <p class="h5 {% if roi > 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ "%.1f"|format(roi) }}%
+                        </p>
                     </div>
-
-                    <!-- Revenue -->
-                    <div class="col-md-3 mb-3 mb-md-0">
-                        <div class="d-flex align-items-center">
-                            <i class="bi bi-graph-up me-2 text-info fs-4"></i>
-                            <div>
-                                <small class="text-muted d-block">Revenue</small>
-                                <strong>
-                                    {% if movie.revenue and movie.revenue > 0 %}
-                                        {{ movie.revenue|format_currency }}
-                                    {% else %}
-                                        <span class="text-muted">Not disclosed</span>
-                                    {% endif %}
-                                </strong>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Profit/Loss -->
-                    <div class="col-md-3">
-                        <div class="d-flex align-items-center">
-                            <i class="bi bi-calculator me-2 text-warning fs-4"></i>
-                            <div>
-                                <small class="text-muted d-block">Profit/Loss</small>
-                                {% if movie.budget and movie.budget > 0 and movie.revenue and movie.revenue > 0 %}
-                                    {% set profit = movie.revenue - movie.budget %}
-                                    {% set roi = ((movie.revenue / movie.budget - 1) * 100) %}
-                                    <strong class="{% if profit > 0 %}text-success{% else %}text-danger{% endif %}">
-                                        {% if profit > 0 %}
-                                            +{{ profit|format_currency }}
-                                        {% else %}
-                                            {{ profit|format_currency }}
-                                        {% endif %}
-                                    </strong>
-                                    <br>
-                                    <small class="{% if roi > 0 %}text-success{% else %}text-danger{% endif %}">
-                                        {{ "%.1f"|format(roi) }}% ROI
-                                    </small>
-                                {% else %}
-                                    <span class="text-muted">N/A</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
+                    {% endif %}
                 </div>
-
-                <!-- Optional: ROI Progress Bar -->
-                {% if movie.budget and movie.budget > 0 and movie.revenue and movie.revenue > 0 %}
-                <div class="row mt-4">
-                    <div class="col-12">
-                        <small class="text-muted d-block mb-1">Return on Investment</small>
-                        {% set roi_percent = ((movie.revenue / movie.budget) * 100) %}
-                        <div class="progress" style="height: 25px;">
-                            <div class="progress-bar {% if roi_percent >= 100 %}bg-success{% else %}bg-danger{% endif %}"
-                                 role="progressbar"
-                                 style="width: {{ [roi_percent, 100]|min }}%;"
-                                 aria-valuenow="{{ roi_percent }}"
-                                 aria-valuemin="0"
-                                 aria-valuemax="100">
-                                <strong>{{ "%.0f"|format(roi_percent) }}%</strong>
-                            </div>
-                        </div>
-                        {% if roi_percent < 100 %}
-                        <small class="text-danger d-block mt-1">
-                            <i class="bi bi-exclamation-triangle-fill"></i> Box office did not cover production budget
-                        </small>
-                        {% else %}
-                        <small class="text-success d-block mt-1">
-                            <i class="bi bi-check-circle-fill"></i> Profitable release
-                        </small>
-                        {% endif %}
-                    </div>
-                </div>
-                {% endif %}
             </div>
         </div>
     </div>
 </div>
+{% endif %}
 
 <!-- Cast -->
 {% if cast %}
@@ -262,91 +216,89 @@
 </div>
 {% endif %}
 
-<!-- Feature 5: Similar Movies (Sorted by Genre Match & Rating) -->
+<!-- Similar Movies -->
 {% if similar_movies %}
 <h3 class="mt-5 mb-3">
     <i class="bi bi-collection-play me-2"></i>Similar Movies
-    <small class="text-muted fs-6">Based on shared genres and ratings</small>
 </h3>
 <div class="row">
-    {% for sim_movie in similar_movies %}
-    <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-3">
-        <a href="{{ url_for('movie_detail', movie_id=sim_movie.id) }}" class="text-decoration-none">
-            <div class="card movie-card h-100">
-                <!-- Poster -->
-                <div class="position-relative">
-                    {% if sim_movie.poster_path %}
-                    <img src="{{ config.get_poster_url(sim_movie.poster_path, 'w300') }}"
-                         class="card-img-top"
-                         alt="{{ sim_movie.title }}">
-                    {% else %}
-                    <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center"
-                         style="height: 400px;">
-                        <i class="bi bi-film" style="font-size: 3rem; color: #666;"></i>
-                    </div>
-                    {% endif %}
-
-                    <!-- Rating Badge Overlay -->
-                    <div class="position-absolute top-0 end-0 m-2">
-                        <span class="badge bg-dark bg-opacity-75">
-                            <i class="bi bi-star-fill text-warning"></i>
-                            {{ "%.1f"|format(sim_movie.vote_average) }}
-                        </span>
-                    </div>
+    {% for similar_movie in similar_movies %}
+    <div class="col-md-2 col-sm-4 col-6 mb-4">
+        <a href="{{ url_for('movie_detail', movie_id=similar_movie.id) }}" class="text-decoration-none">
+            <div class="card h-100 shadow-sm hover-card">
+                {% if similar_movie.poster_path %}
+                <img src="{{ config.get_poster_url(similar_movie.poster_path, 'w342') }}"
+                     class="card-img-top"
+                     alt="{{ similar_movie.title }}"
+                     style="height: 250px; object-fit: cover;">
+                {% else %}
+                <div class="bg-secondary d-flex align-items-center justify-content-center"
+                     style="height: 250px;">
+                    <i class="bi bi-film" style="font-size: 2rem; color: #666;"></i>
                 </div>
-
-                <!-- Card Body -->
+                {% endif %}
                 <div class="card-body p-2">
-                    <h6 class="card-title small fw-bold mb-1" title="{{ sim_movie.title }}">
-                        {{ sim_movie.title[:40] }}{% if sim_movie.title|length > 40 %}...{% endif %}
-                    </h6>
-
-                    <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-muted">
-                            <i class="bi bi-calendar me-1"></i>
-                            {% if sim_movie.release_date %}
-                                {{ sim_movie.release_date.year }}
-                            {% else %}
-                                N/A
-                            {% endif %}
-                        </small>
-                    </div>
+                    <p class="small mb-1 text-dark"><strong>{{ similar_movie.title }}</strong></p>
+                    <p class="small text-muted mb-0">
+                        <i class="bi bi-star-fill text-warning"></i> {{ similar_movie.vote_average }}
+                    </p>
                 </div>
             </div>
         </a>
     </div>
     {% endfor %}
 </div>
-
-<!-- View More Button -->
-<div class="row mt-3">
-    <div class="col-12 text-center">
-        {% if movie.genres %}
-        <a href="{{ url_for('movies', genre=movie.genres[0].id) }}"
-           class="btn btn-outline-primary">
-            <i class="bi bi-film me-2"></i>
-            Explore More {{ movie.genres[0].name }} Movies
-        </a>
-        {% else %}
-        <a href="{{ url_for('movies') }}"
-           class="btn btn-outline-primary">
-            <i class="bi bi-film me-2"></i>
-            Browse All Movies
-        </a>
-        {% endif %}
-    </div>
-</div>
-
-{% else %}
-<!-- No Similar Movies -->
-<div class="row mt-5">
-    <div class="col-12">
-        <div class="alert alert-info">
-            <i class="bi bi-info-circle me-2"></i>
-            No similar movies found for this title.
-        </div>
-    </div>
-</div>
 {% endif %}
+
+<style>
+.hover-card {
+    transition: transform 0.2s ease-in-out;
+}
+
+.hover-card:hover {
+    transform: translateY(-5px);
+}
+</style>
+
+<!-- Favorites / Watchlist JavaScript -->
+<script>
+async function toggleFavorite(movieId) {
+    const btn = document.getElementById('favorite-btn');
+    const isFavorited = btn.textContent.trim().includes('Unfavorite');
+    const url = `/movie/${movieId}/${isFavorited ? 'unfavorite' : 'favorite'}`;
+
+    const res = await fetch(url, { method: 'POST' });
+    if (res.ok) {
+        if (isFavorited) {
+            btn.innerHTML = '<i class="bi bi-heart-fill me-1"></i>Favorite';
+            btn.classList.remove('btn-danger');
+            btn.classList.add('btn-outline-danger');
+        } else {
+            btn.innerHTML = '<i class="bi bi-heart-fill me-1"></i>Unfavorite';
+            btn.classList.remove('btn-outline-danger');
+            btn.classList.add('btn-danger');
+        }
+    }
+}
+
+async function toggleWatchlist(movieId) {
+    const btn = document.getElementById('watchlist-btn');
+    const inWatchlist = btn.textContent.trim().includes('Remove from Watchlist');
+    const url = `/movie/${movieId}/${inWatchlist ? 'unwatchlist' : 'watchlist'}`;
+
+    const res = await fetch(url, { method: 'POST' });
+    if (res.ok) {
+        if (inWatchlist) {
+            btn.innerHTML = '<i class="bi bi-bookmark-fill me-1"></i>Add to Watchlist';
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-outline-primary');
+        } else {
+            btn.innerHTML = '<i class="bi bi-bookmark-fill me-1"></i>Remove from Watchlist';
+            btn.classList.remove('btn-outline-primary');
+            btn.classList.add('btn-primary');
+        }
+    }
+}
+</script>
 
 {% endblock %}

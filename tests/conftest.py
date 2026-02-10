@@ -1,16 +1,12 @@
 """
-Pytest configuration and shared fixtures for movie analytics dashboard tests
+Pytest configuration and fixtures for testing
 """
 
-import os
-import sys
 from datetime import datetime
 
 import pytest
 
-# Add parent directory to path so we can import from src
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
+from config.config import Config
 from src.app import app as flask_app
 from src.models import (
     Base,
@@ -21,59 +17,64 @@ from src.models import (
     Person,
     ProductionCompany,
     Session,
+    User,
     engine,
 )
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def app():
-    """Create and configure a test Flask application"""
+    """Create application for testing"""
     flask_app.config.update(
         {
             "TESTING": True,
-            "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",  # Use in-memory database
             "WTF_CSRF_ENABLED": False,  # Disable CSRF for testing
+            "SECRET_KEY": "test-secret-key",
         }
     )
 
-    # Create tables
-    Base.metadata.create_all(engine)
-
     yield flask_app
 
-    # Cleanup
+
+@pytest.fixture(scope="function")
+def db_session(app):
+    """Create a fresh database session for each test with proper cleanup"""
+    # Recreate all tables for this test
     Base.metadata.drop_all(engine)
-
-
-@pytest.fixture
-def client(app):
-    """Create a test client for the Flask application"""
-    return app.test_client()
-
-
-@pytest.fixture
-def runner(app):
-    """Create a test CLI runner"""
-    return app.test_cli_runner()
-
-
-@pytest.fixture
-def db_session():
-    """Create a test database session with rollback"""
-    # Create all tables
     Base.metadata.create_all(engine)
 
-    session = Session()
+    # Create new session
+    connection = engine.connect()
+    transaction = connection.begin()
+    session = Session(bind=connection)
+
+    # Monkey-patch the app's get_db_session function to return our test session
+    import src.app
+
+    original_get_db_session = src.app.get_db_session
+    src.app.get_db_session = lambda: session
 
     yield session
 
-    # Rollback and cleanup
-    session.rollback()
+    # Restore original function
+    src.app.get_db_session = original_get_db_session
+
+    # Rollback everything from this test
     session.close()
+    transaction.rollback()
+    connection.close()
+
+    # Drop all tables to ensure clean slate for next test
     Base.metadata.drop_all(engine)
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
+def client(app, db_session):
+    """Create test client - depends on db_session to ensure proper setup"""
+    return app.test_client()
+
+
+@pytest.fixture(scope="function")
 def sample_genre(db_session):
     """Create a sample genre"""
     genre = Genre(tmdb_id=28, name="Action")
@@ -82,22 +83,35 @@ def sample_genre(db_session):
     return genre
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
+def sample_person(db_session):
+    """Create a sample person (actor)"""
+    person = Person(tmdb_id=287, name="Brad Pitt", profile_path="/kU3B75TyRiCgE270EyZnHjfivoq.jpg")
+    db_session.add(person)
+    db_session.commit()
+    return person
+
+
+@pytest.fixture(scope="function")
 def sample_movie(db_session, sample_genre):
-    """Create a sample movie with genre"""
+    """Create a sample movie"""
     movie = Movie(
         tmdb_id=550,
         title="Fight Club",
-        overview="An insomniac office worker and a devil-may-care soap maker form an underground fight club.",
+        original_title="Fight Club",
+        overview="An insomniac office worker and a devil-may-care soapmaker form an underground fight club.",
         release_date=datetime.strptime("1999-10-15", "%Y-%m-%d").date(),
-        vote_average=8.4,
-        vote_count=25000,
-        popularity=50.5,
-        poster_path="/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
-        backdrop_path="/fCayJrkfRaCRCTh8GqN30f8oyQF.jpg",
+        runtime=139,
         budget=63000000,
         revenue=100853753,
-        runtime=139,
+        popularity=61.416,
+        vote_average=8.4,
+        vote_count=25000,
+        poster_path="/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
+        backdrop_path="/fCayJrkfRaCRCTh8GqN30f8oyQF.jpg",
+        imdb_id="tt0137523",
+        status="Released",
+        tagline="Mischief. Mayhem. Soap.",
     )
     movie.genres.append(sample_genre)
     db_session.add(movie)
@@ -105,42 +119,29 @@ def sample_movie(db_session, sample_genre):
     return movie
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def sample_movies(db_session, sample_genre):
-    """Create multiple sample movies for testing pagination and filtering"""
+    """Create multiple sample movies"""
     movies = []
-
-    # Create 25 movies
     for i in range(25):
         movie = Movie(
             tmdb_id=1000 + i,
-            title=f"Test Movie {i+1}",
-            overview=f"Overview for test movie {i+1}",
-            release_date=datetime.strptime(f"202{i%4}-0{(i%9)+1}-15", "%Y-%m-%d").date(),
-            vote_average=5.0 + (i % 5),
-            vote_count=100 + (i * 10),
-            popularity=10.0 + i,
-            poster_path=f"/poster{i}.jpg",
-            runtime=90 + (i * 2),
+            title=f"Test Movie {i}",
+            overview=f"Test overview {i}",
+            release_date=datetime.strptime("2024-01-01", "%Y-%m-%d").date(),
+            vote_average=7.0 + (i % 3),
+            vote_count=100 + i * 10,
+            popularity=50.0 + i,
         )
         movie.genres.append(sample_genre)
         movies.append(movie)
-        db_session.add(movie)
 
+    db_session.add_all(movies)
     db_session.commit()
     return movies
 
 
-@pytest.fixture
-def sample_person(db_session):
-    """Create a sample person (actor/director)"""
-    person = Person(tmdb_id=287, name="Brad Pitt", profile_path="/kU3B75TyRiCgE270EyZnHjfivoq.jpg")
-    db_session.add(person)
-    db_session.commit()
-    return person
-
-
-@pytest.fixture
+@pytest.fixture(scope="function")
 def sample_cast(db_session, sample_movie, sample_person):
     """Create a sample cast member"""
     cast = Cast(
@@ -154,10 +155,12 @@ def sample_cast(db_session, sample_movie, sample_person):
     return cast
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def sample_crew(db_session, sample_movie):
     """Create a sample crew member (director)"""
-    director = Person(tmdb_id=7467, name="David Fincher")
+    director = Person(
+        tmdb_id=7467, name="David Fincher", profile_path="/tpEczFclQZeKAiCeKZZ0adRvtfz.jpg"
+    )
     db_session.add(director)
     db_session.commit()
 
@@ -169,8 +172,8 @@ def sample_crew(db_session, sample_movie):
     return crew
 
 
-@pytest.fixture
-def sample_production_company(db_session, sample_movie):
+@pytest.fixture(scope="function")
+def sample_production_company(db_session):
     """Create a sample production company"""
     company = ProductionCompany(
         tmdb_id=508,
@@ -178,7 +181,63 @@ def sample_production_company(db_session, sample_movie):
         logo_path="/7PzJdsLGlR7oW4J0J5Xcd0pHGRg.png",
         origin_country="US",
     )
-    company.movies.append(sample_movie)
     db_session.add(company)
     db_session.commit()
     return company
+
+
+# ============================================
+# NEW FIXTURES FOR AUTHENTICATION TESTING
+# ============================================
+
+
+@pytest.fixture(scope="function")
+def sample_user(db_session):
+    """Create a sample user for testing"""
+    user = User(username="testuser")
+    user.set_password("testpassword")
+    db_session.add(user)
+    db_session.commit()
+    return user
+
+
+@pytest.fixture(scope="function")
+def logged_in_user(client, sample_user):
+    """Create a logged-in user session"""
+    # Login the user using the client
+    with client.session_transaction() as sess:
+        sess["user_id"] = sample_user.id
+    return sample_user
+
+
+@pytest.fixture(scope="function")
+def user_with_favorites(db_session, sample_user, sample_movies):
+    """Create a user with some favorited movies"""
+    sample_user.favorites.append(sample_movies[0])
+    sample_user.favorites.append(sample_movies[1])
+    sample_user.favorites.append(sample_movies[2])
+    db_session.commit()
+    return sample_user
+
+
+@pytest.fixture(scope="function")
+def user_with_watchlist(db_session, sample_user, sample_movies):
+    """Create a user with movies in watchlist"""
+    sample_user.watchlist.append(sample_movies[3])
+    sample_user.watchlist.append(sample_movies[4])
+    db_session.commit()
+    return sample_user
+
+
+@pytest.fixture(scope="function")
+def multiple_users(db_session):
+    """Create multiple users for testing"""
+    users = []
+    for i in range(3):
+        user = User(username=f"user{i}")
+        user.set_password(f"password{i}")
+        users.append(user)
+
+    db_session.add_all(users)
+    db_session.commit()
+    return users

@@ -1,87 +1,128 @@
-# TODO
+# Movie Analytics Dashboard - Roadmap
 
-## Completed ✅
-- [✅] Analytics Chart.js visualizations (pie/bar charts)
-- [✅] Dark mode toggle
-- [✅] Movie trailer links (YouTube embeds)
-- [✅] Update README with analytics chart details and screenshot
-- [✅] Import more movies (increase from 100 to 500+)
-- [✅] Advanced filtering (year, decade, rating range, runtime)
-- [✅] Top Actors page - most frequently appearing actors
-- [✅] Hidden Gems page - high rated, low popularity movies
-- [✅] Style movie detail page with backdrop image banner
-- [✅] Add runtime, budget, and revenue to movie detail page
-- [✅] Add "no results found" message to search page
-- [✅] Add pagination controls to movies browse page
-- [✅] Sort movies on detail page similar movies section
+## 🎯 Current Sprint (Next 2 Weeks)
 
-## In Progress 🚧
-- [ ] Favorites/watchlist system
-- [ ] User authentication and login
-- [ ] Auto-refresh data on a schedule (daily TMDB sync)
+- [ ] **Movie ratings and reviews system** (8h) - Allow users to rate and review movies
+- [ ] **Recommendations engine** (12h) - "If you liked X, try Y" based on user favorites
+- [ ] **Cast/crew detail pages** (4h) - Full filmography for actors beyond top actors
+- [ ] **Unit tests** (6h) - Test coverage for authentication and favorites
+- [ ] **Mobile responsive improvements** (4h) - Fix layout issues on phone screens
+- [ ] **RESTful API endpoints** (8h) - JSON API for movies and analytics data
 
-## Next Up (Priority)
-- [ ] Director Spotlight page - directors and their filmographies
-- [ ] Movie ratings and reviews system
-- [ ] Recommendations engine ("If you liked X, try Y")
-- [ ] RESTful API endpoints for movies and analytics
-- [ ] Export analytics reports as PDF/CSV
-- [ ] Responsive design improvements for mobile
-- [ ] Unit tests for all modules
+## 🚀 Next Up (This Month)
 
-## Quick Wins
-- [ ] Create feature branches for each change
-- [ ] Loading animations for data fetching
-- [ ] Smooth page transitions
-- [ ] Add movie search autocomplete/suggestions
+### High Impact, Low Effort 🎯
 
-## SQL Showcase
-- [ ] Budget vs Revenue profitability analysis (advanced queries)
-- [ ] Average rating trends over time (window functions)
-- [ ] Box office performance by genre (aggregations)
-- [ ] Actor collaboration network (complex joins)
+- [ ] Movie poster lazy loading (2h)
+- [ ] Toast notifications for user actions (2h)
+- [ ] Loading animations (3h)
+- [ ] Search autocomplete (4h)
 
-## New Features
-- [ ] Genre trending over time
-- [ ] Movie comparison tool (side-by-side)
-- [ ] Cast/crew detail pages with full filmography
-- [ ] Production companies page with statistics
-- [ ] Decade overview pages (1980s, 1990s, etc.)
-- [ ] Similar users recommendations ("Users like you also enjoyed...")
+### Features 🎬
 
-## UI/UX Improvements
-- [ ] Movie poster lazy loading
-- [ ] Infinite scroll option for movie browsing
-- [ ] Advanced search with multiple filters
-- [ ] Keyboard shortcuts for navigation
-- [ ] Breadcrumb navigation
-- [ ] Toast notifications for user actions
+- [ ] Export analytics as PDF/CSV (6h)
+- [ ] Movie comparison tool (8h)
+- [ ] Production companies page (5h)
+- [ ] Decade overview pages (6h)
 
-## Data & Backend
-- [ ] Cache frequently accessed queries (Redis)
-- [ ] Background job queue for data imports
-- [ ] Database indexing optimization
-- [ ] API rate limiting
-- [ ] Scheduled jobs for data updates (Celery/APScheduler)
+### Quality & Performance 🔧
 
-## Production & Deployment
-- [ ] Migrate from SQLite to PostgreSQL
+- [ ] Database indexing optimization (4h)
+- [ ] Cache frequently accessed queries (6h)
+- [ ] Error logging with Sentry (3h)
+
+## 🔮 Future (Next Quarter)
+
+### Backend & Infrastructure
+
+- [ ] Migrate SQLite → PostgreSQL
 - [ ] Docker containerization
-- [ ] Deploy to Heroku/Railway/Render (free tier)
-- [ ] Environment-based configuration (dev/prod)
-- [ ] Error logging and monitoring (Sentry)
 - [ ] CI/CD pipeline (GitHub Actions)
-- [ ] Database backups automation
+- [ ] Background job queue for imports
+- [ ] API rate limiting
 
-## Documentation
-- [ ] API documentation (if building REST API)
-- [ ] User guide for features
+### User Experience
+
+- [ ] Infinite scroll for browsing
+- [ ] Keyboard shortcuts
+- [ ] Advanced multi-filter search
+- [ ] Breadcrumb navigation
+- [ ] Email notifications
+
+### Social & Engagement
+
+- [ ] Social sharing features
+- [ ] User-to-user recommendations
+- [ ] Movie quiz/trivia
+- [ ] Streaming availability integration
+
+### Advanced Analytics
+
+- [ ] Budget vs Revenue profitability (SQL showcase)
+- [ ] Rating trends over time (window functions)
+- [ ] Box office by genre (aggregations)
+- [ ] Actor collaboration network (complex joins)
+- [ ] Genre trending analysis
+
+## 📚 Backlog (Ideas)
+
+- [ ] Mobile app (React Native/Flutter)
+- [ ] Deploy to production (Heroku/Railway)
+- [ ] Documentation site
 - [ ] Contribution guidelines
 - [ ] Architecture diagram
 
-## Future Enhancements
-- [ ] Social features (share movies, lists)
-- [ ] Email notifications for new releases
-- [ ] Movie quiz/trivia game
-- [ ] Streaming availability integration
-- [ ] Mobile app (React Native/Flutter)
+---
+
+## ✅ Recently Completed (Last 30 Days)
+
+<details>
+<summary>Click to expand (17 items)</summary>
+
+- [✅] Director Spotlight with filmographies (Feb 9)
+- [✅] Auto-refresh TMDB sync scheduler (Feb 9)
+- [✅] User authentication & login (Feb 9)
+- [✅] Favorites/watchlist system (Feb 9)
+- [✅] Increased dataset to 5000 movies (Feb 9)
+- [✅] Top Actors page
+- [✅] Hidden Gems page
+- [✅] Advanced filtering (year, decade, rating, runtime)
+- [✅] Analytics Chart.js visualizations
+- [✅] Dark mode toggle
+- [✅] Movie trailer embeds
+- [✅] Backdrop image banners
+- [✅] Similar movies recommendations
+- [✅] Pagination controls
+- [✅] Search with results
+- [✅] Movie detail pages with cast/crew
+- [✅] Genre filtering
+
+</details>
+
+---
+
+## 📊 Project Stats
+
+- **Total Movies**: 5,000
+- **Features Completed**: 17
+- **In Progress**: 6
+- **Test Coverage**: 0% → Target: 80%
+- **API Endpoints**: 0 → Target: 10+
+
+## 🎓 Learning Goals
+
+This project showcases:
+
+- ✅ Flask web development
+- ✅ SQLAlchemy ORM & complex queries
+- ✅ TMDB API integration
+- ✅ User authentication
+- ✅ Database relationships (many-to-many)
+- 🚧 RESTful API design
+- 🚧 Testing (pytest)
+- 📅 DevOps (Docker, CI/CD)
+- 📅 Production deployment
+
+---
+
+**Last Updated**: February 9, 2026

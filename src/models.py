@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import List
 
 from sqlalchemy import (
     DECIMAL,
@@ -15,6 +16,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from config.config import Config
 
@@ -36,6 +38,53 @@ movie_companies_table = Table(
     Column("movie_id", Integer, ForeignKey("movies.id"), primary_key=True),
     Column("company_id", Integer, ForeignKey("production_companies.id"), primary_key=True),
 )
+
+# New association tables for favorites and watchlist
+user_favorites_table = Table(
+    "user_favorites",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
+    Column("movie_id", Integer, ForeignKey("movies.id"), primary_key=True),
+)
+
+user_watchlist_table = Table(
+    "user_watchlist",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
+    Column("movie_id", Integer, ForeignKey("movies.id"), primary_key=True),
+)
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True)
+    username = Column(String(50), unique=True, nullable=False)
+    password_hash = Column(String(128), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    favorites = relationship(
+        "Movie",
+        secondary=user_favorites_table,
+        back_populates="favorited_by_users",
+        lazy="dynamic",
+    )
+    watchlist = relationship(
+        "Movie",
+        secondary=user_watchlist_table,
+        back_populates="watchlisted_by_users",
+        lazy="dynamic",
+    )
+
+    def set_password(self, password: str):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password: str) -> bool:
+        return check_password_hash(self.password_hash, password)
+
+    def __repr__(self):
+        return f"<User(username='{self.username}')>"
 
 
 class Movie(Base):
@@ -69,6 +118,20 @@ class Movie(Base):
         "ProductionCompany", secondary=movie_companies_table, back_populates="movies"
     )
 
+    # New relationships for favorites/watchlist
+    favorited_by_users = relationship(
+        "User",
+        secondary=user_favorites_table,
+        back_populates="favorites",
+        lazy="dynamic",
+    )
+    watchlisted_by_users = relationship(
+        "User",
+        secondary=user_watchlist_table,
+        back_populates="watchlist",
+        lazy="dynamic",
+    )
+
     def __repr__(self):
         return f"<Movie(title='{self.title}', year={self.release_date.year if self.release_date else 'N/A'})>"
 
@@ -80,6 +143,7 @@ class Genre(Base):
     tmdb_id = Column(Integer, unique=True, nullable=False)
     name = Column(String(100), nullable=False)
 
+    # Relationships
     movies = relationship("Movie", secondary=movie_genres_table, back_populates="genres")
 
     def __repr__(self):
@@ -87,17 +151,14 @@ class Genre(Base):
 
 
 class Person(Base):
-    __tablename__ = "people"
+    __tablename__ = "people"  # Changed from "persons" to "people"
 
     id = Column(Integer, primary_key=True)
     tmdb_id = Column(Integer, unique=True, nullable=False)
     name = Column(String(255), nullable=False)
-    profile_path = Column(String(255))
-    biography = Column(Text)
-    birthday = Column(Date)
-    place_of_birth = Column(String(255))
-    popularity = Column(DECIMAL(10, 2))
+    profile_path = Column(String(255))  # ← ADD THIS LINE FOR ACTOR PHOTOS!
 
+    # Relationships
     cast_roles = relationship("Cast", back_populates="person")
     crew_roles = relationship("Crew", back_populates="person")
 
@@ -110,15 +171,16 @@ class Cast(Base):
 
     id = Column(Integer, primary_key=True)
     movie_id = Column(Integer, ForeignKey("movies.id"), nullable=False)
-    person_id = Column(Integer, ForeignKey("people.id"), nullable=False)
+    person_id = Column(Integer, ForeignKey("people.id"), nullable=False)  # Changed to people
     character_name = Column(String(255))
-    cast_order = Column(Integer)
+    cast_order = Column(Integer, default=0)
 
+    # Relationships
     movie = relationship("Movie", back_populates="cast_members")
     person = relationship("Person", back_populates="cast_roles")
 
     def __repr__(self):
-        return f"<Cast(character='{self.character_name}')>"
+        return f"<Cast(person='{self.person.name if self.person else 'Unknown'}', character='{self.character_name}')>"
 
 
 class Crew(Base):
@@ -126,15 +188,18 @@ class Crew(Base):
 
     id = Column(Integer, primary_key=True)
     movie_id = Column(Integer, ForeignKey("movies.id"), nullable=False)
-    person_id = Column(Integer, ForeignKey("people.id"), nullable=False)
-    job = Column(String(100))
+    person_id = Column(Integer, ForeignKey("people.id"), nullable=False)  # Changed to people
+    job = Column(String(100), nullable=False)
     department = Column(String(100))
 
+    # Relationships
     movie = relationship("Movie", back_populates="crew_members")
     person = relationship("Person", back_populates="crew_roles")
 
     def __repr__(self):
-        return f"<Crew(job='{self.job}')>"
+        return (
+            f"<Crew(person='{self.person.name if self.person else 'Unknown'}', job='{self.job}')>"
+        )
 
 
 class ProductionCompany(Base):
@@ -146,6 +211,7 @@ class ProductionCompany(Base):
     logo_path = Column(String(255))
     origin_country = Column(String(10))
 
+    # Relationships
     movies = relationship("Movie", secondary=movie_companies_table, back_populates="companies")
 
     def __repr__(self):

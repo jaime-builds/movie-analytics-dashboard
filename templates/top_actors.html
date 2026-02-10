@@ -5,10 +5,10 @@
     <h1>Top Actors</h1>
     <div>
         <select class="form-select" id="sortSelect" onchange="window.location.href='?sort=' + this.value + '&page=1'">
-            <option value="movie_count" {% if current_sort == 'movie_count' %}selected{% endif %}>Most Movies</option>
-            <option value="rating" {% if current_sort == 'rating' %}selected{% endif %}>Highest Rated</option>
-            <option value="popularity" {% if current_sort == 'popularity' %}selected{% endif %}>Most Popular</option>
-            <option value="name" {% if current_sort == 'name' %}selected{% endif %}>Name (A-Z)</option>
+            <option value="movie_count" {% if sort_by == 'movie_count' %}selected{% endif %}>Most Movies</option>
+            <option value="avg_rating" {% if sort_by == 'avg_rating' %}selected{% endif %}>Highest Rated</option>
+            <option value="avg_popularity" {% if sort_by == 'avg_popularity' %}selected{% endif %}>Most Popular</option>
+            <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Name (A-Z)</option>
         </select>
     </div>
 </div>
@@ -22,20 +22,22 @@
     {% if actors %}
         {% for actor in actors %}
         <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-4">
-            <a href="{{ url_for('actor_detail', actor_id=actor.id) }}" class="text-decoration-none">
+            <a href="{{ url_for('actor_detail', actor_id=actor.person.id) }}" class="text-decoration-none">
                 <div class="card actor-card h-100">
-                    {% if actor.profile_path %}
-                    <img src="{{ config.get_poster_url(actor.profile_path, 'w300') }}"
+                    {% if actor.person.profile_path %}
+                    <img src="{{ config.get_poster_url(actor.person.profile_path, 'w300') }}"
                          class="card-img-top"
-                         alt="{{ actor.name }}"
+                         alt="{{ actor.person.name }}"
                          style="object-fit: cover; height: 300px;">
                     {% else %}
-                    <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center" style="height: 300px;">
-                        <i class="bi bi-person-circle" style="font-size: 5rem; color: #666;"></i>
-                    </div>
+                    <!-- Use initials-based avatar -->
+                    <img src="https://ui-avatars.com/api/?name={{ actor.person.name|urlencode }}&size=300&background=0D8ABC&color=fff&bold=true"
+                         class="card-img-top"
+                         alt="{{ actor.person.name }}"
+                         style="object-fit: cover; height: 300px;">
                     {% endif %}
                     <div class="card-body p-3">
-                        <h6 class="card-title mb-2">{{ actor.name }}</h6>
+                        <h6 class="card-title mb-2">{{ actor.person.name }}</h6>
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span class="badge bg-primary">
                                 <i class="bi bi-film"></i> {{ actor.movie_count }} movies
@@ -71,7 +73,7 @@
         <ul class="pagination mb-0">
             <!-- Previous Button -->
             <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-                <a class="page-link" href="?page={{ page - 1 }}&sort={{ current_sort }}">
+                <a class="page-link" href="?page={{ page - 1 }}&sort={{ sort_by }}">
                     Previous
                 </a>
             </li>
@@ -84,7 +86,7 @@
                     </li>
                 {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ p }}&sort={{ current_sort }}">
+                        <a class="page-link" href="?page={{ p }}&sort={{ sort_by }}">
                             {{ p }}
                         </a>
                     </li>
@@ -97,7 +99,7 @@
 
             <!-- Next Button -->
             <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
-                <a class="page-link" href="?page={{ page + 1 }}&sort={{ current_sort }}">
+                <a class="page-link" href="?page={{ page + 1 }}&sort={{ sort_by }}">
                     Next
                 </a>
             </li>
