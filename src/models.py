@@ -4,10 +4,12 @@ from typing import List
 from sqlalchemy import (
     DECIMAL,
     BigInteger,
+    CheckConstraint,
     Column,
     Date,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Table,
@@ -39,7 +41,7 @@ movie_companies_table = Table(
     Column("company_id", Integer, ForeignKey("production_companies.id"), primary_key=True),
 )
 
-# New association tables for favorites and watchlist
+# Association tables for favorites and watchlist
 user_favorites_table = Table(
     "user_favorites",
     Base.metadata,
@@ -76,6 +78,10 @@ class User(Base):
         back_populates="watchlisted_by_users",
         lazy="dynamic",
     )
+
+    # NEW: Relationships for ratings and reviews
+    ratings = relationship("Rating", back_populates="user", cascade="all, delete-orphan")
+    reviews = relationship("Review", back_populates="user", cascade="all, delete-orphan")
 
     def set_password(self, password: str):
         self.password_hash = generate_password_hash(password)
@@ -118,7 +124,7 @@ class Movie(Base):
         "ProductionCompany", secondary=movie_companies_table, back_populates="movies"
     )
 
-    # New relationships for favorites/watchlist
+    # Relationships for favorites/watchlist
     favorited_by_users = relationship(
         "User",
         secondary=user_favorites_table,
@@ -132,8 +138,64 @@ class Movie(Base):
         lazy="dynamic",
     )
 
+    # NEW: Relationships for ratings and reviews
+    ratings = relationship("Rating", back_populates="movie", cascade="all, delete-orphan")
+    reviews = relationship("Review", back_populates="movie", cascade="all, delete-orphan")
+
     def __repr__(self):
         return f"<Movie(title='{self.title}', year={self.release_date.year if self.release_date else 'N/A'})>"
+
+
+# NEW: Rating model for Feature 1
+class Rating(Base):
+    __tablename__ = "ratings"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    movie_id = Column(Integer, ForeignKey("movies.id"), nullable=False)
+    rating = Column(Integer, nullable=False)  # 1-5 stars
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User", back_populates="ratings")
+    movie = relationship("Movie", back_populates="ratings")
+
+    # Constraints
+    __table_args__ = (
+        CheckConstraint("rating >= 1 AND rating <= 5", name="check_rating_range"),
+        Index(
+            "idx_user_movie_rating", "user_id", "movie_id", unique=True
+        ),  # One rating per user per movie
+    )
+
+    def __repr__(self):
+        return f"<Rating(user_id={self.user_id}, movie_id={self.movie_id}, rating={self.rating})>"
+
+
+# NEW: Review model for Feature 1
+class Review(Base):
+    __tablename__ = "reviews"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    movie_id = Column(Integer, ForeignKey("movies.id"), nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User", back_populates="reviews")
+    movie = relationship("Movie", back_populates="reviews")
+
+    # Index for efficient queries
+    __table_args__ = (
+        Index("idx_movie_reviews", "movie_id"),
+        Index("idx_user_reviews", "user_id"),
+    )
+
+    def __repr__(self):
+        return f"<Review(user_id={self.user_id}, movie_id={self.movie_id})>"
 
 
 class Genre(Base):
@@ -151,12 +213,13 @@ class Genre(Base):
 
 
 class Person(Base):
-    __tablename__ = "people"  # Changed from "persons" to "people"
+    __tablename__ = "people"
 
     id = Column(Integer, primary_key=True)
     tmdb_id = Column(Integer, unique=True, nullable=False)
     name = Column(String(255), nullable=False)
-    profile_path = Column(String(255))  # ← ADD THIS LINE FOR ACTOR PHOTOS!
+    profile_path = Column(String(255))
+    popularity = Column(DECIMAL(10, 2))
 
     # Relationships
     cast_roles = relationship("Cast", back_populates="person")
@@ -171,7 +234,7 @@ class Cast(Base):
 
     id = Column(Integer, primary_key=True)
     movie_id = Column(Integer, ForeignKey("movies.id"), nullable=False)
-    person_id = Column(Integer, ForeignKey("people.id"), nullable=False)  # Changed to people
+    person_id = Column(Integer, ForeignKey("people.id"), nullable=False)
     character_name = Column(String(255))
     cast_order = Column(Integer, default=0)
 
@@ -188,7 +251,7 @@ class Crew(Base):
 
     id = Column(Integer, primary_key=True)
     movie_id = Column(Integer, ForeignKey("movies.id"), nullable=False)
-    person_id = Column(Integer, ForeignKey("people.id"), nullable=False)  # Changed to people
+    person_id = Column(Integer, ForeignKey("people.id"), nullable=False)
     job = Column(String(100), nullable=False)
     department = Column(String(100))
 

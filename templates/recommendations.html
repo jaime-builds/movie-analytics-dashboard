@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Recommended For You - Movie Analytics Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-4">
+                <i class="bi bi-lightbulb text-warning me-2"></i>
+                Recommended For You
+            </h1>
+            <p class="lead text-muted">
+                Personalized movie recommendations based on your favorites
+            </p>
+        </div>
+    </div>
+
+    {% if recommendations %}
+        <div class="alert alert-info mb-4">
+            <i class="bi bi-info-circle me-2"></i>
+            <strong>How recommendations work:</strong>
+            We analyze the genres of your favorite movies and find highly-rated films
+            that match your taste. The more movies you favorite, the better your recommendations!
+        </div>
+
+        <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-3">
+            {% for movie in recommendations %}
+            <div class="col">
+                <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+                    <div class="card h-100 movie-card">
+                        {% if movie.poster_path %}
+                        <img src="{{ config.get_poster_url(movie.poster_path, 'w342') }}"
+                             class="card-img-top"
+                             alt="{{ movie.title }}"
+                             loading="lazy"
+                             style="height: 300px; object-fit: cover;">
+                        {% else %}
+                        <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center"
+                             style="height: 300px;">
+                            <i class="bi bi-film text-white" style="font-size: 3rem;"></i>
+                        </div>
+                        {% endif %}
+                        <div class="card-body p-2">
+                            <h6 class="card-title small mb-1" style="font-size: 0.85rem;">
+                                {{ movie.title }}
+                            </h6>
+                            <p class="card-text small text-muted mb-1" style="font-size: 0.75rem;">
+                                {% if movie.release_date %}
+                                {{ movie.release_date.year }}
+                                {% endif %}
+                            </p>
+                            {% if movie.vote_average %}
+                            <div class="mt-1">
+                                <span class="badge bg-warning text-dark" style="font-size: 0.7rem;">
+                                    <i class="bi bi-star-fill"></i>
+                                    {{ "%.1f"|format(movie.vote_average) }}
+                                </span>
+                            </div>
+                            {% endif %}
+                            {% if movie.genres %}
+                            <div class="mt-2">
+                                {% for genre in movie.genres[:2] %}
+                                <span class="badge bg-primary" style="font-size: 0.65rem;">
+                                    {{ genre.name }}
+                                </span>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="mt-5">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Want better recommendations?</h5>
+                    <p class="card-text text-muted">
+                        Add more movies to your <a href="{{ url_for('favorites') }}">favorites</a> to get even more personalized suggestions!
+                    </p>
+                    <a href="{{ url_for('movies') }}" class="btn btn-primary">
+                        <i class="bi bi-film me-2"></i>Browse Movies
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    {% else %}
+        <div class="alert alert-warning" role="alert">
+            <h4 class="alert-heading">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                No recommendations yet
+            </h4>
+            <p>We need to know what you like first! Start by adding movies to your favorites.</p>
+            <hr>
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="{{ url_for('movies') }}" class="btn btn-primary">
+                    <i class="bi bi-film me-2"></i>Browse All Movies
+                </a>
+                <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-house me-2"></i>Back to Home
+                </a>
+                <a href="{{ url_for('hidden_gems') }}" class="btn btn-outline-info">
+                    <i class="bi bi-gem me-2"></i>Discover Hidden Gems
+                </a>
+            </div>
+        </div>
+
+        <!-- Show some popular movies as fallback -->
+        <div class="mt-4">
+            <h4 class="mb-3">
+                <i class="bi bi-fire text-danger me-2"></i>
+                Popular Movies
+            </h4>
+            <p class="text-muted">While we learn your preferences, here are some popular movies you might enjoy:</p>
+            <!-- This would need to be passed from the route, or you could just link to the movies page -->
+            <a href="{{ url_for('movies', sort='popularity') }}" class="btn btn-lg btn-primary">
+                <i class="bi bi-arrow-right-circle me-2"></i>View Popular Movies
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+.movie-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+}
+
+.movie-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+</style>
+{% endblock %}

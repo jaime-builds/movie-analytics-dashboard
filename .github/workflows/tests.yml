@@ -37,12 +37,27 @@ jobs:
         pip install -r requirements.txt
         pip install pytest pytest-cov pytest-flask
 
-    - name: Run tests with pytest
+    - name: Initialize database
+      run: |
+        python -m src.models
+
+    - name: Run pytest tests
       env:
         TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         FLASK_ENV: testing
       run: |
-        pytest -v --cov=src --cov-report=xml --cov-report=term-missing
+        pytest tests/test_auth.py tests/test_models.py tests/test_routes.py tests/test_tmdb_api.py -v --cov=src --cov-report=xml --cov-report=term-missing
+
+    - name: Reinitialize database for unittest
+      run: |
+        python -m src.models
+
+    - name: Run unittest tests
+      env:
+        TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        FLASK_ENV: testing
+      run: |
+        python -m unittest tests/test_favorites_ratings.py -v
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4

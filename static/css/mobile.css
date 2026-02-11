@@ -1,0 +1,466 @@
+/* Mobile Responsive Improvements */
+
+/* General Mobile Optimizations */
+@media (max-width: 768px) {
+    /* Typography */
+    h1, .display-4 {
+        font-size: 1.75rem !important;
+    }
+
+    h2, h3 {
+        font-size: 1.5rem !important;
+    }
+
+    .lead {
+        font-size: 1rem !important;
+    }
+
+    /* Spacing */
+    .container-fluid {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    /* Cards */
+    .card {
+        margin-bottom: 1rem;
+    }
+
+    .card-body {
+        padding: 1rem;
+    }
+
+    /* Movie Cards */
+    .movie-card {
+        margin-bottom: 1rem;
+    }
+
+    .movie-card .card-img-top {
+        height: 300px !important;
+    }
+
+    /* Buttons */
+    .btn {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+
+    .btn-group .btn {
+        width: auto;
+    }
+
+    /* Navigation */
+    .navbar-brand {
+        font-size: 1rem;
+    }
+
+    .navbar-nav {
+        margin-top: 0.5rem;
+    }
+
+    .navbar-nav .nav-link {
+        padding: 0.5rem 0;
+    }
+
+    /* Search Bar */
+    .navbar form.d-flex {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .navbar form.d-flex input {
+        width: 100%;
+        margin-bottom: 0.5rem;
+        margin-right: 0 !important;
+    }
+
+    .navbar form.d-flex button {
+        width: 100%;
+    }
+
+    /* Tables */
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+
+    table {
+        font-size: 0.875rem;
+    }
+
+    /* Pagination */
+    .pagination {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .page-item {
+        margin: 0.25rem;
+    }
+
+    /* Filter Forms */
+    .form-select,
+    .form-control {
+        margin-bottom: 0.75rem;
+    }
+
+    /* Movie Detail Page */
+    .backdrop-banner {
+        height: 200px !important;
+    }
+
+    .backdrop-content {
+        padding: 1rem !important;
+    }
+
+    /* Actor/Director Cards */
+    .actor-card .rounded-circle,
+    .actor-photo {
+        width: 80px !important;
+        height: 80px !important;
+    }
+
+    /* Statistics Cards */
+    .stat-box {
+        padding: 0.5rem;
+    }
+
+    .stat-value {
+        font-size: 1rem !important;
+    }
+
+    /* Charts */
+    canvas {
+        max-height: 300px !important;
+    }
+
+    /* Modal */
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+
+    /* Alerts */
+    .alert {
+        font-size: 0.875rem;
+        padding: 0.75rem;
+    }
+
+    /* Star Rating */
+    .star-rating {
+        font-size: 1.5rem !important;
+    }
+
+    /* Reviews */
+    .card-body p {
+        word-wrap: break-word;
+    }
+
+    /* Grid Layouts */
+    .row-cols-2 > * {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+}
+
+/* Extra Small Devices (phones, less than 576px) */
+@media (max-width: 576px) {
+    /* Force single column on very small screens */
+    .row-cols-2 > *,
+    .row-cols-sm-4 > *,
+    .row-cols-md-3 > *,
+    .row-cols-lg-6 > * {
+        width: 50% !important;
+    }
+
+    /* Movie posters */
+    .card-img-top {
+        height: 200px !important;
+    }
+
+    /* Display sizes */
+    .display-1, .display-2, .display-3, .display-4 {
+        font-size: 1.5rem !important;
+    }
+
+    /* Backdrop images */
+    .backdrop-banner {
+        height: 150px !important;
+    }
+
+    /* Hide some text on very small screens */
+    .d-none.d-sm-inline {
+        display: none !important;
+    }
+}
+
+/* Tablet Devices (576px to 768px) */
+@media (min-width: 576px) and (max-width: 768px) {
+    .row-cols-sm-4 > * {
+        width: 50% !important;
+    }
+}
+
+/* Touch-friendly enhancements */
+@media (hover: none) and (pointer: coarse) {
+    /* Increase touch target sizes */
+    .btn {
+        min-height: 44px;
+        padding: 0.75rem 1rem;
+    }
+
+    .nav-link {
+        padding: 1rem !important;
+    }
+
+    .page-link {
+        padding: 0.75rem 1rem;
+    }
+
+    .star {
+        padding: 0.5rem;
+    }
+}
+
+/* Landscape Mobile */
+@media (max-width: 896px) and (orientation: landscape) {
+    .backdrop-banner {
+        height: 40vh !important;
+    }
+
+    .modal-dialog {
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .navbar,
+    .btn,
+    footer,
+    .pagination {
+        display: none !important;
+    }
+
+    .container-fluid {
+        max-width: 100%;
+    }
+}
+
+/* Fix for Bootstrap responsive utilities */
+@media (max-width: 768px) {
+    .d-md-flex {
+        display: block !important;
+    }
+
+    .flex-md-row {
+        flex-direction: column !important;
+    }
+}
+
+/* Movie Grid Responsive */
+@media (max-width: 768px) {
+    .row-cols-md-2 > * {
+        width: 100% !important;
+    }
+
+    .row-cols-md-3 > * {
+        width: 50% !important;
+    }
+
+    .row-cols-md-4 > * {
+        width: 50% !important;
+    }
+
+    .row-cols-md-6 > * {
+        width: 33.333% !important;
+    }
+}
+
+/* Improve readability on mobile */
+@media (max-width: 768px) {
+    body {
+        font-size: 14px;
+    }
+
+    p {
+        line-height: 1.6;
+    }
+
+    /* Better spacing for cards */
+    .card {
+        border-radius: 0.5rem;
+    }
+
+    /* Stack columns on mobile */
+    .row > [class*='col-'] {
+        margin-bottom: 1rem;
+    }
+}
+
+/* Horizontal scrolling fix */
+@media (max-width: 768px) {
+    body {
+        overflow-x: hidden;
+    }
+
+    .container-fluid,
+    .row {
+        margin-left: 0;
+        margin-right: 0;
+    }
+
+    .col, [class*="col-"] {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+}
+
+/* Navigation improvements */
+@media (max-width: 768px) {
+    .navbar-collapse {
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+
+    .navbar-toggler {
+        border: none;
+        padding: 0.5rem;
+    }
+
+    .navbar-toggler:focus {
+        box-shadow: none;
+    }
+}
+
+/* Form improvements */
+@media (max-width: 768px) {
+    .form-group,
+    .mb-3 {
+        margin-bottom: 1rem;
+    }
+
+    label {
+        font-size: 0.9rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .form-control,
+    .form-select {
+        font-size: 1rem;
+        padding: 0.75rem;
+    }
+}
+
+/* Card improvements */
+@media (max-width: 768px) {
+    .card-title {
+        font-size: 1.1rem;
+    }
+
+    .card-text {
+        font-size: 0.9rem;
+    }
+
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+}
+
+/* Better backdrop on mobile */
+@media (max-width: 768px) {
+    .backdrop-banner .backdrop-content {
+        bottom: 0;
+        background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+    }
+
+    .backdrop-banner .display-4 {
+        font-size: 1.5rem !important;
+    }
+}
+
+/* Image optimization */
+@media (max-width: 768px) {
+    img {
+        max-width: 100%;
+        height: auto;
+    }
+
+    .img-fluid {
+        width: 100%;
+    }
+}
+
+/* Better analytics charts on mobile */
+@media (max-width: 768px) {
+    .chart-container {
+        position: relative;
+        height: 250px;
+        margin-bottom: 2rem;
+    }
+}
+
+/* Improve filter collapse on mobile */
+@media (max-width: 768px) {
+    #filterCollapse .card-body {
+        padding: 1rem;
+    }
+
+    #filterCollapse .row {
+        margin-left: -0.5rem;
+        margin-right: -0.5rem;
+    }
+}
+
+/* Better pagination on mobile */
+@media (max-width: 768px) {
+    .pagination .page-link {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .pagination .page-item:not(.active):not(:first-child):not(:last-child) {
+        display: none;
+    }
+
+    .pagination .page-item.active {
+        display: block;
+    }
+}
+
+/* Review cards on mobile */
+@media (max-width: 768px) {
+    .review-card {
+        margin-bottom: 1rem;
+    }
+
+    .review-card .card-body {
+        padding: 0.75rem;
+    }
+}
+
+/* Dark mode toggle button */
+@media (max-width: 768px) {
+    .dark-mode-toggle {
+        margin-top: 0.5rem;
+        width: 100%;
+    }
+}
+
+/* Jumbotron on mobile */
+@media (max-width: 768px) {
+    .jumbotron {
+        padding: 2rem 1rem;
+    }
+}
+
+/* Statistics grid on mobile */
+@media (max-width: 768px) {
+    .stat-box .stat-value {
+        font-size: 1.25rem;
+    }
+
+    .stat-box .stat-label {
+        font-size: 0.7rem;
+    }
+}

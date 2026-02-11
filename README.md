@@ -43,12 +43,16 @@ This isn't just another movie app. It's a **portfolio-grade full-stack applicati
 |---------|-------------|
 | 🔐 **Authentication** | Secure login/registration with password hashing |
 | 💖 **Personalization** | Favorites & watchlist collections per user |
+| ⭐ **Ratings & Reviews** | 1-5 star ratings and text reviews for movies |
+| 🎯 **Recommendations** | Personalized suggestions based on your favorites |
 | 🎬 **Director Spotlight** | Explore 300+ directors with complete filmographies |
 | 📊 **Analytics Dashboard** | Interactive Chart.js visualizations |
-| 🔄 **Auto-Sync** | Automated daily updates from TMDB (5,000 movies) |
+| 🔄 **Auto-Sync** | Automated daily updates from TMDB (10,000+ movies) |
 | 🎭 **Actor Profiles** | Top actors with photos and filmography |
 | 💎 **Hidden Gems** | Smart algorithm discovers underrated films |
 | 🌙 **Dark Mode** | Full theme support with localStorage |
+| 📱 **Mobile Responsive** | Optimized layouts for all screen sizes |
+| 🔌 **RESTful API** | JSON endpoints for movies, analytics, and actors |
 
 ### 🎨 User Experience
 
@@ -68,11 +72,49 @@ This isn't just another movie app. It's a **portfolio-grade full-stack applicati
 
 ```text
 ├── MVC Architecture (Flask + SQLAlchemy + Jinja2)
-├── RESTful routing with protected routes
+├── RESTful API with 11 JSON endpoints
 ├── Session-based authentication
 ├── Normalized database schema (3NF)
 ├── Repository pattern for data access
 └── Automated background jobs
+```
+
+### RESTful API
+
+**Available Endpoints**
+
+```bash
+# Movies
+GET  /api/v1/movies              # List movies (pagination, filtering, sorting)
+GET  /api/v1/movies/<id>         # Movie details with cast/crew
+GET  /api/v1/movies/search       # Search movies by title
+
+# Analytics
+GET  /api/v1/analytics/overview  # Total movies, avg rating, revenue
+GET  /api/v1/analytics/genres    # Genre statistics
+GET  /api/v1/analytics/top-movies # Top by rating/revenue/popularity
+
+# Actors
+GET  /api/v1/actors              # List actors with pagination
+GET  /api/v1/actors/<id>         # Actor details with filmography
+
+# System
+GET  /api/v1/genres              # All genres
+GET  /api/v1/health              # Health check
+GET  /api/v1/docs                # API documentation
+```
+
+**Example Usage**
+
+```bash
+# Get top rated movies
+curl http://localhost:5000/api/v1/movies?sort=rating&per_page=10
+
+# Search movies
+curl http://localhost:5000/api/v1/movies/search?q=inception
+
+# Get analytics
+curl http://localhost:5000/api/v1/analytics/overview
 ```
 
 ### Advanced SQL Showcase
@@ -121,7 +163,7 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 - SQLAlchemy ORM
 - Werkzeug password hashing
 - Schedule for automation
-- pytest for testing
+- unittest/pytest for testing
 
 **Frontend**
 
@@ -134,7 +176,7 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 
 - SQLite (development)
 - PostgreSQL-ready (production)
-- Normalized schema with 12 tables
+- Normalized schema with 14 tables
 - Many-to-many relationships
 - Compound indexes
 
@@ -147,12 +189,13 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 
 ## 📊 Project Stats
 
-- **5,000** movies with complete metadata
+- **10,788** movies with complete metadata
 - **300+** directors with filmographies
 - **1,000+** actors with profiles
-- **47** passing unit tests
-- **12** database tables
-- **15+** Flask routes
+- **65%** test coverage with unit tests
+- **14** database tables
+- **25+** Flask routes
+- **11** RESTful API endpoints
 - **20+** Jinja2 templates
 
 ## 🎓 Skills Demonstrated
@@ -161,10 +204,11 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 
 ✅ Flask web framework & routing
 ✅ SQLAlchemy ORM with complex queries
-✅ RESTful API design principles
+✅ RESTful API design & implementation
 ✅ Session management & authentication
 ✅ Template inheritance & Jinja2
 ✅ Responsive UI with Bootstrap
+✅ Mobile-first design principles
 
 ### Database & SQL
 
@@ -181,7 +225,7 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 ✅ API integration (TMDB)
 ✅ Error handling & logging
 ✅ Virtual environments
-✅ Automated testing (pytest)
+✅ Automated testing (unittest/pytest)
 ✅ Background job scheduling
 
 ### DevOps & Tools
@@ -280,7 +324,7 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 
 **Core Tables**
 
-- `movies` - 5,000+ films with metadata, ratings, financial data
+- `movies` - 10,000+ films with metadata, ratings, financial data
 - `genres` - 19 movie genres
 - `people` - Actors, directors, crew (with profile images)
 - `production_companies` - Studios and production companies
@@ -297,17 +341,19 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 - `users` - Authentication with hashed passwords
 - `user_favorites` - Many-to-many (users ↔ favorite movies)
 - `user_watchlist` - Many-to-many (users ↔ watchlist movies)
+- `ratings` - User ratings (1-5 stars) for movies
+- `reviews` - User text reviews for movies
 
 ### ER Diagram
 
 ```text
 users ─┬─< user_favorites >─┬─ movies ─┬─< movie_genres >─┬─ genres
        │                     │          │                   │
-       └─< user_watchlist >──┘          ├─< movie_companies >─ production_companies
-                                        │
-                                        ├─< cast >──── people
-                                        │
-                                        └─< crew >──── people
+       ├─< user_watchlist >──┤          ├─< movie_companies >─ production_companies
+       │                     │          │
+       ├─< ratings >─────────┤          ├─< cast >──── people
+       │                     │          │
+       └─< reviews >─────────┘          └─< crew >──── people
 ```
 
 </details>
@@ -319,6 +365,9 @@ users ─┬─< user_favorites >─┬─ movies ─┬─< movie_genres >─�
 
 ```bash
 # All tests
+python run_tests.py
+
+# Or with pytest
 pytest
 
 # With coverage
@@ -334,11 +383,20 @@ pytest tests/test_auth.py -v
 - ✅ Password validation
 - ✅ Favorites add/remove
 - ✅ Watchlist add/remove
+- ✅ Ratings submit/update
+- ✅ Reviews create/delete
 - ✅ Session management
 - ✅ Database relationships
 - ✅ Security (password hashing)
 
-**Current Coverage**: 47 tests passing
+**Current Coverage**: 65% (27 tests passing)
+
+### API Testing
+
+```bash
+# Test all API endpoints
+python test_api.py
+```
 
 </details>
 
@@ -389,6 +447,29 @@ nohup python scripts/scheduler.py &
 <details>
 <summary><b>🎨 Features Deep Dive</b></summary>
 
+### Ratings & Reviews System
+
+- **Star Ratings**: 1-5 stars per movie
+- **Text Reviews**: Write detailed reviews (minimum 10 characters)
+- **Edit/Delete**: Manage your own reviews
+- **Average Ratings**: See community ratings
+- **Pagination**: Browse all reviews efficiently
+
+### Personalized Recommendations
+
+Algorithm uses:
+
+- User's favorite movies
+- Genre preferences extraction
+- Weighted genre matching
+- Popularity and rating scores
+
+```python
+# Recommendation formula
+matches = count_shared_genres(user_favorites, candidate_movie)
+score = matches * vote_average * log(popularity)
+```
+
 ### Director Spotlight
 
 - Browse 300+ directors
@@ -424,23 +505,35 @@ All charts are:
 - Responsive (mobile-friendly)
 - Dark mode compatible
 
+### RESTful API
+
+11 endpoints providing:
+
+- Movie search and filtering
+- Analytics and statistics
+- Actor/director information
+- System health monitoring
+- Complete API documentation at `/api/v1/docs`
+
 </details>
 
 ## 🚀 Future Roadmap
 
 See [TODO.md](TODO.md) for the complete roadmap.
 
-### Next Sprint
+### Current Sprint
 
-- [ ] Movie ratings & reviews
-- [ ] User-based recommendations
-- [ ] RESTful API endpoints
-- [ ] Mobile app (React Native)
+- [ ] Advanced filtering UI
+- [ ] User profile pages
+- [ ] Movie poster lazy loading
+- [ ] Movie comparison tool
+- [ ] Lazy loading for movie lists
+- [ ] Database indexing optimization
 
 ### Coming Soon
 
 - [ ] Export analytics (PDF/CSV)
-- [ ] Social sharing
+- [ ] Social features (follow users, activity feed)
 - [ ] Email notifications
 - [ ] PostgreSQL migration
 - [ ] Docker deployment

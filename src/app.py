@@ -14,6 +14,8 @@ from src.models import (
     Movie,
     Person,
     ProductionCompany,
+    Rating,
+    Review,
     Session,
     User,
     movie_genres_table,
@@ -113,6 +115,76 @@ def get_similar_movies(session, movie_id, limit=6):
     )
 
     return similar_movies
+
+
+def get_personalized_recommendations(session_db, user, limit=6):
+    """
+    Get personalized movie recommendations based on user's favorites.
+
+    Algorithm:
+    1. Get all genres from user's favorite movies
+    2. Find highly-rated movies in those genres that user hasn't favorited
+    3. Weight by genre overlap and rating
+    """
+    # Get user's favorite movies
+    favorite_movies = user.favorites.all()
+
+    if not favorite_movies:
+        # If no favorites, return popular highly-rated movies
+        return (
+            session_db.query(Movie)
+            .filter(Movie.vote_count > 100)
+            .order_by(desc(Movie.vote_average))
+            .limit(limit)
+            .all()
+        )
+
+    # Get all genre IDs from user's favorites
+    favorite_genre_ids = set()
+    for movie in favorite_movies:
+        for genre in movie.genres:
+            favorite_genre_ids.add(genre.id)
+
+    if not favorite_genre_ids:
+        # Fallback to popular movies
+        return (
+            session_db.query(Movie)
+            .filter(Movie.vote_count > 100)
+            .order_by(desc(Movie.popularity))
+            .limit(limit)
+            .all()
+        )
+
+    # Get IDs of movies already favorited (to exclude)
+    favorited_movie_ids = [m.id for m in favorite_movies]
+
+    # Count genre matches for each movie
+    genre_match_subquery = (
+        select(
+            movie_genres_table.c.movie_id,
+            func.count(movie_genres_table.c.genre_id).label("match_count"),
+        )
+        .where(movie_genres_table.c.genre_id.in_(favorite_genre_ids))
+        .group_by(movie_genres_table.c.movie_id)
+        .subquery()
+    )
+
+    # Query for recommendations
+    recommendations = (
+        session_db.query(Movie)
+        .join(genre_match_subquery, Movie.id == genre_match_subquery.c.movie_id)
+        .filter(Movie.id.notin_(favorited_movie_ids))
+        .filter(Movie.vote_count > 50)
+        .order_by(
+            desc(genre_match_subquery.c.match_count),  # Most genre matches
+            desc(Movie.vote_average),  # Then by rating
+            desc(Movie.popularity),  # Then by popularity
+        )
+        .limit(limit)
+        .all()
+    )
+
+    return recommendations
 
 
 # ==========================================
@@ -335,7 +407,173 @@ def remove_watchlist(movie_id):
 
 
 # ==========================================
-# DIRECTOR ROUTES (NEW!)
+# NEW: RATINGS & REVIEWS ROUTES (FEATURE 1)
+# ==========================================
+
+
+@app.route("/movie/<int:movie_id>/rate", methods=["POST"])
+def rate_movie(movie_id):
+    """Submit or update a rating for a movie"""
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+        if not user:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        # Get rating value from form
+        rating_value = request.form.get("rating", type=int)
+
+        # Validate rating
+        if not rating_value or rating_value < 1 or rating_value > 5:
+            return jsonify({"error": "Rating must be between 1 and 5"}), 400
+
+        movie = session_db.query(Movie).filter_by(id=movie_id).first()
+        if not movie:
+            return jsonify({"error": "Movie not found"}), 404
+
+        # Check if user already rated this movie
+        existing_rating = (
+            session_db.query(Rating).filter_by(user_id=user.id, movie_id=movie_id).first()
+        )
+
+        if existing_rating:
+            # Update existing rating
+            existing_rating.rating = rating_value
+            existing_rating.updated_at = datetime.utcnow()
+            flash(f"Your rating has been updated to {rating_value} stars", "success")
+        else:
+            # Create new rating
+            new_rating = Rating(user_id=user.id, movie_id=movie_id, rating=rating_value)
+            session_db.add(new_rating)
+            flash(f"You rated this movie {rating_value} stars", "success")
+
+        session_db.commit()
+
+        # Calculate new average rating
+        avg_rating = (
+            session_db.query(func.avg(Rating.rating)).filter(Rating.movie_id == movie_id).scalar()
+        )
+        num_ratings = (
+            session_db.query(func.count(Rating.id)).filter(Rating.movie_id == movie_id).scalar()
+        )
+
+        return jsonify(
+            {
+                "status": "success",
+                "rating": rating_value,
+                "avg_rating": float(avg_rating) if avg_rating else 0,
+                "num_ratings": num_ratings,
+            }
+        )
+    finally:
+        session_db.close()
+
+
+@app.route("/movie/<int:movie_id>/review", methods=["POST"])
+def submit_review(movie_id):
+    """Submit a review for a movie"""
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+        if not user:
+            flash("Please log in to submit a review", "warning")
+            return redirect(url_for("login", next=request.url))
+
+        review_content = request.form.get("review_content", "").strip()
+
+        # Validate review content
+        if not review_content:
+            flash("Review cannot be empty", "danger")
+            return redirect(url_for("movie_detail", movie_id=movie_id))
+
+        if len(review_content) < 10:
+            flash("Review must be at least 10 characters long", "danger")
+            return redirect(url_for("movie_detail", movie_id=movie_id))
+
+        movie = session_db.query(Movie).filter_by(id=movie_id).first()
+        if not movie:
+            flash("Movie not found", "danger")
+            return redirect(url_for("index"))
+
+        # Check if user already reviewed this movie
+        existing_review = (
+            session_db.query(Review).filter_by(user_id=user.id, movie_id=movie_id).first()
+        )
+
+        if existing_review:
+            # Update existing review
+            existing_review.content = review_content
+            existing_review.updated_at = datetime.utcnow()
+            flash("Your review has been updated", "success")
+        else:
+            # Create new review
+            new_review = Review(user_id=user.id, movie_id=movie_id, content=review_content)
+            session_db.add(new_review)
+            flash("Your review has been submitted", "success")
+
+        session_db.commit()
+        return redirect(url_for("movie_detail", movie_id=movie_id))
+    finally:
+        session_db.close()
+
+
+@app.route("/movie/<int:movie_id>/review/<int:review_id>/delete", methods=["POST"])
+def delete_review(movie_id, review_id):
+    """Delete a review"""
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+        if not user:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        review = session_db.query(Review).filter_by(id=review_id).first()
+
+        if not review:
+            return jsonify({"error": "Review not found"}), 404
+
+        # Check if user owns this review
+        if review.user_id != user.id:
+            return jsonify({"error": "Unauthorized"}), 403
+
+        session_db.delete(review)
+        session_db.commit()
+
+        flash("Review deleted successfully", "success")
+        return jsonify({"status": "deleted"})
+    finally:
+        session_db.close()
+
+
+# ==========================================
+# NEW: RECOMMENDATIONS ROUTE (FEATURE 2)
+# ==========================================
+
+
+@app.route("/recommendations")
+def recommendations():
+    """User's personalized recommendations page"""
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+        if not user:
+            flash("Please log in to see personalized recommendations", "warning")
+            return redirect(url_for("login", next=request.url))
+
+        # Get personalized recommendations
+        recommended_movies = get_personalized_recommendations(session_db, user, limit=12)
+
+        return render_template(
+            "recommendations.html",
+            recommendations=recommended_movies,
+            current_user=user,
+            config=Config,
+        )
+    finally:
+        session_db.close()
+
+
+# ==========================================
+# DIRECTOR ROUTES
 # ==========================================
 
 
@@ -521,7 +759,7 @@ def director_detail(director_id):
 
 
 # ==========================================
-# EXISTING ROUTES (UPDATED WITH current_user)
+# MAIN ROUTES
 # ==========================================
 
 
@@ -907,7 +1145,7 @@ def actor_detail(actor_id):
 
 @app.route("/movie/<int:movie_id>")
 def movie_detail(movie_id):
-    """Movie detail page"""
+    """Movie detail page with ratings and reviews"""
     session = get_db_session()
 
     try:
@@ -949,6 +1187,40 @@ def movie_detail(movie_id):
             is_favorited = movie in user.favorites.all()
             is_in_watchlist = movie in user.watchlist.all()
 
+        # NEW: Get user's rating for this movie (if logged in)
+        user_rating = None
+        if user:
+            user_rating = (
+                session.query(Rating).filter_by(user_id=user.id, movie_id=movie_id).first()
+            )
+
+        # NEW: Get average rating and count
+        avg_rating = (
+            session.query(func.avg(Rating.rating)).filter(Rating.movie_id == movie_id).scalar()
+        )
+        num_ratings = (
+            session.query(func.count(Rating.id)).filter(Rating.movie_id == movie_id).scalar()
+        )
+
+        # NEW: Get reviews (paginated)
+        review_page = request.args.get("page", 1, type=int)
+        per_page = 10
+
+        reviews_query = (
+            session.query(Review)
+            .filter(Review.movie_id == movie_id)
+            .order_by(desc(Review.created_at))
+        )
+
+        total_reviews = reviews_query.count()
+        reviews = reviews_query.limit(per_page).offset((review_page - 1) * per_page).all()
+        total_review_pages = (total_reviews + per_page - 1) // per_page
+
+        # NEW: Get personalized recommendations (if user logged in)
+        personalized_recs = []
+        if user:
+            personalized_recs = get_personalized_recommendations(session, user, limit=6)
+
         return render_template(
             "movie_detail.html",
             movie=movie,
@@ -959,6 +1231,13 @@ def movie_detail(movie_id):
             current_user=user,
             is_favorited=is_favorited,
             is_in_watchlist=is_in_watchlist,
+            user_rating=user_rating,
+            avg_rating=round(avg_rating, 1) if avg_rating else None,
+            num_ratings=num_ratings or 0,
+            reviews=reviews,
+            review_page=review_page,
+            total_review_pages=total_review_pages,
+            personalized_recommendations=personalized_recs,
             config=Config,
         )
     finally:
@@ -1113,6 +1392,537 @@ def format_date(date_obj):
     if not date_obj:
         return "N/A"
     return date_obj.strftime("%B %d, %Y")
+
+
+# ==========================================
+# RESTful API ENDPOINTS
+# ==========================================
+
+
+@app.route("/api/v1/movies", methods=["GET"])
+def api_get_movies():
+    """Get list of movies with filtering and pagination"""
+    session = get_db_session()
+    try:
+        # Get query parameters
+        page = request.args.get("page", 1, type=int)
+        per_page = request.args.get("per_page", 20, type=int)
+        genre_id = request.args.get("genre", type=int)
+        sort_by = request.args.get("sort", default="popularity")
+        year = request.args.get("year", type=int)
+        min_rating = request.args.get("min_rating", type=float)
+
+        # Limit per_page to prevent abuse
+        per_page = min(per_page, 100)
+
+        # Base query
+        query = session.query(Movie)
+
+        # Apply filters
+        if genre_id:
+            query = query.join(Movie.genres).filter(Genre.id == genre_id)
+
+        if year:
+            query = query.filter(extract("year", Movie.release_date) == year)
+
+        if min_rating is not None:
+            query = query.filter(Movie.vote_average >= min_rating)
+
+        # Apply sorting
+        if sort_by == "rating":
+            query = query.filter(Movie.vote_count > 50).order_by(desc(Movie.vote_average))
+        elif sort_by == "release_date":
+            query = query.filter(Movie.release_date.isnot(None)).order_by(desc(Movie.release_date))
+        elif sort_by == "title":
+            query = query.order_by(Movie.title)
+        else:  # popularity
+            query = query.order_by(desc(Movie.popularity))
+
+        # Pagination
+        total = query.count()
+        offset = (page - 1) * per_page
+        movies = query.limit(per_page).offset(offset).all()
+
+        # Serialize movies
+        movies_data = []
+        for movie in movies:
+            movies_data.append(
+                {
+                    "id": movie.id,
+                    "tmdb_id": movie.tmdb_id,
+                    "title": movie.title,
+                    "original_title": movie.original_title,
+                    "overview": movie.overview,
+                    "release_date": movie.release_date.isoformat() if movie.release_date else None,
+                    "runtime": movie.runtime,
+                    "vote_average": float(movie.vote_average) if movie.vote_average else None,
+                    "vote_count": movie.vote_count,
+                    "popularity": float(movie.popularity) if movie.popularity else None,
+                    "poster_path": movie.poster_path,
+                    "backdrop_path": movie.backdrop_path,
+                    "genres": [{"id": g.id, "name": g.name} for g in movie.genres],
+                }
+            )
+
+        return jsonify(
+            {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "total_pages": (total + per_page - 1) // per_page,
+                "movies": movies_data,
+            }
+        )
+    finally:
+        session.close()
+
+
+@app.route("/api/v1/movies/<int:movie_id>", methods=["GET"])
+def api_get_movie(movie_id):
+    """Get detailed information about a specific movie"""
+    session = get_db_session()
+    try:
+        movie = session.query(Movie).filter_by(id=movie_id).first()
+
+        if not movie:
+            return jsonify({"error": "Movie not found"}), 404
+
+        # Get cast
+        cast_data = (
+            session.query(Cast, Person)
+            .join(Person)
+            .filter(Cast.movie_id == movie_id)
+            .order_by(Cast.cast_order)
+            .limit(10)
+            .all()
+        )
+
+        # Get crew
+        crew_data = session.query(Crew, Person).join(Person).filter(Crew.movie_id == movie_id).all()
+
+        # Get average rating
+        avg_rating = (
+            session.query(func.avg(Rating.rating)).filter(Rating.movie_id == movie_id).scalar()
+        )
+
+        num_ratings = (
+            session.query(func.count(Rating.id)).filter(Rating.movie_id == movie_id).scalar()
+        )
+
+        # Serialize movie data
+        movie_data = {
+            "id": movie.id,
+            "tmdb_id": movie.tmdb_id,
+            "title": movie.title,
+            "original_title": movie.original_title,
+            "overview": movie.overview,
+            "release_date": movie.release_date.isoformat() if movie.release_date else None,
+            "runtime": movie.runtime,
+            "budget": movie.budget,
+            "revenue": movie.revenue,
+            "vote_average": float(movie.vote_average) if movie.vote_average else None,
+            "vote_count": movie.vote_count,
+            "popularity": float(movie.popularity) if movie.popularity else None,
+            "poster_path": movie.poster_path,
+            "backdrop_path": movie.backdrop_path,
+            "imdb_id": movie.imdb_id,
+            "tagline": movie.tagline,
+            "status": movie.status,
+            "genres": [{"id": g.id, "name": g.name} for g in movie.genres],
+            "production_companies": [{"id": c.id, "name": c.name} for c in movie.companies],
+            "cast": [
+                {
+                    "person_id": person.id,
+                    "name": person.name,
+                    "character": cast.character_name,
+                    "order": cast.cast_order,
+                    "profile_path": person.profile_path,
+                }
+                for cast, person in cast_data
+            ],
+            "crew": [
+                {
+                    "person_id": person.id,
+                    "name": person.name,
+                    "job": crew.job,
+                    "department": crew.department,
+                }
+                for crew, person in crew_data
+            ],
+            "user_rating": {
+                "average": float(avg_rating) if avg_rating else None,
+                "count": num_ratings or 0,
+            },
+        }
+
+        return jsonify(movie_data)
+    finally:
+        session.close()
+
+
+@app.route("/api/v1/movies/search", methods=["GET"])
+def api_search_movies():
+    """Search for movies by title"""
+    session = get_db_session()
+    try:
+        query_text = request.args.get("q", "")
+        page = request.args.get("page", 1, type=int)
+        per_page = request.args.get("per_page", 20, type=int)
+
+        if not query_text:
+            return jsonify({"error": "Query parameter 'q' is required"}), 400
+
+        # Limit per_page
+        per_page = min(per_page, 100)
+
+        # Search query
+        search_query = (
+            session.query(Movie)
+            .filter(
+                (Movie.title.ilike(f"%{query_text}%")) | (Movie.overview.ilike(f"%{query_text}%"))
+            )
+            .order_by(desc(Movie.popularity))
+        )
+
+        total = search_query.count()
+        offset = (page - 1) * per_page
+        movies = search_query.limit(per_page).offset(offset).all()
+
+        # Serialize
+        movies_data = []
+        for movie in movies:
+            movies_data.append(
+                {
+                    "id": movie.id,
+                    "tmdb_id": movie.tmdb_id,
+                    "title": movie.title,
+                    "overview": movie.overview,
+                    "release_date": movie.release_date.isoformat() if movie.release_date else None,
+                    "vote_average": float(movie.vote_average) if movie.vote_average else None,
+                    "poster_path": movie.poster_path,
+                }
+            )
+
+        return jsonify(
+            {
+                "query": query_text,
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "total_pages": (total + per_page - 1) // per_page,
+                "movies": movies_data,
+            }
+        )
+    finally:
+        session.close()
+
+
+@app.route("/api/v1/genres", methods=["GET"])
+def api_get_genres():
+    """Get all genres"""
+    session = get_db_session()
+    try:
+        genres = session.query(Genre).order_by(Genre.name).all()
+
+        genres_data = [
+            {"id": genre.id, "tmdb_id": genre.tmdb_id, "name": genre.name} for genre in genres
+        ]
+
+        return jsonify({"genres": genres_data})
+    finally:
+        session.close()
+
+
+@app.route("/api/v1/analytics/overview", methods=["GET"])
+def api_analytics_overview():
+    """Get overview analytics"""
+    session = get_db_session()
+    try:
+        # Total movies
+        total_movies = session.query(func.count(Movie.id)).scalar()
+
+        # Average rating
+        avg_rating = (
+            session.query(func.avg(Movie.vote_average)).filter(Movie.vote_count > 50).scalar()
+        )
+
+        # Total revenue
+        total_revenue = session.query(func.sum(Movie.revenue)).filter(Movie.revenue > 0).scalar()
+
+        # Movies by year
+        movies_by_year = (
+            session.query(
+                func.strftime("%Y", Movie.release_date).label("year"),
+                func.count(Movie.id).label("count"),
+            )
+            .filter(Movie.release_date.isnot(None))
+            .group_by("year")
+            .order_by("year")
+            .all()
+        )
+
+        return jsonify(
+            {
+                "total_movies": total_movies,
+                "average_rating": float(avg_rating) if avg_rating else None,
+                "total_revenue": total_revenue or 0,
+                "movies_by_year": [
+                    {"year": int(year), "count": count} for year, count in movies_by_year
+                ],
+            }
+        )
+    finally:
+        session.close()
+
+
+@app.route("/api/v1/analytics/genres", methods=["GET"])
+def api_analytics_genres():
+    """Get genre analytics"""
+    session = get_db_session()
+    try:
+        # Genre distribution
+        genre_stats = (
+            session.query(
+                Genre.name,
+                func.count(Movie.id).label("count"),
+                func.avg(Movie.vote_average).label("avg_rating"),
+            )
+            .join(Movie.genres)
+            .filter(Movie.vote_count > 50)
+            .group_by(Genre.name)
+            .order_by(desc("count"))
+            .all()
+        )
+
+        genres_data = [
+            {
+                "name": name,
+                "movie_count": count,
+                "average_rating": float(avg_rating) if avg_rating else None,
+            }
+            for name, count, avg_rating in genre_stats
+        ]
+
+        return jsonify({"genres": genres_data})
+    finally:
+        session.close()
+
+
+@app.route("/api/v1/analytics/top-movies", methods=["GET"])
+def api_analytics_top_movies():
+    """Get top movies by various metrics"""
+    session = get_db_session()
+    try:
+        metric = request.args.get("metric", "rating")
+        limit = request.args.get("limit", 10, type=int)
+        limit = min(limit, 100)
+
+        if metric == "rating":
+            movies = (
+                session.query(Movie)
+                .filter(Movie.vote_count > 100)
+                .order_by(desc(Movie.vote_average))
+                .limit(limit)
+                .all()
+            )
+        elif metric == "revenue":
+            movies = (
+                session.query(Movie)
+                .filter(Movie.revenue > 0)
+                .order_by(desc(Movie.revenue))
+                .limit(limit)
+                .all()
+            )
+        elif metric == "popularity":
+            movies = session.query(Movie).order_by(desc(Movie.popularity)).limit(limit).all()
+        else:
+            return jsonify({"error": "Invalid metric. Use: rating, revenue, or popularity"}), 400
+
+        movies_data = [
+            {
+                "id": movie.id,
+                "title": movie.title,
+                "vote_average": float(movie.vote_average) if movie.vote_average else None,
+                "revenue": movie.revenue,
+                "popularity": float(movie.popularity) if movie.popularity else None,
+            }
+            for movie in movies
+        ]
+
+        return jsonify({"metric": metric, "movies": movies_data})
+    finally:
+        session.close()
+
+
+@app.route("/api/v1/actors", methods=["GET"])
+def api_get_actors():
+    """Get list of actors with pagination"""
+    session = get_db_session()
+    try:
+        page = request.args.get("page", 1, type=int)
+        per_page = request.args.get("per_page", 20, type=int)
+        per_page = min(per_page, 100)
+
+        # Get actors with movie count
+        actors_query = (
+            session.query(Person, func.count(Cast.movie_id).label("movie_count"))
+            .join(Cast, Person.id == Cast.person_id)
+            .join(Movie, Cast.movie_id == Movie.id)
+            .filter(Movie.vote_count > 20)
+            .group_by(Person.id)
+            .having(func.count(Cast.movie_id) >= 2)
+            .order_by(desc("movie_count"))
+        )
+
+        total = actors_query.count()
+        offset = (page - 1) * per_page
+        actors = actors_query.limit(per_page).offset(offset).all()
+
+        actors_data = [
+            {
+                "id": person.id,
+                "name": person.name,
+                "profile_path": person.profile_path,
+                "movie_count": movie_count,
+            }
+            for person, movie_count in actors
+        ]
+
+        return jsonify(
+            {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "total_pages": (total + per_page - 1) // per_page,
+                "actors": actors_data,
+            }
+        )
+    finally:
+        session.close()
+
+
+@app.route("/api/v1/actors/<int:actor_id>", methods=["GET"])
+def api_get_actor(actor_id):
+    """Get detailed information about an actor"""
+    session = get_db_session()
+    try:
+        actor = session.query(Person).filter_by(id=actor_id).first()
+
+        if not actor:
+            return jsonify({"error": "Actor not found"}), 404
+
+        # Get filmography
+        filmography = (
+            session.query(Movie, Cast)
+            .join(Cast, Movie.id == Cast.movie_id)
+            .filter(Cast.person_id == actor_id)
+            .order_by(desc(Movie.release_date))
+            .all()
+        )
+
+        # Calculate stats
+        total_movies = len(filmography)
+        avg_rating = (
+            session.query(func.avg(Movie.vote_average))
+            .join(Cast, Movie.id == Cast.movie_id)
+            .filter(Cast.person_id == actor_id, Movie.vote_count > 20)
+            .scalar()
+        )
+
+        actor_data = {
+            "id": actor.id,
+            "name": actor.name,
+            "profile_path": actor.profile_path,
+            "total_movies": total_movies,
+            "average_rating": float(avg_rating) if avg_rating else None,
+            "filmography": [
+                {
+                    "movie_id": movie.id,
+                    "title": movie.title,
+                    "character": cast.character_name,
+                    "release_date": movie.release_date.isoformat() if movie.release_date else None,
+                    "vote_average": float(movie.vote_average) if movie.vote_average else None,
+                }
+                for movie, cast in filmography
+            ],
+        }
+
+        return jsonify(actor_data)
+    finally:
+        session.close()
+
+
+@app.route("/api/v1/health", methods=["GET"])
+def api_health():
+    """Health check endpoint"""
+    session = get_db_session()
+    try:
+        # Test database connection
+        movie_count = session.query(func.count(Movie.id)).scalar()
+
+        return jsonify({"status": "healthy", "database": "connected", "movie_count": movie_count})
+    except Exception as e:
+        return jsonify({"status": "unhealthy", "error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/v1/docs", methods=["GET"])
+def api_docs():
+    """API documentation"""
+    docs = {
+        "version": "1.0",
+        "endpoints": {
+            "movies": {
+                "GET /api/v1/movies": {
+                    "description": "Get list of movies with filtering and pagination",
+                    "parameters": {
+                        "page": "Page number (default: 1)",
+                        "per_page": "Results per page (default: 20, max: 100)",
+                        "genre": "Filter by genre ID",
+                        "sort": "Sort by: popularity, rating, release_date, title",
+                        "year": "Filter by release year",
+                        "min_rating": "Minimum rating filter",
+                    },
+                },
+                "GET /api/v1/movies/<id>": {
+                    "description": "Get detailed information about a specific movie"
+                },
+                "GET /api/v1/movies/search": {
+                    "description": "Search for movies by title",
+                    "parameters": {
+                        "q": "Search query (required)",
+                        "page": "Page number",
+                        "per_page": "Results per page",
+                    },
+                },
+            },
+            "genres": {"GET /api/v1/genres": {"description": "Get all genres"}},
+            "analytics": {
+                "GET /api/v1/analytics/overview": {"description": "Get overview analytics"},
+                "GET /api/v1/analytics/genres": {"description": "Get genre analytics"},
+                "GET /api/v1/analytics/top-movies": {
+                    "description": "Get top movies by metric",
+                    "parameters": {
+                        "metric": "rating, revenue, or popularity",
+                        "limit": "Number of results (max: 100)",
+                    },
+                },
+            },
+            "actors": {
+                "GET /api/v1/actors": {"description": "Get list of actors with pagination"},
+                "GET /api/v1/actors/<id>": {
+                    "description": "Get detailed information about an actor"
+                },
+            },
+            "system": {
+                "GET /api/v1/health": {"description": "Health check endpoint"},
+                "GET /api/v1/docs": {"description": "API documentation"},
+            },
+        },
+    }
+
+    return jsonify(docs)
 
 
 if __name__ == "__main__":
