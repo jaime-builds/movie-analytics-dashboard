@@ -1,0 +1,88 @@
+name: CI/CD — Movie Analytics Dashboard
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ────────────────────────────────────────────────────────────
+  # Job 1: Test
+  # Runs your existing test suite — keeps this separate from
+  # the build so failures are fast and clearly reported
+  # ────────────────────────────────────────────────────────────
+  test:
+    runs-on: ubuntu-latest
+
+    env:
+      # App uses SQLite in dev/test — no Postgres service needed for CI
+      # DATABASE_URL is intentionally omitted here so the app falls back
+      # to its default SQLite path (movies.db), matching local dev behavior
+      FLASK_ENV: testing
+      TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+      SECRET_KEY: ci-test-secret-key
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        run: pytest --tb=short -q
+
+  # ────────────────────────────────────────────────────────────
+  # Job 2: Build & push with Depot
+  # Only runs on pushes to main (not on PRs)
+  #
+  # Key differences vs standard docker/build-push-action:
+  #   - Uses depot/setup-action to install the Depot CLI
+  #   - Uses depot/build-push-action instead of docker/build-push-action
+  #   - Authenticates with OIDC (no static token needed in secrets)
+  #   - Layer cache is persisted on Depot's NVMe SSD automatically —
+  #     no cache-from/cache-to config required
+  # ────────────────────────────────────────────────────────────
+  build:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write   # Required for Depot OIDC authentication
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Installs the Depot CLI onto the runner
+      - name: Set up Depot CLI
+        uses: depot/setup-action@v1
+
+      # Log in to Docker Hub (or swap for GHCR, ECR, etc.)
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # depot/build-push-action is a drop-in replacement for
+      # docker/build-push-action — same inputs, same outputs,
+      # just faster because the build runs on Depot's remote builders
+      - name: Build and push image with Depot
+        uses: depot/build-push-action@v1
+        with:
+          project: ${{ secrets.DEPOT_PROJECT_ID }}
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/movie-analytics-dashboard:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/movie-analytics-dashboard:${{ github.sha }}
+          # Depot handles layer caching automatically — no cache-from
+          # or cache-to lines needed here. That's the whole point.
