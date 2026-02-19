@@ -5,11 +5,7 @@ from src.app import app
 from src.models import Base, Genre, Movie, Rating, Review, Session, User, engine
 
 # Initialize database tables before running tests
-def setUp(self):
-    """Create test data before each test"""
-    Base.metadata.create_all(engine)  # Add this line
-    self.session = Session()
-    ...
+Base.metadata.create_all(engine)
 
 
 class TestAuthentication(unittest.TestCase):
@@ -39,7 +35,6 @@ class TestAuthentication(unittest.TestCase):
         self.session.query(User).filter_by(username="newuser").delete()
         self.session.commit()
         self.session.close()
-        Base.metadata.drop_all(engine)
 
     def test_register_success(self):
         """Test successful user registration"""

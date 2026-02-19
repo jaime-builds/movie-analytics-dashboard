@@ -16,9 +16,6 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      # App uses SQLite in dev/test — no Postgres service needed for CI
-      # DATABASE_URL is intentionally omitted here so the app falls back
-      # to its default SQLite path (movies.db), matching local dev behavior
       FLASK_ENV: testing
       TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
       SECRET_KEY: ci-test-secret-key
@@ -34,6 +31,9 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt
+
+      - name: Initialize test database
+        run: python -c "from src.models import Base, engine; Base.metadata.create_all(engine)"
 
       - name: Run tests
         run: pytest --tb=short -q
