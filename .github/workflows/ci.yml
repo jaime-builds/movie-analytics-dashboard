@@ -32,15 +32,10 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Initialize test database
-        run: python -c "from src.models import Base, engine; Base.metadata.create_all(engine)"
-        env:
-          DATABASE_URL: sqlite:////tmp/test_movies.db
-
       - name: Run tests
-        run: pytest --tb=short -q
-        env:
-          DATABASE_URL: sqlite:////tmp/test_movies.db
+        run: |
+          pytest tests/test_models.py tests/test_routes.py tests/test_auth.py tests/test_tmdb_api.py --tb=short -q
+          pytest tests/test_favorites_ratings.py --tb=short -q
 
   # ────────────────────────────────────────────────────────────
   # Job 2: Build & push with Depot
