@@ -34,9 +34,13 @@ jobs:
 
       - name: Initialize test database
         run: python -c "from src.models import Base, engine; Base.metadata.create_all(engine)"
+        env:
+          DATABASE_URL: sqlite:////tmp/test_movies.db
 
       - name: Run tests
         run: pytest --tb=short -q
+        env:
+          DATABASE_URL: sqlite:////tmp/test_movies.db
 
   # ────────────────────────────────────────────────────────────
   # Job 2: Build & push with Depot
