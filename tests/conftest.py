@@ -1,3 +1,6 @@
+import os
+os.environ.setdefault("DATABASE_URL", "sqlite:////tmp/test_movies.db")
+
 """
 Pytest configuration and fixtures for testing
 """
