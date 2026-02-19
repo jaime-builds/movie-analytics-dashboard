@@ -42,8 +42,7 @@ def app():
 @pytest.fixture(scope="function")
 def db_session(app):
     """Create a fresh database session for each test with proper cleanup"""
-    # Recreate all tables for this test
-    Base.metadata.drop_all(engine)
+    # Ensure tables exist without destroying them
     Base.metadata.create_all(engine)
 
     # Create new session
@@ -66,9 +65,6 @@ def db_session(app):
     session.close()
     transaction.rollback()
     connection.close()
-
-    # Drop all tables to ensure clean slate for next test
-    Base.metadata.drop_all(engine)
 
 
 @pytest.fixture(scope="function")
