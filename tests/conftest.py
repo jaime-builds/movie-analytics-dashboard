@@ -38,33 +38,23 @@ def app():
 
 @pytest.fixture(scope="function")
 def db_session(app):
-    """Create a fresh database session for each test with proper cleanup"""
-    # Recreate all tables for this test
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
 
-    # Create new session
     connection = engine.connect()
     transaction = connection.begin()
     session = Session(bind=connection)
 
-    # Monkey-patch the app's get_db_session function to return our test session
     import src.app
-
     original_get_db_session = src.app.get_db_session
     src.app.get_db_session = lambda: session
 
     yield session
 
-    # Restore original function
     src.app.get_db_session = original_get_db_session
-
-    # Rollback everything from this test
     session.close()
     transaction.rollback()
     connection.close()
-
-    # Drop all tables to ensure clean slate for next test
     Base.metadata.drop_all(engine)
 
 
