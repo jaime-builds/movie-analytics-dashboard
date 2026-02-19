@@ -50,7 +50,6 @@ jobs:
   #     no cache-from/cache-to config required
   # ────────────────────────────────────────────────────────────
   build:
-    needs: test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
 
