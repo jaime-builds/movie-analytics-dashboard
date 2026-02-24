@@ -46,6 +46,7 @@ def db_session(app):
     session = Session(bind=connection)
 
     import src.app
+
     original_get_db_session = src.app.get_db_session
     src.app.get_db_session = lambda: session
 

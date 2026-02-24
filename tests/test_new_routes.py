@@ -13,7 +13,6 @@ import pytest
 
 from src.models import Cast, Crew, Movie, Person, Rating, Review, User
 
-
 # ============================================
 # Additional fixtures needed for these tests
 # ============================================
@@ -39,7 +38,9 @@ def sample_director(db_session, sample_movie):
         )
         db_session.add(movie)
         db_session.flush()
-        crew = Crew(movie_id=movie.id, person_id=director.id, job="Director", department="Directing")
+        crew = Crew(
+            movie_id=movie.id, person_id=director.id, job="Director", department="Directing"
+        )
         db_session.add(crew)
 
     db_session.commit()
@@ -307,7 +308,9 @@ class TestRecommendationsRoute:
         response = client.get("/recommendations")
         assert response.status_code == 200
 
-    def test_recommendations_with_favorites(self, client, db_session, logged_in_user, sample_movies):
+    def test_recommendations_with_favorites(
+        self, client, db_session, logged_in_user, sample_movies
+    ):
         # Add favorites so recommendations are personalized
         user = db_session.query(User).filter_by(id=logged_in_user.id).first()
         user.favorites.append(sample_movies[0])
