@@ -32,6 +32,7 @@ movie_genres_table = Table(
     Base.metadata,
     Column("movie_id", Integer, ForeignKey("movies.id"), primary_key=True),
     Column("genre_id", Integer, ForeignKey("genres.id"), primary_key=True),
+    Index("idx_movie_genres_genre_id", "genre_id"),
 )
 
 movie_companies_table = Table(
@@ -116,6 +117,11 @@ class Movie(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    __table_args__ = (
+        Index("idx_movies_vote_count", "vote_count"),
+        Index("idx_movies_title", "title"),
+    )
+
     # Relationships
     genres = relationship("Genre", secondary=movie_genres_table, back_populates="movies")
     cast_members = relationship("Cast", back_populates="movie", cascade="all, delete-orphan")
@@ -164,9 +170,8 @@ class Rating(Base):
     # Constraints
     __table_args__ = (
         CheckConstraint("rating >= 1 AND rating <= 5", name="check_rating_range"),
-        Index(
-            "idx_user_movie_rating", "user_id", "movie_id", unique=True
-        ),  # One rating per user per movie
+        Index("idx_user_movie_rating", "user_id", "movie_id", unique=True),  # One rating per user per movie
+        Index("idx_ratings_movie_id", "movie_id"),  # Fast avg/count by movie
     )
 
     def __repr__(self):
@@ -254,6 +259,11 @@ class Crew(Base):
     person_id = Column(Integer, ForeignKey("people.id"), nullable=False)
     job = Column(String(100), nullable=False)
     department = Column(String(100))
+
+    __table_args__ = (
+        Index("idx_crew_person_id", "person_id"),
+        Index("idx_crew_person_job", "person_id", "job"),  # Covers director lookups
+    )
 
     # Relationships
     movie = relationship("Movie", back_populates="crew_members")

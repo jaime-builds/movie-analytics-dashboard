@@ -792,11 +792,15 @@ def index():
         # Get popular movies
         popular_movies = session.query(Movie).order_by(desc(Movie.popularity)).limit(12).all()
 
+        # Total movie count for homepage tagline
+        total_movies = session.query(func.count(Movie.id)).scalar()
+
         return render_template(
             "index.html",
             top_movies=top_movies,
             recent_movies=recent_movies,
             popular_movies=popular_movies,
+            total_movies=total_movies,
             current_user=user,
             config=Config,
         )
@@ -1923,6 +1927,72 @@ def api_docs():
     }
 
     return jsonify(docs)
+
+
+# ==========================================
+# USER PROFILE ROUTE
+# ==========================================
+
+
+@app.route("/profile")
+def profile():
+    """User profile page showing stats, ratings, reviews, favorites and watchlist"""
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+        if not user:
+            flash("Please log in to view your profile", "warning")
+            return redirect(url_for("login", next=request.url))
+
+        # Favorites and watchlist
+        favorites = user.favorites.all()
+        watchlist = user.watchlist.all()
+
+        # Ratings with associated movie
+        ratings = (
+            session_db.query(Rating, Movie)
+            .join(Movie, Rating.movie_id == Movie.id)
+            .filter(Rating.user_id == user.id)
+            .order_by(desc(Rating.updated_at))
+            .all()
+        )
+
+        # Reviews with associated movie
+        reviews = (
+            session_db.query(Review, Movie)
+            .join(Movie, Review.movie_id == Movie.id)
+            .filter(Review.user_id == user.id)
+            .order_by(desc(Review.created_at))
+            .all()
+        )
+
+        # Summary stats
+        avg_user_rating = (
+            session_db.query(func.avg(Rating.rating))
+            .filter(Rating.user_id == user.id)
+            .scalar()
+        )
+
+        stats = {
+            "favorites_count": len(favorites),
+            "watchlist_count": len(watchlist),
+            "ratings_count": len(ratings),
+            "reviews_count": len(reviews),
+            "avg_rating": round(float(avg_user_rating), 1) if avg_user_rating else None,
+        }
+
+        return render_template(
+            "profile.html",
+            current_user=user,
+            favorites=favorites,
+            watchlist=watchlist,
+            ratings=ratings,
+            reviews=reviews,
+            stats=stats,
+            config=Config,
+        )
+    finally:
+        session_db.close()
 
 
 if __name__ == "__main__":
