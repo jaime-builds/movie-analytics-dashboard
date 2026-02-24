@@ -53,18 +53,20 @@ This isn't just another movie app. It's a **portfolio-grade full-stack applicati
 | 🌙 **Dark Mode** | Full theme support with localStorage |
 | 📱 **Mobile Responsive** | Optimized layouts for all screen sizes |
 | 🔌 **RESTful API** | JSON endpoints for movies, analytics, and actors |
+| 👤 **User Profile** | Activity dashboard with ratings, reviews, and collections |
+| ⚡ **Infinite Scroll** | Seamless movie browsing without pagination |
 
 ### 🎨 User Experience
 
 <div align="center">
 
-| Favorites Collection | Watchlist Tracking |
-|:-------------------:|:-----------------:|
-| ![Favorites](docs/favorites.png) | ![Watchlist](docs/watchlist.png) |
+| Favorites Collection | Watchlist Tracking | User Profile |
+|:-------------------:|:-----------------:|:-----------:|
+| ![Favorites](docs/favorites.png) | ![Watchlist](docs/watchlist.png) | ![Profile](docs/profile.png) |
 
 </div>
 
-**Personal movie collections** that persist across sessions, beautifully designed with responsive grid layouts.
+**Personal movie collections** that persist across sessions, beautifully designed with responsive grid layouts. The **User Profile** page provides a full activity dashboard — ratings, reviews, favorites, and watchlist all in one tabbed view.
 
 ## 🛠️ Technical Highlights
 
@@ -76,6 +78,7 @@ This isn't just another movie app. It's a **portfolio-grade full-stack applicati
 ├── Session-based authentication
 ├── Normalized database schema (3NF)
 ├── Repository pattern for data access
+├── IntersectionObserver infinite scroll
 └── Automated background jobs
 ```
 
@@ -169,8 +172,9 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 
 - Bootstrap 5 (responsive design)
 - Chart.js (data visualization)
-- Vanilla JavaScript (DOM manipulation)
+- Vanilla JavaScript (DOM manipulation, infinite scroll, toast notifications)
 - Jinja2 templating
+- Native lazy loading (`loading="lazy"`)
 
 **Database**
 
@@ -192,8 +196,8 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 - **10,788** movies with complete metadata
 - **300+** directors with filmographies
 - **1,000+** actors with profiles
-- **65%** test coverage with unit tests
-- **14** database tables
+- **80%+** test coverage with unit and integration tests
+- **14** database tables with optimized indexes
 - **25+** Flask routes
 - **11** RESTful API endpoints
 - **20+** Jinja2 templates
@@ -389,7 +393,7 @@ pytest tests/test_auth.py -v
 - ✅ Database relationships
 - ✅ Security (password hashing)
 
-**Current Coverage**: 65% (27 tests passing)
+**Current Coverage**: 80%+ (150+ tests passing)
 
 ### API Testing
 
@@ -505,6 +509,16 @@ All charts are:
 - Responsive (mobile-friendly)
 - Dark mode compatible
 
+### User Profile Page
+
+A dedicated activity hub showing:
+
+- **Stats row** — favorites count, watchlist count, ratings count, reviews count, and personal average rating
+- **Ratings tab** — all movies rated with star display and timestamps
+- **Reviews tab** — all written reviews with links back to each movie
+- **Favorites tab** — full poster grid of favorited movies
+- **Watchlist tab** — full poster grid of watchlisted movies
+
 ### RESTful API
 
 11 endpoints providing:
@@ -523,20 +537,21 @@ See [TODO.md](TODO.md) for the complete roadmap.
 
 ### Current Sprint
 
+- [ ] Search autocomplete
+- [ ] Cache frequently accessed queries
 - [ ] Advanced filtering UI
-- [ ] User profile pages
-- [ ] Movie poster lazy loading
+- [ ] 100% test coverage
 - [ ] Movie comparison tool
-- [ ] Lazy loading for movie lists
-- [ ] Database indexing optimization
+- [ ] Budget vs revenue analytics
 
 ### Coming Soon
 
+- [ ] Loading animations
+- [ ] Error logging and monitoring
+- [ ] API rate limiting
 - [ ] Export analytics (PDF/CSV)
-- [ ] Social features (follow users, activity feed)
-- [ ] Email notifications
-- [ ] PostgreSQL migration
-- [ ] Docker deployment
+- [ ] Docker containerization
+- [ ] Actor collaboration network
 
 ## 📝 License
 

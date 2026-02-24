@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+
+{% block title %}{{ current_user.username }}'s Profile - Movie Analytics Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    <!-- Profile Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-4 flex-wrap">
+                        <!-- Avatar -->
+                        <img src="https://ui-avatars.com/api/?name={{ current_user.username|urlencode }}&size=120&background=0D8ABC&color=fff&bold=true&font-size=0.4"
+                             class="rounded-circle shadow"
+                             alt="{{ current_user.username }}"
+                             style="width: 100px; height: 100px;">
+
+                        <!-- User Info -->
+                        <div>
+                            <h1 class="mb-1">{{ current_user.username }}</h1>
+                            <p class="text-muted mb-0">
+                                <i class="bi bi-calendar3 me-1"></i>
+                                Member since {{ current_user.created_at.strftime('%B %Y') if current_user.created_at else 'Unknown' }}
+                            </p>
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <div class="ms-auto d-flex gap-2 flex-wrap">
+                            <a href="{{ url_for('favorites') }}" class="btn btn-outline-danger btn-sm">
+                                <i class="bi bi-heart-fill me-1"></i>Favorites
+                            </a>
+                            <a href="{{ url_for('watchlist') }}" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-bookmark-fill me-1"></i>Watchlist
+                            </a>
+                            <a href="{{ url_for('recommendations') }}" class="btn btn-outline-success btn-sm">
+                                <i class="bi bi-lightbulb me-1"></i>Recommendations
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="row mb-4 g-3">
+        <div class="col-6 col-md-3">
+            <div class="card text-center shadow-sm h-100">
+                <div class="card-body">
+                    <div class="display-5 text-danger fw-bold">{{ stats.favorites_count }}</div>
+                    <p class="text-muted mb-0 small"><i class="bi bi-heart-fill me-1"></i>Favorites</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center shadow-sm h-100">
+                <div class="card-body">
+                    <div class="display-5 text-primary fw-bold">{{ stats.watchlist_count }}</div>
+                    <p class="text-muted mb-0 small"><i class="bi bi-bookmark-fill me-1"></i>Watchlist</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center shadow-sm h-100">
+                <div class="card-body">
+                    <div class="display-5 text-warning fw-bold">{{ stats.ratings_count }}</div>
+                    <p class="text-muted mb-0 small"><i class="bi bi-star-fill me-1"></i>Ratings</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center shadow-sm h-100">
+                <div class="card-body">
+                    <div class="display-5 text-info fw-bold">{{ stats.reviews_count }}</div>
+                    <p class="text-muted mb-0 small"><i class="bi bi-chat-quote-fill me-1"></i>Reviews</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if stats.avg_rating %}
+    <div class="alert alert-warning d-flex align-items-center mb-4 shadow-sm" role="alert">
+        <i class="bi bi-star-fill me-2 fs-5"></i>
+        <div>Your average rating is <strong>{{ stats.avg_rating }} / 5</strong> across {{ stats.ratings_count }} movie{{ 's' if stats.ratings_count != 1 }}.</div>
+    </div>
+    {% endif %}
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-4" id="profileTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="ratings-tab" data-bs-toggle="tab" data-bs-target="#ratings"
+                    type="button" role="tab">
+                <i class="bi bi-star-fill text-warning me-1"></i>Ratings
+                {% if stats.ratings_count %}<span class="badge bg-secondary ms-1">{{ stats.ratings_count }}</span>{% endif %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="reviews-tab" data-bs-toggle="tab" data-bs-target="#reviews"
+                    type="button" role="tab">
+                <i class="bi bi-chat-quote-fill text-info me-1"></i>Reviews
+                {% if stats.reviews_count %}<span class="badge bg-secondary ms-1">{{ stats.reviews_count }}</span>{% endif %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="favs-tab" data-bs-toggle="tab" data-bs-target="#favs"
+                    type="button" role="tab">
+                <i class="bi bi-heart-fill text-danger me-1"></i>Favorites
+                {% if stats.favorites_count %}<span class="badge bg-secondary ms-1">{{ stats.favorites_count }}</span>{% endif %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="watchlist-tab" data-bs-toggle="tab" data-bs-target="#watchlist-pane"
+                    type="button" role="tab">
+                <i class="bi bi-bookmark-fill text-primary me-1"></i>Watchlist
+                {% if stats.watchlist_count %}<span class="badge bg-secondary ms-1">{{ stats.watchlist_count }}</span>{% endif %}
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="profileTabContent">
+
+        <!-- Ratings Tab -->
+        <div class="tab-pane fade show active" id="ratings" role="tabpanel">
+            {% if ratings %}
+            <div class="row g-3">
+                {% for rating, movie in ratings %}
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="card shadow-sm h-100">
+                        <div class="row g-0">
+                            <div class="col-4">
+                                <a href="{{ url_for('movie_detail', movie_id=movie.id) }}">
+                                    {% if movie.poster_path %}
+                                    <img src="{{ config.get_poster_url(movie.poster_path, 'w185') }}"
+                                         class="img-fluid rounded-start"
+                                         alt="{{ movie.title }}"
+                                         style="height: 100%; object-fit: cover;">
+                                    {% else %}
+                                    <div class="bg-secondary d-flex align-items-center justify-content-center rounded-start h-100">
+                                        <i class="bi bi-film text-white fs-3"></i>
+                                    </div>
+                                    {% endif %}
+                                </a>
+                            </div>
+                            <div class="col-8">
+                                <div class="card-body py-2 px-3">
+                                    <h6 class="card-title mb-1">
+                                        <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+                                            {{ movie.title }}
+                                        </a>
+                                    </h6>
+                                    <p class="text-muted small mb-2">
+                                        {{ movie.release_date.year if movie.release_date else 'N/A' }}
+                                    </p>
+                                    <div class="d-flex gap-1 mb-1">
+                                        {% for i in range(1, 6) %}
+                                        <i class="bi bi-star{{ '-fill' if i <= rating.rating else '' }} text-warning"></i>
+                                        {% endfor %}
+                                    </div>
+                                    <p class="text-muted small mb-0">
+                                        {{ rating.updated_at.strftime('%b %d, %Y') if rating.updated_at else '' }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-star display-4 d-block mb-3"></i>
+                <p>You haven't rated any movies yet.</p>
+                <a href="{{ url_for('movies') }}" class="btn btn-primary">Browse Movies</a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Reviews Tab -->
+        <div class="tab-pane fade" id="reviews" role="tabpanel">
+            {% if reviews %}
+            <div class="d-flex flex-column gap-3">
+                {% for review, movie in reviews %}
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-start gap-3">
+                            {% if movie.poster_path %}
+                            <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="flex-shrink-0">
+                                <img src="{{ config.get_poster_url(movie.poster_path, 'w92') }}"
+                                     class="rounded"
+                                     alt="{{ movie.title }}"
+                                     style="width: 50px; height: 75px; object-fit: cover;">
+                            </a>
+                            {% endif %}
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                                    <h6 class="mb-1">
+                                        <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+                                            {{ movie.title }}
+                                        </a>
+                                        <span class="text-muted small ms-1">
+                                            ({{ movie.release_date.year if movie.release_date else 'N/A' }})
+                                        </span>
+                                    </h6>
+                                    <small class="text-muted">{{ review.created_at.strftime('%b %d, %Y') if review.created_at else '' }}</small>
+                                </div>
+                                <p class="mb-0 text-muted" style="font-size: 0.95rem;">{{ review.content }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-chat-quote display-4 d-block mb-3"></i>
+                <p>You haven't written any reviews yet.</p>
+                <a href="{{ url_for('movies') }}" class="btn btn-primary">Browse Movies</a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Favorites Tab -->
+        <div class="tab-pane fade" id="favs" role="tabpanel">
+            {% if favorites %}
+            <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-3">
+                {% for movie in favorites %}
+                <div class="col">
+                    <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+                        <div class="card h-100 movie-card shadow-sm">
+                            {% if movie.poster_path %}
+                            <img src="{{ config.get_poster_url(movie.poster_path) }}"
+                                 class="card-img-top"
+                                 alt="{{ movie.title }}"
+                                 loading="lazy">
+                            {% else %}
+                            <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center"
+                                 style="height: 200px;">
+                                <i class="bi bi-film text-white fs-2"></i>
+                            </div>
+                            {% endif %}
+                            <div class="card-body p-2">
+                                <h6 class="card-title small mb-1" style="font-size: 0.85rem;">{{ movie.title }}</h6>
+                                <small class="text-muted">{{ movie.release_date.year if movie.release_date else '' }}</small>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-heart display-4 d-block mb-3"></i>
+                <p>No favorites yet.</p>
+                <a href="{{ url_for('movies') }}" class="btn btn-primary">Browse Movies</a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Watchlist Tab -->
+        <div class="tab-pane fade" id="watchlist-pane" role="tabpanel">
+            {% if watchlist %}
+            <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-3">
+                {% for movie in watchlist %}
+                <div class="col">
+                    <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+                        <div class="card h-100 movie-card shadow-sm">
+                            {% if movie.poster_path %}
+                            <img src="{{ config.get_poster_url(movie.poster_path) }}"
+                                 class="card-img-top"
+                                 alt="{{ movie.title }}"
+                                 loading="lazy">
+                            {% else %}
+                            <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center"
+                                 style="height: 200px;">
+                                <i class="bi bi-film text-white fs-2"></i>
+                            </div>
+                            {% endif %}
+                            <div class="card-body p-2">
+                                <h6 class="card-title small mb-1" style="font-size: 0.85rem;">{{ movie.title }}</h6>
+                                <small class="text-muted">{{ movie.release_date.year if movie.release_date else '' }}</small>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-bookmark display-4 d-block mb-3"></i>
+                <p>Your watchlist is empty.</p>
+                <a href="{{ url_for('movies') }}" class="btn btn-primary">Browse Movies</a>
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+{% endblock %}

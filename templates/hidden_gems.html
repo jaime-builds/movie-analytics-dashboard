@@ -118,7 +118,8 @@
                     {% if movie.poster_path %}
                     <img src="{{ config.get_poster_url(movie.poster_path, 'w300') }}"
                          class="card-img-top"
-                         alt="{{ movie.title }}">
+                         alt="{{ movie.title }}"
+                         loading="lazy">
                     {% else %}
                     <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center" style="height: 450px;">
                         <i class="bi bi-film" style="font-size: 3rem; color: #666;"></i>

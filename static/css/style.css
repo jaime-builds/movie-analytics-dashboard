@@ -463,6 +463,53 @@ a {
     }
 }
 
+/* ========================================
+   TOAST NOTIFICATIONS
+   ======================================== */
+
+.toast-container {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    z-index: 1090;
+    max-width: 360px;
+    width: 100%;
+}
+
+.toast {
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border: none;
+    margin-bottom: 10px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.toast.show {
+    opacity: 1;
+}
+
+.toast-success { background-color: #198754; color: white; }
+.toast-danger  { background-color: #dc3545; color: white; }
+.toast-warning { background-color: #ffc107; color: #212529; }
+.toast-info    { background-color: #0dcaf0; color: #212529; }
+
+.toast .btn-close-white { filter: invert(1) grayscale(100%) brightness(200%); }
+
+[data-bs-theme="dark"] .toast {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 576px) {
+    .toast-container {
+        top: auto;
+        bottom: 20px;
+        right: 10px;
+        left: 10px;
+        max-width: 100%;
+    }
+}
+
 /* Print styles */
 @media print {
     .backdrop-banner,

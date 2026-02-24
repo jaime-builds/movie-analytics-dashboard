@@ -2,56 +2,47 @@
 
 ## 🎯 Current Sprint (Next 2 Weeks)
 
+### Improvements 🔧
+- [ ] **Search autocomplete** (4h) - Live suggestions as user types in the search bar
+- [ ] **Cache frequently accessed queries** (6h) - Cache homepage and analytics queries to reduce DB load
+
+### Enhancements ✨
 - [ ] **Advanced filtering UI** (6h) - Multi-select dropdowns for genres, years, ratings with live preview
-- [ ] **User profile pages** (4h) - Display user's reviews, ratings, favorites history
-- [ ] **Movie poster lazy loading** (2h) - Improve page load performance
-- [ ] **Movie comparison tool** (8h) - Side-by-side movie comparisons
-- [ ] **Lazy loading for movie lists** (3h) - Infinite scroll implementation
-- [ ] **Database indexing optimization** (3h) - Add composite indexes for common queries
+- [ ] **100% test coverage** (5h) - Cover remaining gaps in helper functions, TMDB client methods, and edge cases
+
+### Features 🎬
+- [ ] **Movie comparison tool** (8h) - Side-by-side comparison of two movies across ratings, box office, runtime, and genres
+- [ ] **Budget vs revenue analytics** (5h) - Profitability charts and ROI breakdowns showcasing advanced SQL aggregations
 
 ## 🚀 Next Up (This Month)
 
-### High Impact, Low Effort 🎯
-
-- [ ] Toast notifications for user actions (2h)
-- [ ] Loading animations (3h)
-- [ ] Search autocomplete (4h)
-- [ ] Error logging and monitoring (4h)
-
-### Features 🎬
-
-- [ ] Export analytics as PDF/CSV (6h)
-- [ ] Production companies page (5h)
-- [ ] Decade overview pages (6h)
-- [ ] Movie collections (5h) - User-created lists
-- [ ] Advanced search (6h) - Multi-field search with autocomplete
-- [ ] Social features (8h) - Follow users, see friend activity, share favorites
-- [ ] Email notifications (5h) - Weekly digest of new movies in favorite genres
-
-### Quality & Performance 🔧
-
-- [ ] Cache frequently accessed queries (6h)
-- [ ] Image optimization - WebP format (3h)
-- [ ] API rate limiting (3h)
+- [ ] **Loading animations** (3h) - Skeleton screens and spinners for movie grids and detail pages
+- [ ] **Error logging and monitoring** (4h) - Structured logging with request tracking and error alerting
+- [ ] **API rate limiting** (3h) - Protect API endpoints from abuse, show production-readiness
+- [ ] **Export analytics as PDF/CSV** (6h) - Download genre stats, top movies, and user activity reports
+- [ ] **Docker containerization** (5h) - Dockerfile and docker-compose for consistent local and prod environments
+- [ ] **Actor collaboration network** (6h) - Graph of actors who've appeared together, showcasing complex SQL joins
 
 ## 🔮 Future (Next Quarter)
 
 ### Backend & Infrastructure
 
 - [ ] Migrate SQLite → PostgreSQL
-- [ ] Docker containerization
 - [ ] CI/CD pipeline (GitHub Actions)
 - [ ] Background job queue for imports
 - [ ] Database migrations with Alembic
 
 ### User Experience
 
-- [ ] Infinite scroll for browsing
 - [ ] Keyboard shortcuts
 - [ ] Advanced multi-filter search
 - [ ] Breadcrumb navigation
 - [ ] Dark mode improvements
 - [ ] Progressive Web App (PWA)
+- [ ] Image optimization - WebP format (3h)
+- [ ] Production companies page (5h)
+- [ ] Decade overview pages (6h)
+- [ ] Movie collections (5h) - User-created lists
 
 ### Social & Engagement
 
@@ -60,10 +51,11 @@
 - [ ] Movie quiz/trivia
 - [ ] Streaming availability integration
 - [ ] OAuth integration (Google/GitHub login)
+- [ ] Email notifications (5h) - Weekly digest of new movies in favorite genres
+- [ ] Social features (8h) - Follow users, see friend activity, share favorites
 
 ### Advanced Analytics
 
-- [ ] Budget vs Revenue profitability (SQL showcase)
 - [ ] Rating trends over time (window functions)
 - [ ] Box office by genre (aggregations)
 - [ ] Actor collaboration network (complex joins)
@@ -86,8 +78,15 @@
 ## ✅ Recently Completed (Last 30 Days)
 
 <details>
-<summary>Click to expand (23 items)</summary>
+<summary>Click to expand (26 items)</summary>
 
+- [✅] **Movie poster lazy loading** - Added `loading="lazy"` across all templates for faster page loads (Feb 24)
+- [✅] **Infinite scroll** - Replaced pagination on /movies with IntersectionObserver-based infinite scroll (Feb 24)
+- [✅] **Database indexing optimization** - Added indexes on vote_count, title, crew.person_id, movie_genres.genre_id, ratings.movie_id (Feb 24)
+- [✅] **Homepage live movie count** - Fixed hardcoded "100 movies" to show real database count (Feb 24)
+- [✅] **Toast notifications** - Replaced flash alerts with polished auto-dismissing toasts (Feb 24)
+- [✅] **User profile pages** - Stats, ratings, reviews, favorites and watchlist in tabbed interface (Feb 24)
+- [✅] **Comprehensive test suite expansion** - API route tests, new route tests, profile page tests (Feb 24)
 - [✅] **Unit tests** - Test coverage for authentication, favorites, ratings, reviews (Feb 11)
 - [✅] **Mobile responsive improvements** - Fixed layout issues on phone screens (Feb 11)
 - [✅] **RESTful API endpoints** - JSON API for movies, analytics, actors, genres (Feb 11)
@@ -119,10 +118,10 @@
 ## 📊 Project Stats
 
 - **Total Movies**: 10,788
-- **Features Completed**: 23
-- **In Progress**: 6
-- **Test Coverage**: 0% → 65% ✅
-- **API Endpoints**: 0 → 11 ✅
+- **Features Completed**: 30
+- **In Progress**: 3
+- **Test Coverage**: 65% → 80%+ ✅
+- **API Endpoints**: 11 ✅
 
 ## 🎓 Learning Goals
 
@@ -140,4 +139,4 @@ This project showcases:
 
 ---
 
-**Last Updated**: February 11, 2026
+**Last Updated**: February 24, 2026 (evening)

@@ -31,7 +31,8 @@
         {% if movie.poster_path %}
         <img src="{{ config.get_poster_url(movie.poster_path) }}"
              class="img-fluid rounded shadow"
-             alt="{{ movie.title }}">
+             alt="{{ movie.title }}"
+             loading="lazy">
         {% else %}
         <div class="bg-secondary rounded d-flex align-items-center justify-content-center" style="height: 450px;">
             <i class="bi bi-film" style="font-size: 3rem; color: #666;"></i>
@@ -112,7 +113,7 @@
         {% if directors %}
         <p><strong>Director{{ 's' if directors|length > 1 }}:</strong>
             {% for crew, person in directors %}
-            {{ person.name }}{% if not loop.last %}, {% endif %}
+            <a href="{{ url_for('director_detail', director_id=person.id) }}" class="text-decoration-none">{{ person.name }}</a>{% if not loop.last %}, {% endif %}
             {% endfor %}
         </p>
         {% endif %}
@@ -377,7 +378,8 @@
             <img src="{{ config.get_poster_url(person.profile_path, 'w185') }}"
                  class="rounded-circle mb-2 shadow-sm actor-photo"
                  style="width: 100px; height: 100px; object-fit: cover;"
-                 alt="{{ person.name }}">
+                 alt="{{ person.name }}"
+                 loading="lazy">
             {% else %}
             <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center mb-2 mx-auto shadow-sm actor-photo"
                  style="width: 100px; height: 100px;">
@@ -408,7 +410,8 @@
                 <img src="{{ config.get_poster_url(rec_movie.poster_path, 'w342') }}"
                      class="card-img-top"
                      alt="{{ rec_movie.title }}"
-                     style="height: 250px; object-fit: cover;">
+                     style="height: 250px; object-fit: cover;"
+                     loading="lazy">
                 {% else %}
                 <div class="bg-secondary d-flex align-items-center justify-content-center"
                      style="height: 250px;">
@@ -442,7 +445,8 @@
                 <img src="{{ config.get_poster_url(similar_movie.poster_path, 'w342') }}"
                      class="card-img-top"
                      alt="{{ similar_movie.title }}"
-                     style="height: 250px; object-fit: cover;">
+                     style="height: 250px; object-fit: cover;"
+                     loading="lazy">
                 {% else %}
                 <div class="bg-secondary d-flex align-items-center justify-content-center"
                      style="height: 250px;">

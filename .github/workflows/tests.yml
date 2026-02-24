@@ -46,7 +46,7 @@ jobs:
         TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         FLASK_ENV: testing
       run: |
-        pytest tests/test_auth.py tests/test_models.py tests/test_routes.py tests/test_tmdb_api.py -v --cov=src --cov-report=xml --cov-report=term-missing
+        pytest tests/test_auth.py tests/test_models.py tests/test_routes.py tests/test_tmdb_api.py tests/test_api_routes.py tests/test_new_routes.py -v --cov=src --cov-report=xml --cov-report=term-missing
 
     - name: Reinitialize database for unittest
       run: |

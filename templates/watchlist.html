@@ -21,7 +21,8 @@
                     <img src="{{ config.get_poster_url(movie.poster_path) }}"
                          class="card-img-top"
                          alt="{{ movie.title }}"
-                         style="height: 400px; object-fit: cover;">
+                         style="height: 400px; object-fit: cover;"
+                         loading="lazy">
                     {% else %}
                     <div class="bg-secondary d-flex align-items-center justify-content-center"
                          style="height: 400px;">
