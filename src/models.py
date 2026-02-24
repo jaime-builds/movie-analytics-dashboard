@@ -170,7 +170,9 @@ class Rating(Base):
     # Constraints
     __table_args__ = (
         CheckConstraint("rating >= 1 AND rating <= 5", name="check_rating_range"),
-        Index("idx_user_movie_rating", "user_id", "movie_id", unique=True),  # One rating per user per movie
+        Index(
+            "idx_user_movie_rating", "user_id", "movie_id", unique=True
+        ),  # One rating per user per movie
         Index("idx_ratings_movie_id", "movie_id"),  # Fast avg/count by movie
     )
 

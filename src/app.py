@@ -1968,9 +1968,7 @@ def profile():
 
         # Summary stats
         avg_user_rating = (
-            session_db.query(func.avg(Rating.rating))
-            .filter(Rating.user_id == user.id)
-            .scalar()
+            session_db.query(func.avg(Rating.rating)).filter(Rating.user_id == user.id).scalar()
         )
 
         stats = {
