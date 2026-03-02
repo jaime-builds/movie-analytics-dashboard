@@ -66,6 +66,17 @@
             </div>
         </div>
         {% endif %}
+
+        <div class="mt-2">
+            <button class="btn btn-outline-secondary w-100 compare-toggle"
+                    data-movie-id="{{ movie.id }}"
+                    data-movie-title="{{ movie.title }}"
+                    data-poster="{{ movie.poster_path or '' }}"
+                    style="opacity:1;position:static;width:auto;">
+                <i class="bi bi-bar-chart-line me-1"></i> Add to Compare
+            </button>
+        </div>
+
     </div>
 
     <!-- Details + Trailer -->
