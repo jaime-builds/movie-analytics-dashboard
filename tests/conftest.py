@@ -30,6 +30,7 @@ def app():
             "TESTING": True,
             "WTF_CSRF_ENABLED": False,  # Disable CSRF for testing
             "SECRET_KEY": "test-secret-key",
+            "CACHE_TYPE": "NullCache",  # Disable caching during tests
         }
     )
 
