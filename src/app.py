@@ -1318,22 +1318,28 @@ def analytics():
         )
 
         # Budget vs revenue scatter data (up to 300 movies with known budget)
-        budget_revenue_scatter = (
-            session.query(Movie.title, Movie.budget, Movie.revenue, Movie.vote_average)
-            .filter(Movie.budget > 1_000_000, Movie.revenue > 0)
-            .order_by(desc(Movie.revenue))
-            .limit(300)
-            .all()
-        )
+        budget_revenue_scatter = [
+            [r[0], r[1], r[2], float(r[3]) if r[3] is not None else None]
+            for r in (
+                session.query(Movie.title, Movie.budget, Movie.revenue, Movie.vote_average)
+                .filter(Movie.budget > 1_000_000, Movie.revenue > 0)
+                .order_by(desc(Movie.revenue))
+                .limit(300)
+                .all()
+            )
+        ]
 
         # Most profitable movies (revenue - budget), top 15
-        most_profitable = (
-            session.query(Movie.title, Movie.budget, Movie.revenue)
-            .filter(Movie.budget > 1_000_000, Movie.revenue > 0)
-            .order_by(desc(Movie.revenue - Movie.budget))
-            .limit(15)
-            .all()
-        )
+        most_profitable = [
+            [r[0], r[1], r[2]]
+            for r in (
+                session.query(Movie.title, Movie.budget, Movie.revenue)
+                .filter(Movie.budget > 1_000_000, Movie.revenue > 0)
+                .order_by(desc(Movie.revenue - Movie.budget))
+                .limit(15)
+                .all()
+            )
+        ]
 
         # Top production companies
         top_companies = (

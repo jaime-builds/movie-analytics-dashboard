@@ -8,6 +8,7 @@ __pycache__/
 .env
 config/secrets.py
 .vscode/
+.idea/
 .claude/worktrees/
 *.log
 
