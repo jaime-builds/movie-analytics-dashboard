@@ -46,7 +46,7 @@ This isn't just another movie app. It's a **portfolio-grade full-stack applicati
 | ⭐ **Ratings & Reviews** | 1-5 star ratings and text reviews for movies |
 | 🎯 **Recommendations** | Personalized suggestions based on your favorites |
 | 🎬 **Director Spotlight** | Explore 300+ directors with complete filmographies |
-| 📊 **Analytics Dashboard** | Interactive Chart.js visualizations |
+| 📊 **Analytics Dashboard** | Interactive Chart.js visualizations including budget/revenue scatter and profitability charts |
 | 🔄 **Auto-Sync** | Automated daily updates from TMDB (10,000+ movies) |
 | 🎭 **Actor Profiles** | Top actors with photos and filmography |
 | 💎 **Hidden Gems** | Smart algorithm discovers underrated films |
@@ -55,6 +55,10 @@ This isn't just another movie app. It's a **portfolio-grade full-stack applicati
 | 🔌 **RESTful API** | JSON endpoints for movies, analytics, and actors |
 | 👤 **User Profile** | Activity dashboard with ratings, reviews, and collections |
 | ⚡ **Infinite Scroll** | Seamless movie browsing without pagination |
+| 🔍 **Search Autocomplete** | Live dropdown with poster thumbnails and keyboard navigation |
+| ⚖️ **Movie Comparison** | Select up to 4 movies for side-by-side stats and visual charts |
+| 🚀 **Query Caching** | Flask-Caching on analytics and genre routes for faster responses |
+| 🎛️ **Advanced Filters** | Min vote count and status filters with collapsible panel |
 
 ### 🎨 User Experience
 
@@ -164,6 +168,7 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 
 - Python 3.10+ with Flask
 - SQLAlchemy ORM
+- Flask-Caching (SimpleCache) for query result caching
 - Werkzeug password hashing
 - Schedule for automation
 - unittest/pytest for testing
@@ -198,9 +203,9 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 - **1,000+** actors with profiles
 - **80%+** test coverage with unit and integration tests
 - **14** database tables with optimized indexes
-- **25+** Flask routes
+- **27+** Flask routes
 - **11** RESTful API endpoints
-- **20+** Jinja2 templates
+- **22+** Jinja2 templates
 
 ## 🎓 Skills Demonstrated
 
@@ -500,7 +505,8 @@ Finds high-quality, underappreciated films by balancing:
 - **Genre Distribution** - Pie chart
 - **Release Timeline** - Bar chart by year
 - **Ratings by Genre** - Horizontal bar chart
-- **Budget vs Revenue** - Financial analysis
+- **Budget vs Revenue Scatter** - Each movie plotted with a break-even reference line and ROI tooltips
+- **Most Profitable Movies** - Horizontal bar chart of top 15 films by net profit
 - **Top Studios** - Production company rankings
 
 All charts are:
@@ -535,23 +541,22 @@ A dedicated activity hub showing:
 
 See [TODO.md](TODO.md) for the complete roadmap.
 
+### Recently Shipped
+
+- [x] Search autocomplete with keyboard navigation
+- [x] Query caching with Flask-Caching (1-hour TTL)
+- [x] Advanced filtering UI (min votes, status, collapsible panel)
+- [x] Movie comparison tool (up to 4 movies, `/compare` page)
+- [x] Budget vs revenue scatter chart + most profitable movies chart
+
 ### Current Sprint
 
-- [ ] Search autocomplete
-- [ ] Cache frequently accessed queries
-- [ ] Advanced filtering UI
-- [ ] 100% test coverage
-- [ ] Movie comparison tool
-- [ ] Budget vs revenue analytics
-
-### Coming Soon
-
-- [ ] Loading animations
-- [ ] Error logging and monitoring
+- [ ] Test coverage for new features
+- [ ] Loading animations / skeleton screens
+- [ ] Export analytics as PDF/CSV
 - [ ] API rate limiting
-- [ ] Export analytics (PDF/CSV)
+- [ ] Error logging and monitoring
 - [ ] Docker containerization
-- [ ] Actor collaboration network
 
 ## 📝 License
 
