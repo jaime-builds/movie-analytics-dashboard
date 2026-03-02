@@ -4,6 +4,7 @@ from typing import Dict, Optional
 from flask import Flask, flash, jsonify, redirect, render_template, request
 from flask import session as flask_session
 from flask import url_for
+from flask_caching import Cache
 from sqlalchemy import and_, desc, extract, func, select
 
 from config.config import Config
@@ -25,6 +26,8 @@ from src.tmdb_api import TMDBClient
 app = Flask(__name__, template_folder="../templates", static_folder="../static")
 app.config.from_object(Config)
 app.secret_key = Config.SECRET_KEY
+
+cache = Cache(app, config={"CACHE_TYPE": "SimpleCache", "CACHE_DEFAULT_TIMEOUT": 300})
 
 
 def get_db_session():
@@ -828,6 +831,8 @@ def movies():
         rating_max = request.args.get("rating_max", type=float)
         runtime_min = request.args.get("runtime_min", type=int)
         runtime_max = request.args.get("runtime_max", type=int)
+        min_vote_count = request.args.get("min_vote_count", type=int)
+        status_filter = request.args.get("status", "")
 
         # Base query
         query = session.query(Movie)
@@ -860,6 +865,14 @@ def movies():
             query = query.filter(Movie.runtime >= runtime_min)
         if runtime_max is not None:
             query = query.filter(Movie.runtime <= runtime_max)
+
+        # Apply min vote count filter
+        if min_vote_count:
+            query = query.filter(Movie.vote_count >= min_vote_count)
+
+        # Apply status filter
+        if status_filter:
+            query = query.filter(Movie.status == status_filter)
 
         # Apply sorting
         if sort_by == "rating":
@@ -914,6 +927,8 @@ def movies():
             selected_rating_max=rating_max,
             selected_runtime_min=runtime_min,
             selected_runtime_max=runtime_max,
+            selected_min_vote_count=min_vote_count,
+            selected_status=status_filter,
             current_user=user,
             config=Config,
         )
@@ -1249,6 +1264,7 @@ def movie_detail(movie_id):
 
 
 @app.route("/analytics")
+@cache.cached(timeout=3600)
 def analytics():
     """Analytics dashboard"""
     session = get_db_session()
@@ -1301,6 +1317,24 @@ def analytics():
             .all()
         )
 
+        # Budget vs revenue scatter data (up to 300 movies with known budget)
+        budget_revenue_scatter = (
+            session.query(Movie.title, Movie.budget, Movie.revenue, Movie.vote_average)
+            .filter(Movie.budget > 1_000_000, Movie.revenue > 0)
+            .order_by(desc(Movie.revenue))
+            .limit(300)
+            .all()
+        )
+
+        # Most profitable movies (revenue - budget), top 15
+        most_profitable = (
+            session.query(Movie.title, Movie.budget, Movie.revenue)
+            .filter(Movie.budget > 1_000_000, Movie.revenue > 0)
+            .order_by(desc(Movie.revenue - Movie.budget))
+            .limit(15)
+            .all()
+        )
+
         # Top production companies
         top_companies = (
             session.query(
@@ -1330,6 +1364,8 @@ def analytics():
             year_stats=year_stats,
             genre_ratings=genre_ratings,
             budget_revenue=top_budget_movies,
+            budget_revenue_scatter=budget_revenue_scatter,
+            most_profitable=most_profitable,
             top_companies=top_companies,
             total_movies=total_movies,
             avg_rating=round(avg_rating, 1) if avg_rating else 0,
@@ -1415,6 +1451,8 @@ def api_get_movies():
         sort_by = request.args.get("sort", default="popularity")
         year = request.args.get("year", type=int)
         min_rating = request.args.get("min_rating", type=float)
+        min_vote_count = request.args.get("min_vote_count", type=int)
+        status_filter = request.args.get("status", "")
 
         # Limit per_page to prevent abuse
         per_page = min(per_page, 100)
@@ -1431,6 +1469,12 @@ def api_get_movies():
 
         if min_rating is not None:
             query = query.filter(Movie.vote_average >= min_rating)
+
+        if min_vote_count:
+            query = query.filter(Movie.vote_count >= min_vote_count)
+
+        if status_filter:
+            query = query.filter(Movie.status == status_filter)
 
         # Apply sorting
         if sort_by == "rating":
@@ -1638,6 +1682,7 @@ def api_get_genres():
 
 
 @app.route("/api/v1/analytics/overview", methods=["GET"])
+@cache.cached(timeout=3600)
 def api_analytics_overview():
     """Get overview analytics"""
     session = get_db_session()
@@ -1680,6 +1725,7 @@ def api_analytics_overview():
 
 
 @app.route("/api/v1/analytics/genres", methods=["GET"])
+@cache.cached(timeout=3600)
 def api_analytics_genres():
     """Get genre analytics"""
     session = get_db_session()
@@ -1713,6 +1759,7 @@ def api_analytics_genres():
 
 
 @app.route("/api/v1/analytics/top-movies", methods=["GET"])
+@cache.cached(timeout=3600, query_string=True)
 def api_analytics_top_movies():
     """Get top movies by various metrics"""
     session = get_db_session()
@@ -1991,6 +2038,44 @@ def profile():
         )
     finally:
         session_db.close()
+
+
+@app.route("/compare")
+def compare():
+    """Movie comparison page"""
+    session = get_db_session()
+    try:
+        user = get_current_user(session)
+        ids = request.args.getlist("id", type=int)
+        ids = ids[:4]  # cap at 4
+
+        movies_list = []
+        if ids:
+            movies_list = session.query(Movie).filter(Movie.id.in_(ids)).all()
+            # Preserve request order
+            id_order = {mid: i for i, mid in enumerate(ids)}
+            movies_list = sorted(movies_list, key=lambda m: id_order.get(m.id, 999))
+
+        # For each movie, find the director
+        directors = {}
+        for movie in movies_list:
+            director = (
+                session.query(Person)
+                .join(Crew, Person.id == Crew.person_id)
+                .filter(Crew.movie_id == movie.id, Crew.job == "Director")
+                .first()
+            )
+            directors[movie.id] = director
+
+        return render_template(
+            "compare.html",
+            movies=movies_list,
+            directors=directors,
+            current_user=user,
+            config=Config,
+        )
+    finally:
+        session.close()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,314 @@
+{% extends "base.html" %}
+
+{% block title %}Compare Movies - Movie Analytics Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4 gap-3">
+    <h1 class="mb-0">Movie Comparison</h1>
+    <a href="{{ url_for('movies') }}" class="btn btn-outline-secondary btn-sm ms-auto">
+        <i class="bi bi-plus-lg me-1"></i>Add More Movies
+    </a>
+</div>
+
+{% if movies|length < 2 %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle me-2"></i>
+    Select at least 2 movies to compare. Browse <a href="{{ url_for('movies') }}">all movies</a> and use the
+    <strong><i class="bi bi-plus-lg"></i></strong> button on any movie card.
+</div>
+{% else %}
+
+<!-- Comparison Table -->
+<div class="table-responsive mb-4">
+    <table class="table table-bordered align-middle text-center">
+        <thead class="table-dark">
+            <tr>
+                <th style="width:140px;" class="text-start">Attribute</th>
+                {% for movie in movies %}
+                <th>
+                    {{ movie.title }}
+                    <br>
+                    <a href="{{ url_for('movie_detail', movie_id=movie.id) }}"
+                       class="badge bg-secondary text-decoration-none mt-1 small">View Detail</a>
+                </th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Poster row -->
+            <tr>
+                <td class="text-start fw-semibold">Poster</td>
+                {% for movie in movies %}
+                <td>
+                    {% if movie.poster_path %}
+                    <img src="{{ config.get_poster_url(movie.poster_path, 'w154') }}"
+                         alt="{{ movie.title }}"
+                         style="height:180px;object-fit:cover;border-radius:4px;"
+                         loading="lazy">
+                    {% else %}
+                    <div class="bg-secondary d-inline-flex align-items-center justify-content-center"
+                         style="width:102px;height:154px;border-radius:4px;">
+                        <i class="bi bi-film fs-2 text-white"></i>
+                    </div>
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+
+            <!-- Year -->
+            <tr>
+                <td class="text-start fw-semibold"><i class="bi bi-calendar3 me-1"></i>Year</td>
+                {% for movie in movies %}
+                <td>{{ movie.release_date.year if movie.release_date else '—' }}</td>
+                {% endfor %}
+            </tr>
+
+            <!-- Director -->
+            <tr>
+                <td class="text-start fw-semibold"><i class="bi bi-camera-video me-1"></i>Director</td>
+                {% for movie in movies %}
+                <td>
+                    {% if directors[movie.id] %}
+                    <a href="{{ url_for('director_detail', director_id=directors[movie.id].id) }}"
+                       class="text-decoration-none">
+                        {{ directors[movie.id].name }}
+                    </a>
+                    {% else %}—{% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+
+            <!-- Rating -->
+            <tr>
+                <td class="text-start fw-semibold"><i class="bi bi-star-fill text-warning me-1"></i>Rating</td>
+                {% for movie in movies %}
+                <td>
+                    {% if movie.vote_average %}
+                    <span class="badge bg-warning text-dark fs-6">
+                        {{ "%.1f"|format(movie.vote_average) }}
+                    </span>
+                    <div class="text-muted small mt-1">{{ movie.vote_count or 0 | int }} votes</div>
+                    {% else %}—{% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+
+            <!-- Runtime -->
+            <tr>
+                <td class="text-start fw-semibold"><i class="bi bi-clock me-1"></i>Runtime</td>
+                {% for movie in movies %}
+                <td>{{ (movie.runtime | string + ' min') if movie.runtime else '—' }}</td>
+                {% endfor %}
+            </tr>
+
+            <!-- Genres -->
+            <tr>
+                <td class="text-start fw-semibold"><i class="bi bi-tag me-1"></i>Genres</td>
+                {% for movie in movies %}
+                <td>
+                    {% for genre in movie.genres %}
+                    <span class="badge bg-info text-dark me-1">{{ genre.name }}</span>
+                    {% else %}—
+                    {% endfor %}
+                </td>
+                {% endfor %}
+            </tr>
+
+            <!-- Budget -->
+            <tr>
+                <td class="text-start fw-semibold"><i class="bi bi-cash-stack me-1"></i>Budget</td>
+                {% for movie in movies %}
+                <td>
+                    {% if movie.budget and movie.budget > 0 %}
+                    ${{ '{:,.0f}'.format(movie.budget) }}
+                    {% else %}—{% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+
+            <!-- Revenue -->
+            <tr>
+                <td class="text-start fw-semibold"><i class="bi bi-graph-up-arrow me-1"></i>Revenue</td>
+                {% for movie in movies %}
+                <td>
+                    {% if movie.revenue and movie.revenue > 0 %}
+                    ${{ '{:,.0f}'.format(movie.revenue) }}
+                    {% else %}—{% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+
+            <!-- ROI -->
+            <tr>
+                <td class="text-start fw-semibold"><i class="bi bi-percent me-1"></i>ROI</td>
+                {% for movie in movies %}
+                <td>
+                    {% if movie.budget and movie.budget > 0 and movie.revenue and movie.revenue > 0 %}
+                    {% set roi = ((movie.revenue - movie.budget) / movie.budget * 100) | round(0) | int %}
+                    <span class="badge {% if roi >= 0 %}bg-success{% else %}bg-danger{% endif %} fs-6">
+                        {{ roi }}%
+                    </span>
+                    {% else %}—{% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+
+            <!-- Status -->
+            <tr>
+                <td class="text-start fw-semibold"><i class="bi bi-info-circle me-1"></i>Status</td>
+                {% for movie in movies %}
+                <td>{{ movie.status or '—' }}</td>
+                {% endfor %}
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Visual Charts -->
+<div class="row g-4">
+    {% set has_ratings = movies | selectattr('vote_average') | list | length > 0 %}
+    {% set has_financials = movies | selectattr('budget') | list | length > 0 %}
+
+    {% if has_ratings %}
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title text-center">Rating Comparison</h5>
+                <canvas id="ratingChart"></canvas>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if has_financials %}
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title text-center">Runtime Comparison (minutes)</h5>
+                <canvas id="runtimeChart"></canvas>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if has_financials %}
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title text-center">Budget vs Revenue ($ millions)</h5>
+                <canvas id="financialChart"></canvas>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if movies|length >= 2 %}
+<script>
+    var movieTitles = {{ movies | map(attribute='title') | list | tojson }};
+    var movieColors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12'];
+    var movieColorsAlpha = ['rgba(52,152,219,0.7)', 'rgba(231,76,60,0.7)', 'rgba(46,204,113,0.7)', 'rgba(243,156,18,0.7)'];
+
+    // --- Rating Chart ---
+    var ratingCtx = document.getElementById('ratingChart');
+    if (ratingCtx) {
+        var ratings = {{ movies | map(attribute='vote_average') | list | tojson }};
+        new Chart(ratingCtx, {
+            type: 'bar',
+            data: {
+                labels: movieTitles,
+                datasets: [{
+                    label: 'Rating',
+                    data: ratings.map(function(v) { return v ? parseFloat(v) : 0; }),
+                    backgroundColor: movieColorsAlpha,
+                    borderColor: movieColors,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: true, max: 10, title: { display: true, text: 'Rating (0–10)' } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    // --- Runtime Chart ---
+    var runtimeCtx = document.getElementById('runtimeChart');
+    if (runtimeCtx) {
+        var runtimes = {{ movies | map(attribute='runtime') | list | tojson }};
+        new Chart(runtimeCtx, {
+            type: 'bar',
+            data: {
+                labels: movieTitles,
+                datasets: [{
+                    label: 'Runtime',
+                    data: runtimes.map(function(v) { return v || 0; }),
+                    backgroundColor: movieColorsAlpha,
+                    borderColor: movieColors,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: true, title: { display: true, text: 'Minutes' } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    // --- Financial Chart ---
+    var financialCtx = document.getElementById('financialChart');
+    if (financialCtx) {
+        var budgets  = {{ movies | map(attribute='budget')  | list | tojson }};
+        var revenues = {{ movies | map(attribute='revenue') | list | tojson }};
+        new Chart(financialCtx, {
+            type: 'bar',
+            data: {
+                labels: movieTitles,
+                datasets: [
+                    {
+                        label: 'Budget ($M)',
+                        data: budgets.map(function(v) { return v ? (v / 1e6).toFixed(1) : 0; }),
+                        backgroundColor: 'rgba(52,152,219,0.7)',
+                        borderColor: '#3498db',
+                        borderWidth: 2
+                    },
+                    {
+                        label: 'Revenue ($M)',
+                        data: revenues.map(function(v) { return v ? (v / 1e6).toFixed(1) : 0; }),
+                        backgroundColor: 'rgba(46,204,113,0.7)',
+                        borderColor: '#2ecc71',
+                        borderWidth: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: true, title: { display: true, text: '$ Millions' } }
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                return ctx.dataset.label + ': $' + ctx.parsed.y + 'M';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+</script>
+{% endif %}
+{% endblock %}
