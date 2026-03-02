@@ -150,10 +150,14 @@ class FastTMDBSyncer:
                     self.session.execute(
                         movie_genres_table.delete().where(movie_genres_table.c.movie_id == movie.id)
                     )
-                for genre_data in details.get("genres", []):
-                    genre = self.session.query(Genre).filter_by(tmdb_id=genre_data["id"]).first()
-                    if genre:
-                        movie.genres.append(genre)
+                    self.session.flush()  # Ensure deletes are applied before re-inserting
+                with self.session.no_autoflush:
+                    for genre_data in details.get("genres", []):
+                        genre = (
+                            self.session.query(Genre).filter_by(tmdb_id=genre_data["id"]).first()
+                        )
+                        if genre and genre not in movie.genres:
+                            movie.genres.append(genre)
 
             # Sync cast (top 10)
             if is_new or self.update_existing:
@@ -205,6 +209,7 @@ class FastTMDBSyncer:
         except Exception as e:
             logger.error(f"Error syncing movie {tmdb_id}: {e}")
             self.stats["errors"] += 1
+            self.session.rollback()
             return False
 
     def sync_popular_movies(self):
@@ -235,8 +240,8 @@ class FastTMDBSyncer:
                     if movies_synced % self.batch_size == 0:
                         self.session.commit()
                         elapsed = time.time() - start_time
-                        rate = movies_synced / elapsed
-                        eta = (self.limit - movies_synced) / rate / 60
+                        rate = movies_synced / elapsed if elapsed > 0 else 0
+                        eta = (self.limit - movies_synced) / rate / 60 if rate > 0 else 0
                         logger.info(
                             f"Progress: {movies_synced}/{self.limit} "
                             f"({movies_synced/self.limit*100:.1f}%) | "
