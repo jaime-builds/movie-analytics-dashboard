@@ -52,9 +52,11 @@
         const sort = params.get('sort') || 'popularity';
         const apiParams = new URLSearchParams({ page, per_page: 20, sort });
 
-        if (params.get('genre'))       apiParams.set('genre', params.get('genre'));
-        if (params.get('year'))        apiParams.set('year', params.get('year'));
-        if (params.get('rating_min'))  apiParams.set('min_rating', params.get('rating_min'));
+        if (params.get('genre'))            apiParams.set('genre', params.get('genre'));
+        if (params.get('year'))             apiParams.set('year', params.get('year'));
+        if (params.get('rating_min'))       apiParams.set('min_rating', params.get('rating_min'));
+        if (params.get('min_vote_count'))   apiParams.set('min_vote_count', params.get('min_vote_count'));
+        if (params.get('status'))           apiParams.set('status', params.get('status'));
 
         return `/api/v1/movies?${apiParams.toString()}`;
     }
@@ -76,18 +78,27 @@
         const col = document.createElement('div');
         col.className = 'col-md-2 col-sm-4 col-6 mb-3';
         col.innerHTML = `
-            <a href="/movie/${movie.id}" class="text-decoration-none">
-                <div class="card movie-card h-100">
-                    ${imgHtml}
-                    <div class="card-body p-2">
-                        <h6 class="card-title small mb-1">${escapeHtml(movie.title)}</h6>
-                        <p class="card-text small text-muted mb-1">${escapeHtml(year)}</p>
-                        <span class="badge bg-warning text-dark">
-                            <i class="bi bi-star-fill"></i> ${rating}
-                        </span>
+            <div class="movie-card-wrapper">
+                <button class="compare-toggle"
+                        data-movie-id="${movie.id}"
+                        data-movie-title="${escapeHtml(movie.title)}"
+                        data-poster="${movie.poster_path || ''}"
+                        title="Add to compare">
+                    <i class="bi bi-plus-lg"></i>
+                </button>
+                <a href="/movie/${movie.id}" class="text-decoration-none">
+                    <div class="card movie-card h-100">
+                        ${imgHtml}
+                        <div class="card-body p-2">
+                            <h6 class="card-title small mb-1">${escapeHtml(movie.title)}</h6>
+                            <p class="card-text small text-muted mb-1">${escapeHtml(year)}</p>
+                            <span class="badge bg-warning text-dark">
+                                <i class="bi bi-star-fill"></i> ${rating}
+                            </span>
+                        </div>
                     </div>
-                </div>
-            </a>`;
+                </a>
+            </div>`;
         return col;
     }
 

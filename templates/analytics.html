@@ -72,6 +72,30 @@
         </div>
     </div>
 </div>
+
+<!-- Budget vs Revenue Analytics -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title text-center">Budget vs Revenue</h5>
+                <p class="text-muted text-center small mb-2">Each point is a movie. The dashed line is break-even (revenue = budget).</p>
+                <canvas id="budgetRevenueChart" style="max-height:420px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4 mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title text-center">Most Profitable Movies</h5>
+                <canvas id="profitChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -217,5 +241,118 @@
             }
         }
     });
+
+    // --- Budget vs Revenue Scatter ---
+    (function() {
+        var raw = {{ budget_revenue_scatter | tojson }};
+        // raw rows: [title, budget, revenue, vote_average]
+        var scatterData = raw.map(function(row) {
+            return {
+                x: parseFloat((row[1] / 1e6).toFixed(1)),
+                y: parseFloat((row[2] / 1e6).toFixed(1)),
+                title: row[0],
+                rating: row[3] ? parseFloat(row[3]).toFixed(1) : 'N/A'
+            };
+        });
+
+        // Break-even line: from 0 to max budget
+        var maxBudget = Math.max.apply(null, scatterData.map(function(d) { return d.x; }));
+        var breakEven = [{ x: 0, y: 0 }, { x: maxBudget, y: maxBudget }];
+
+        new Chart(document.getElementById('budgetRevenueChart'), {
+            type: 'scatter',
+            data: {
+                datasets: [
+                    {
+                        label: 'Movies',
+                        data: scatterData,
+                        backgroundColor: 'rgba(52, 152, 219, 0.5)',
+                        borderColor: '#3498db',
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    },
+                    {
+                        label: 'Break-even',
+                        data: breakEven,
+                        type: 'line',
+                        borderColor: 'rgba(231, 76, 60, 0.6)',
+                        borderDash: [6, 4],
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: { title: { display: true, text: 'Budget ($M)' }, beginAtZero: true },
+                    y: { title: { display: true, text: 'Revenue ($M)' }, beginAtZero: true }
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                if (ctx.datasetIndex === 1) return 'Break-even';
+                                var d = ctx.raw;
+                                var roi = d.x > 0 ? Math.round((d.y - d.x) / d.x * 100) : 'N/A';
+                                return [
+                                    d.title,
+                                    'Budget: $' + d.x + 'M  Revenue: $' + d.y + 'M',
+                                    'ROI: ' + roi + '%  Rating: ' + d.rating
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    })();
+
+    // --- Most Profitable Movies Bar ---
+    (function() {
+        var raw = {{ most_profitable | tojson }};
+        // raw rows: [title, budget, revenue]
+        var labels = raw.map(function(r) { return r[0]; });
+        var profits = raw.map(function(r) {
+            return parseFloat(((r[2] - r[1]) / 1e6).toFixed(1));
+        });
+
+        new Chart(document.getElementById('profitChart'), {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Profit ($M)',
+                    data: profits,
+                    backgroundColor: profits.map(function(v) {
+                        return v >= 0 ? 'rgba(46,204,113,0.7)' : 'rgba(231,76,60,0.7)';
+                    }),
+                    borderColor: profits.map(function(v) {
+                        return v >= 0 ? '#27ae60' : '#c0392b';
+                    }),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                scales: {
+                    x: { title: { display: true, text: 'Profit ($M)' } }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                return 'Profit: $' + ctx.parsed.x + 'M';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    })();
 </script>
 {% endblock %}
