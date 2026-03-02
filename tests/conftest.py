@@ -8,6 +8,7 @@ import pytest
 
 from config.config import Config
 from src.app import app as flask_app
+from src.app import cache
 from src.models import (
     Base,
     Cast,
@@ -33,6 +34,7 @@ def app():
             "CACHE_TYPE": "NullCache",  # Disable caching during tests
         }
     )
+    cache.init_app(flask_app, config={"CACHE_TYPE": "NullCache"})
 
     yield flask_app
 

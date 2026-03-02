@@ -27,7 +27,8 @@ app = Flask(__name__, template_folder="../templates", static_folder="../static")
 app.config.from_object(Config)
 app.secret_key = Config.SECRET_KEY
 
-cache = Cache(app, config={"CACHE_TYPE": "SimpleCache", "CACHE_DEFAULT_TIMEOUT": 300})
+cache = Cache()
+cache.init_app(app, config={"CACHE_TYPE": "SimpleCache", "CACHE_DEFAULT_TIMEOUT": 300})
 
 
 def get_db_session():
