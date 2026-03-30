@@ -18,6 +18,7 @@
     let exhausted = currentPage >= totalPages;
 
     // --- Hide server-rendered pagination ---
+    // Also hidden via CSS in movies.html to avoid flash before JS runs
     const paginationWrapper = document.querySelector('.pagination-wrapper');
     if (paginationWrapper) paginationWrapper.style.display = 'none';
 
@@ -27,7 +28,28 @@
     sentinel.style.height = '1px';
     movieGrid.after(sentinel);
 
-    // --- Spinner ---
+    // --- Skeleton row (shown while next page loads) ---
+    const skeletonRow = document.createElement('div');
+    skeletonRow.id = 'scroll-skeletons';
+    skeletonRow.className = 'row d-none';
+    skeletonRow.setAttribute('aria-hidden', 'true');
+    skeletonRow.setAttribute('aria-label', 'Loading more movies');
+    for (let i = 0; i < 6; i++) {
+        skeletonRow.innerHTML += `
+            <div class="col-md-2 col-sm-4 col-6 mb-3">
+                <div class="skeleton-card">
+                    <div class="skeleton skeleton-poster"></div>
+                    <div class="skeleton-card-body">
+                        <div class="skeleton skeleton-title"></div>
+                        <div class="skeleton skeleton-meta"></div>
+                        <div class="skeleton skeleton-badge"></div>
+                    </div>
+                </div>
+            </div>`;
+    }
+    sentinel.after(skeletonRow);
+
+    // Keep a minimal accessible spinner for very slow connections
     const spinner = document.createElement('div');
     spinner.id = 'scroll-spinner';
     spinner.className = 'd-flex justify-content-center py-4 d-none';
@@ -36,7 +58,7 @@
             <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
             <span>Loading more movies&hellip;</span>
         </div>`;
-    sentinel.after(spinner);
+    skeletonRow.after(spinner);
 
     // --- End of results message ---
     const endMsg = document.createElement('div');
@@ -117,12 +139,20 @@
         if (loading || exhausted) return;
         loading = true;
 
-        spinner.classList.remove('d-none');
+        skeletonRow.classList.remove('d-none');
+
+        // Show fallback spinner after 3s if fetch is still in flight
+        const spinnerTimer = setTimeout(() => spinner.classList.remove('d-none'), 3000);
+
+        // Abort after 15s on very slow connections
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
 
         try {
             const nextPage = currentPage + 1;
             const url = buildApiUrl(nextPage);
-            const response = await fetch(url);
+            const response = await fetch(url, { signal: controller.signal });
+            clearTimeout(timeoutId);
 
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
@@ -142,11 +172,15 @@
             }
         } catch (err) {
             console.error('Infinite scroll fetch failed:', err);
-            // On error show pagination as fallback
-            if (paginationWrapper) paginationWrapper.style.display = '';
+            // On error show a retry message rather than broken pagination
+            endMsg.innerHTML = '<i class="bi bi-exclamation-circle me-2"></i>Failed to load more movies. <a href="#" onclick="location.reload()">Reload page</a>';
+            endMsg.classList.remove('d-none');
             observer.disconnect();
         } finally {
             loading = false;
+            clearTimeout(spinnerTimer);
+            clearTimeout(timeoutId);
+            skeletonRow.classList.add('d-none');
             spinner.classList.add('d-none');
         }
     }

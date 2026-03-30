@@ -3,25 +3,26 @@
 ## 🎯 Current Sprint (Next 2 Weeks)
 
 ### Improvements 🔧
-- [ ] **Test coverage for new features** (5h) - Add tests for autocomplete, compare, advanced filters, and caching routes; cover remaining edge cases in helpers and TMDB client
-- [ ] **Loading animations** (3h) - Skeleton screens and spinners for movie grids and detail pages
-
-### Enhancements ✨
-- [ ] **Export analytics as PDF/CSV** (6h) - Download genre stats, top movies, and user activity reports; builds directly on the new analytics charts
-- [ ] **API rate limiting** (3h) - Protect API endpoints from abuse, show production-readiness
-
-### Features 🎬
 - [ ] **Error logging and monitoring** (4h) - Structured logging with request tracking and error alerting
 - [ ] **Docker containerization** (5h) - Dockerfile and docker-compose for consistent local and prod environments
+- [ ] **restore run_tests.py** (1h) - Repurposed as db check script during debugging; restore to original test runner
+
+### Enhancements ✨
+- [ ] **Production companies page** (5h) - Browse studios with full filmographies and stats
+- [ ] **Decade overview pages** (6h) - Curated landing pages per decade with top movies and trends
+
+### Features 🎬
+- [ ] **Movie collections** (5h) - User-created named lists beyond favorites/watchlist
+- [ ] **Email digest** (5h) - Weekly email of new movies in user's favorite genres
 
 ## 🚀 Next Up (This Month)
 
 - [ ] **Actor collaboration network** (6h) - Graph of actors who've appeared together, showcasing complex SQL joins
-- [ ] **Production companies page** (5h) - Browse studios with full filmographies and stats
-- [ ] **Decade overview pages** (6h) - Curated landing pages per decade with top movies and trends
-- [ ] **Movie collections** (5h) - User-created named lists beyond favorites/watchlist
 - [ ] **Image optimization** (3h) - Serve WebP format posters for faster load times
 - [ ] **OAuth integration** (5h) - Google/GitHub login alongside existing username/password
+- [ ] **Social features** (8h) - Follow users, see friend activity, share favorites
+- [ ] **Deploy to production** (6h) - Railway or Render deployment with PostgreSQL
+- [ ] **Advanced multi-filter search** (4h) - Combine genre, year, rating, runtime in a single search UI
 
 ## 🔮 Future (Next Quarter)
 
@@ -80,6 +81,13 @@
 <details>
 <summary>Click to expand (31 items)</summary>
 
+- [✅] **Home page redesign** - Two-column hero with live stats bar, jaime-builds branding, feature shortcut cards, and section headers with See All links (Mar 30)
+- [✅] **Test isolation fix** - db_session fixture now uses in-memory SQLite; production DB safe from pytest runs (Mar 30)
+- [✅] **Database path fix** - config.py loads .env via absolute path; DATABASE_URL resolves correctly regardless of launch directory (Mar 30)
+- [✅] **API rate limiting** - Flask-Limiter on all API endpoints; per-route limits; health + movies list exempt (Mar 30)
+- [✅] **Analytics CSV export** - Genre stats, top movies by rating/revenue, yearly trends; Export button on analytics page (Mar 30)
+- [✅] **Loading animations** - Skeleton cards on infinite scroll; button spinners for favorite, watchlist, and rating actions (Mar 30)
+- [✅] **Test coverage expansion** - TestCompareRoute, TestAdvancedFilters, TestCaching, TestAnalyticsExport; smoke_test.py moved to scripts/ (Mar 30)
 - [✅] **Search autocomplete** - Live navbar dropdown with poster thumbnails, keyboard nav, and debounced `/api/v1/movies/search` calls (Mar 2)
 - [✅] **Query caching** - Flask-Caching SimpleCache on analytics, genre, and top-movies routes; 1-hour TTL cuts repeat DB load (Mar 2)
 - [✅] **Advanced filtering UI** - Collapsible filter panel with Min Vote Count and Status filters; honored by infinite scroll and URL state (Mar 2)
@@ -122,11 +130,11 @@
 
 ## 📊 Project Stats
 
-- **Total Movies**: 10,788
-- **Features Completed**: 35
+- **Total Movies**: 8,000+
+- **Features Completed**: 39
 - **In Progress**: 0
 - **Test Coverage**: 80%+ ✅
-- **API Endpoints**: 11 ✅
+- **API Endpoints**: 12 ✅
 
 ## 🎓 Learning Goals
 
@@ -144,4 +152,4 @@ This project showcases:
 
 ---
 
-**Last Updated**: March 2, 2026
+**Last Updated**: March 30, 2026

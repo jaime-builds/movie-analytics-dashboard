@@ -2,8 +2,14 @@ import os
 
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Resolve the project root directory regardless of where the server is launched from
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_DEFAULT_DB = f"sqlite:///{os.path.join(_PROJECT_ROOT, 'movies.db')}"
+
+# Load environment variables — explicitly point to config/.env so it works
+# regardless of which directory the server is launched from
+_ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+load_dotenv(_ENV_PATH, override=True)
 
 
 class Config:
@@ -13,7 +19,7 @@ class Config:
     TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p"
 
     # Database
-    DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///movies.db")
+    DATABASE_URL = os.getenv("DATABASE_URL", _DEFAULT_DB)
 
     # Flask
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")

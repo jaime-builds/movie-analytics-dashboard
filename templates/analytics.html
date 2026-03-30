@@ -1,7 +1,22 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1>Analytics Dashboard</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">Analytics Dashboard</h1>
+    <div class="dropdown">
+        <button class="btn btn-outline-secondary dropdown-toggle" type="button"
+                data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-download me-1"></i> Export
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+            <li>
+                <a class="dropdown-item" href="{{ url_for('analytics_export_csv') }}">
+                    <i class="bi bi-filetype-csv me-2"></i>Download CSV
+                </a>
+            </li>
+        </ul>
+    </div>
+</div>
 <div class="row mb-4">
     <div class="col-md-4">
         <div class="card text-center">

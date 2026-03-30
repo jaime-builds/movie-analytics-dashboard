@@ -8,7 +8,7 @@ import pytest
 
 from config.config import Config
 from src.app import app as flask_app
-from src.app import cache
+from src.app import cache, limiter
 from src.models import (
     Base,
     Cast,
@@ -32,21 +32,29 @@ def app():
             "WTF_CSRF_ENABLED": False,  # Disable CSRF for testing
             "SECRET_KEY": "test-secret-key",
             "CACHE_TYPE": "NullCache",  # Disable caching during tests
+            "RATELIMIT_ENABLED": False,  # Disable rate limiting during tests
         }
     )
     cache.init_app(flask_app, config={"CACHE_TYPE": "NullCache"})
+    limiter.init_app(flask_app)
 
     yield flask_app
 
 
 @pytest.fixture(scope="function")
 def db_session(app):
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    # IMPORTANT: Use an isolated in-memory test database.
+    # Never run drop_all/create_all against the production engine.
+    from sqlalchemy import create_engine as _create_engine
+    from sqlalchemy.orm import sessionmaker as _sessionmaker
 
-    connection = engine.connect()
+    test_engine = _create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(test_engine)
+
+    connection = test_engine.connect()
     transaction = connection.begin()
-    session = Session(bind=connection)
+    TestSession = _sessionmaker(bind=connection)
+    session = TestSession()
 
     import src.app
 
@@ -59,7 +67,7 @@ def db_session(app):
     session.close()
     transaction.rollback()
     connection.close()
-    Base.metadata.drop_all(engine)
+    Base.metadata.drop_all(test_engine)
 
 
 @pytest.fixture(scope="function")

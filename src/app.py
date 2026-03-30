@@ -1,10 +1,14 @@
+import csv
+import io
 from datetime import datetime
 from typing import Dict, Optional
 
-from flask import Flask, flash, jsonify, redirect, render_template, request
+from flask import Flask, Response, flash, jsonify, redirect, render_template, request
 from flask import session as flask_session
 from flask import url_for
 from flask_caching import Cache
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from sqlalchemy import and_, desc, extract, func, select
 
 from config.config import Config
@@ -29,6 +33,13 @@ app.secret_key = Config.SECRET_KEY
 
 cache = Cache()
 cache.init_app(app, config={"CACHE_TYPE": "SimpleCache", "CACHE_DEFAULT_TIMEOUT": 300})
+
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+)
 
 
 def get_db_session():
@@ -796,8 +807,14 @@ def index():
         # Get popular movies
         popular_movies = session.query(Movie).order_by(desc(Movie.popularity)).limit(12).all()
 
-        # Total movie count for homepage tagline
+        # Stats for homepage hero
         total_movies = session.query(func.count(Movie.id)).scalar()
+        total_genres = session.query(func.count(Genre.id)).scalar()
+        total_directors = (
+            session.query(func.count(func.distinct(Crew.person_id)))
+            .filter(Crew.job == "Director")
+            .scalar()
+        )
 
         return render_template(
             "index.html",
@@ -805,6 +822,8 @@ def index():
             recent_movies=recent_movies,
             popular_movies=popular_movies,
             total_movies=total_movies,
+            total_genres=total_genres,
+            total_directors=total_directors,
             current_user=user,
             config=Config,
         )
@@ -1384,6 +1403,121 @@ def analytics():
         session.close()
 
 
+@app.route("/analytics/export/csv")
+@limiter.limit("20 per hour")
+def analytics_export_csv():
+    """Export analytics data as a CSV file download"""
+    session = get_db_session()
+    try:
+        # Genre statistics
+        genre_stats = (
+            session.query(
+                Genre.name,
+                func.count(Movie.id).label("count"),
+                func.avg(Movie.vote_average).label("avg_rating"),
+            )
+            .join(Movie.genres)
+            .group_by(Genre.name)
+            .order_by(desc("count"))
+            .all()
+        )
+
+        # Movies by year
+        year_stats = (
+            session.query(
+                func.strftime("%Y", Movie.release_date).label("year"),
+                func.count(Movie.id).label("count"),
+            )
+            .filter(Movie.release_date.isnot(None))
+            .group_by("year")
+            .order_by("year")
+            .all()
+        )
+
+        # Top 25 movies by rating
+        top_rated = (
+            session.query(
+                Movie.title, Movie.vote_average, Movie.vote_count, Movie.revenue, Movie.release_date
+            )
+            .filter(Movie.vote_count > 100)
+            .order_by(desc(Movie.vote_average))
+            .limit(25)
+            .all()
+        )
+
+        # Top 25 movies by revenue
+        top_revenue = (
+            session.query(
+                Movie.title, Movie.budget, Movie.revenue, Movie.vote_average, Movie.release_date
+            )
+            .filter(Movie.revenue > 0)
+            .order_by(desc(Movie.revenue))
+            .limit(25)
+            .all()
+        )
+
+        # Build CSV in memory
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # --- Section 1: Genre Statistics ---
+        writer.writerow(["GENRE STATISTICS"])
+        writer.writerow(["Genre", "Movie Count", "Average Rating"])
+        for name, count, avg_rating in genre_stats:
+            writer.writerow([name, count, f"{avg_rating:.2f}" if avg_rating else "N/A"])
+
+        writer.writerow([])
+
+        # --- Section 2: Movies by Release Year ---
+        writer.writerow(["MOVIES BY RELEASE YEAR"])
+        writer.writerow(["Year", "Movie Count"])
+        for year, count in year_stats:
+            writer.writerow([year, count])
+
+        writer.writerow([])
+
+        # --- Section 3: Top 25 Movies by Rating ---
+        writer.writerow(["TOP 25 MOVIES BY RATING"])
+        writer.writerow(["Title", "Rating", "Vote Count", "Revenue", "Release Year"])
+        for title, rating, vote_count, revenue, release_date in top_rated:
+            writer.writerow(
+                [
+                    title,
+                    f"{rating:.1f}" if rating else "N/A",
+                    vote_count or 0,
+                    f"${revenue:,}" if revenue else "N/A",
+                    release_date.year if release_date else "N/A",
+                ]
+            )
+
+        writer.writerow([])
+
+        # --- Section 4: Top 25 Movies by Revenue ---
+        writer.writerow(["TOP 25 MOVIES BY REVENUE"])
+        writer.writerow(["Title", "Budget", "Revenue", "Rating", "Release Year"])
+        for title, budget, revenue, rating, release_date in top_revenue:
+            writer.writerow(
+                [
+                    title,
+                    f"${budget:,}" if budget else "N/A",
+                    f"${revenue:,}" if revenue else "N/A",
+                    f"{rating:.1f}" if rating else "N/A",
+                    release_date.year if release_date else "N/A",
+                ]
+            )
+
+        output.seek(0)
+        filename = f"movie_analytics_{datetime.utcnow().strftime('%Y%m%d')}.csv"
+
+        return Response(
+            output.getvalue(),
+            mimetype="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
+    finally:
+        session.close()
+
+
 @app.route("/search")
 def search():
     """Search movies"""
@@ -1447,6 +1581,7 @@ def format_date(date_obj):
 
 
 @app.route("/api/v1/movies", methods=["GET"])
+@limiter.exempt
 def api_get_movies():
     """Get list of movies with filtering and pagination"""
     session = get_db_session()
@@ -1533,6 +1668,7 @@ def api_get_movies():
 
 
 @app.route("/api/v1/movies/<int:movie_id>", methods=["GET"])
+@limiter.limit("200 per day; 50 per hour")
 def api_get_movie(movie_id):
     """Get detailed information about a specific movie"""
     session = get_db_session()
@@ -1616,6 +1752,7 @@ def api_get_movie(movie_id):
 
 
 @app.route("/api/v1/movies/search", methods=["GET"])
+@limiter.limit("30 per minute")
 def api_search_movies():
     """Search for movies by title"""
     session = get_db_session()
@@ -1673,6 +1810,7 @@ def api_search_movies():
 
 
 @app.route("/api/v1/genres", methods=["GET"])
+@limiter.limit("200 per day; 50 per hour")
 def api_get_genres():
     """Get all genres"""
     session = get_db_session()
@@ -1689,6 +1827,7 @@ def api_get_genres():
 
 
 @app.route("/api/v1/analytics/overview", methods=["GET"])
+@limiter.limit("100 per day")
 @cache.cached(timeout=3600)
 def api_analytics_overview():
     """Get overview analytics"""
@@ -1732,6 +1871,7 @@ def api_analytics_overview():
 
 
 @app.route("/api/v1/analytics/genres", methods=["GET"])
+@limiter.limit("100 per day")
 @cache.cached(timeout=3600)
 def api_analytics_genres():
     """Get genre analytics"""
@@ -1766,6 +1906,7 @@ def api_analytics_genres():
 
 
 @app.route("/api/v1/analytics/top-movies", methods=["GET"])
+@limiter.limit("100 per day")
 @cache.cached(timeout=3600, query_string=True)
 def api_analytics_top_movies():
     """Get top movies by various metrics"""
@@ -1813,6 +1954,7 @@ def api_analytics_top_movies():
 
 
 @app.route("/api/v1/actors", methods=["GET"])
+@limiter.limit("200 per day; 50 per hour")
 def api_get_actors():
     """Get list of actors with pagination"""
     session = get_db_session()
@@ -1860,6 +2002,7 @@ def api_get_actors():
 
 
 @app.route("/api/v1/actors/<int:actor_id>", methods=["GET"])
+@limiter.limit("200 per day; 50 per hour")
 def api_get_actor(actor_id):
     """Get detailed information about an actor"""
     session = get_db_session()
@@ -1911,6 +2054,7 @@ def api_get_actor(actor_id):
 
 
 @app.route("/api/v1/health", methods=["GET"])
+@limiter.exempt
 def api_health():
     """Health check endpoint"""
     session = get_db_session()

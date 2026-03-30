@@ -129,7 +129,12 @@
     </main>
 
     <footer class="bg-dark text-white text-center py-3 mt-5">
-        <p class="mb-0">Movie Analytics Dashboard | Data from TMDB</p>
+        <p class="mb-0">
+            Movie Analytics Dashboard | Data from <a href="https://www.themoviedb.org" target="_blank" class="text-muted">TMDB</a>
+            &nbsp;·&nbsp;
+            <img src="{{ url_for('static', filename='images/jaime_builds_logo.png') }}" alt="jaime-builds" style="height:20px; vertical-align:middle; border-radius:50%; margin-right:4px;">
+            <a href="https://github.com/jaime-builds" target="_blank" class="text-muted">jaime-builds</a>
+        </p>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
