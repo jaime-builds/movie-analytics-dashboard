@@ -746,6 +746,267 @@ a {
 }
 
 
+/* =============================================
+   Skeleton Loading Screens
+   ============================================= */
+
+@keyframes skeleton-shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position:  400px 0; }
+}
+
+.skeleton {
+    background: linear-gradient(
+        90deg,
+        var(--skeleton-base) 25%,
+        var(--skeleton-highlight) 50%,
+        var(--skeleton-base) 75%
+    );
+    background-size: 800px 100%;
+    animation: skeleton-shimmer 1.4s infinite linear;
+    border-radius: 4px;
+}
+
+:root {
+    --skeleton-base:      #e0e0e0;
+    --skeleton-highlight: #f0f0f0;
+}
+
+[data-bs-theme="dark"] {
+    --skeleton-base:      #2a2a2a;
+    --skeleton-highlight: #3a3a3a;
+}
+
+/* Skeleton movie card — mirrors .movie-card structure */
+.skeleton-card {
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px var(--card-shadow);
+}
+
+.skeleton-poster {
+    width: 100%;
+    height: 450px;
+}
+
+.skeleton-card-body {
+    padding: 8px;
+    background-color: var(--bg-card);
+}
+
+.skeleton-title {
+    height: 14px;
+    width: 85%;
+    margin-bottom: 8px;
+}
+
+.skeleton-meta {
+    height: 12px;
+    width: 50%;
+    margin-bottom: 8px;
+}
+
+.skeleton-badge {
+    height: 20px;
+    width: 55px;
+    border-radius: 12px;
+}
+
+/* Button spinner helper */
+.btn-loading {
+    pointer-events: none;
+    opacity: 0.75;
+}
+
+/* ========================================
+   HOME PAGE
+   ======================================== */
+
+/* Hero */
+.home-hero {
+    background: var(--bg-jumbotron);
+    color: white;
+    padding: 2.5rem 3rem;
+    min-height: 240px;
+    display: flex;
+    align-items: center;
+}
+
+.home-hero-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 2rem;
+}
+
+.home-hero-left {
+    flex: 1;
+}
+
+.home-hero-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+    letter-spacing: -0.5px;
+}
+
+.home-hero-sub {
+    font-size: 1.05rem;
+    opacity: 0.9;
+    margin-bottom: 1.25rem;
+}
+
+.home-hero-stats {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.home-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 60px;
+}
+
+.home-stat-value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.home-stat-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.75;
+    margin-top: 2px;
+}
+
+.home-stat-divider {
+    width: 1px;
+    height: 36px;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.home-hero-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.home-btn {
+    font-weight: 600;
+    padding: 0.6rem 1.4rem;
+}
+
+/* Logo in hero */
+.home-hero-right {
+    flex-shrink: 0;
+}
+
+.home-hero-logo {
+    width: 160px;
+    height: 160px;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 16px rgba(0,0,0,0.35));
+    transition: transform 0.3s ease;
+}
+
+.home-hero-logo:hover {
+    transform: scale(1.05) rotate(3deg);
+}
+
+/* Feature cards */
+.home-feature-card {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 1.25rem 1rem;
+    text-align: center;
+    box-shadow: 0 2px 8px var(--card-shadow);
+    transition: transform 0.2s, box-shadow 0.2s;
+    height: 100%;
+}
+
+.home-feature-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 16px var(--card-shadow-hover);
+}
+
+.home-feature-icon {
+    font-size: 2rem;
+    color: #4f86f7;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.home-feature-label {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+
+.home-feature-sub {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+/* Section header with "See all" link */
+.home-section-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid rgba(128,128,128,0.15);
+    padding-bottom: 0.5rem;
+}
+
+.home-see-all {
+    font-size: 0.85rem;
+    color: #4f86f7;
+    text-decoration: none;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.home-see-all:hover {
+    color: #2563eb;
+    text-decoration: underline;
+}
+
+/* Responsive hero */
+@media (max-width: 768px) {
+    .home-hero {
+        padding: 2rem 1.5rem;
+    }
+
+    .home-hero-title {
+        font-size: 1.8rem;
+    }
+
+    .home-hero-logo {
+        width: 100px;
+        height: 100px;
+    }
+}
+
+@media (max-width: 576px) {
+    .home-hero-right {
+        display: none;
+    }
+
+    .home-hero-stats {
+        gap: 0.75rem;
+    }
+
+    .home-stat-value {
+        font-size: 1.1rem;
+    }
+}
+
 /* Print styles */
 @media print {
     .backdrop-banner,

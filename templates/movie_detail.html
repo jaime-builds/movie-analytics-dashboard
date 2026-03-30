@@ -545,6 +545,17 @@ function selectRating(rating) {
     });
 }
 
+function setButtonLoading(btn, isLoading, originalHtml) {
+    if (isLoading) {
+        btn.dataset.originalHtml = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Saving…';
+        btn.classList.add('btn-loading');
+    } else {
+        btn.innerHTML = originalHtml || btn.dataset.originalHtml || btn.innerHTML;
+        btn.classList.remove('btn-loading');
+    }
+}
+
 async function submitRating(event, movieId) {
     event.preventDefault();
 
@@ -553,6 +564,9 @@ async function submitRating(event, movieId) {
         alert('Please select a rating between 1 and 5 stars');
         return;
     }
+
+    const btn = document.getElementById('submitRatingBtn');
+    setButtonLoading(btn, true);
 
     const formData = new FormData();
     formData.append('rating', rating);
@@ -566,13 +580,14 @@ async function submitRating(event, movieId) {
         const data = await response.json();
 
         if (response.ok) {
-            // Update average rating display
-            location.reload(); // Simple reload to show updated rating
+            location.reload();
         } else {
+            setButtonLoading(btn, false);
             alert(data.error || 'Failed to submit rating');
         }
     } catch (error) {
         console.error('Error:', error);
+        setButtonLoading(btn, false);
         alert('Failed to submit rating');
     }
 }
@@ -603,17 +618,22 @@ async function toggleFavorite(movieId) {
     const isFavorited = btn.textContent.trim().includes('Unfavorite');
     const url = `/movie/${movieId}/${isFavorited ? 'unfavorite' : 'favorite'}`;
 
-    const res = await fetch(url, { method: 'POST' });
-    if (res.ok) {
-        if (isFavorited) {
-            btn.innerHTML = '<i class="bi bi-heart-fill me-1"></i>Favorite';
-            btn.classList.remove('btn-danger');
-            btn.classList.add('btn-outline-danger');
-        } else {
-            btn.innerHTML = '<i class="bi bi-heart-fill me-1"></i>Unfavorite';
-            btn.classList.remove('btn-outline-danger');
-            btn.classList.add('btn-danger');
+    setButtonLoading(btn, true);
+    try {
+        const res = await fetch(url, { method: 'POST' });
+        if (res.ok) {
+            if (isFavorited) {
+                btn.innerHTML = '<i class="bi bi-heart-fill me-1"></i>Favorite';
+                btn.classList.remove('btn-danger');
+                btn.classList.add('btn-outline-danger');
+            } else {
+                btn.innerHTML = '<i class="bi bi-heart-fill me-1"></i>Unfavorite';
+                btn.classList.remove('btn-outline-danger');
+                btn.classList.add('btn-danger');
+            }
         }
+    } finally {
+        btn.classList.remove('btn-loading');
     }
 }
 
@@ -622,17 +642,22 @@ async function toggleWatchlist(movieId) {
     const inWatchlist = btn.textContent.trim().includes('Remove from Watchlist');
     const url = `/movie/${movieId}/${inWatchlist ? 'unwatchlist' : 'watchlist'}`;
 
-    const res = await fetch(url, { method: 'POST' });
-    if (res.ok) {
-        if (inWatchlist) {
-            btn.innerHTML = '<i class="bi bi-bookmark-fill me-1"></i>Add to Watchlist';
-            btn.classList.remove('btn-primary');
-            btn.classList.add('btn-outline-primary');
-        } else {
-            btn.innerHTML = '<i class="bi bi-bookmark-fill me-1"></i>Remove from Watchlist';
-            btn.classList.remove('btn-outline-primary');
-            btn.classList.add('btn-primary');
+    setButtonLoading(btn, true);
+    try {
+        const res = await fetch(url, { method: 'POST' });
+        if (res.ok) {
+            if (inWatchlist) {
+                btn.innerHTML = '<i class="bi bi-bookmark-fill me-1"></i>Add to Watchlist';
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-outline-primary');
+            } else {
+                btn.innerHTML = '<i class="bi bi-bookmark-fill me-1"></i>Remove from Watchlist';
+                btn.classList.remove('btn-outline-primary');
+                btn.classList.add('btn-primary');
+            }
         }
+    } finally {
+        btn.classList.remove('btn-loading');
     }
 }
 </script>

@@ -59,6 +59,9 @@ This isn't just another movie app. It's a **portfolio-grade full-stack applicati
 | ⚖️ **Movie Comparison** | Select up to 4 movies for side-by-side stats and visual charts |
 | 🚀 **Query Caching** | Flask-Caching on analytics and genre routes for faster responses |
 | 🎛️ **Advanced Filters** | Min vote count and status filters with collapsible panel |
+| 🏠 **Home Page Hero** | Two-column hero with live stats bar, jaime-builds branding, and feature shortcut cards |
+| 📤 **CSV Export** | Download full analytics data as a CSV file |
+| 🚦 **Rate Limiting** | Flask-Limiter protecting all API and analytics endpoints |
 
 ### 🎨 User Experience
 
@@ -198,13 +201,13 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 
 ## 📊 Project Stats
 
-- **10,788** movies with complete metadata
+- **8,000+** movies with complete metadata
 - **300+** directors with filmographies
 - **1,000+** actors with profiles
 - **80%+** test coverage with unit and integration tests
 - **14** database tables with optimized indexes
-- **27+** Flask routes
-- **11** RESTful API endpoints
+- **30+** Flask routes
+- **12** RESTful API endpoints
 - **22+** Jinja2 templates
 
 ## 🎓 Skills Demonstrated
@@ -373,10 +376,7 @@ users ─┬─< user_favorites >─┬─ movies ─┬─< movie_genres >─�
 ### Run Tests
 
 ```bash
-# All tests
-python run_tests.py
-
-# Or with pytest
+# Run with pytest
 pytest
 
 # With coverage
@@ -551,10 +551,11 @@ See [TODO.md](TODO.md) for the complete roadmap.
 
 ### Current Sprint
 
-- [ ] Test coverage for new features
-- [ ] Loading animations / skeleton screens
-- [ ] Export analytics as PDF/CSV
-- [ ] API rate limiting
+- [x] Test coverage for new features (compare, filters, caching, CSV export)
+- [x] Loading animations / skeleton screens (infinite scroll + button spinners)
+- [x] Export analytics as PDF/CSV
+- [x] API rate limiting (Flask-Limiter)
+- [x] Home page redesign (hero with stats bar, jaime-builds branding, feature cards)
 - [ ] Error logging and monitoring
 - [ ] Docker containerization
 
