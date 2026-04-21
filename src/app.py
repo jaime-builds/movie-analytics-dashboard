@@ -1,5 +1,7 @@
 import csv
 import io
+import logging
+import time
 from datetime import datetime
 from typing import Dict, Optional
 
@@ -9,11 +11,14 @@ from flask import url_for
 from flask_caching import Cache
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from sqlalchemy import and_, desc, extract, func, select
+from sqlalchemy import Integer, and_, desc, extract, func, select
+from werkzeug.exceptions import HTTPException
 
 from config.config import Config
+from src.logger import get_logger
 from src.models import (
     Cast,
+    Collection,
     Crew,
     Genre,
     Movie,
@@ -23,6 +28,7 @@ from src.models import (
     Review,
     Session,
     User,
+    collection_movies_table,
     movie_genres_table,
 )
 from src.tmdb_api import TMDBClient
@@ -30,6 +36,13 @@ from src.tmdb_api import TMDBClient
 app = Flask(__name__, template_folder="../templates", static_folder="../static")
 app.config.from_object(Config)
 app.secret_key = Config.SECRET_KEY
+
+# Ensure any new tables (e.g. collections) are created on startup
+from src.models import Base, engine  # noqa: E402
+
+Base.metadata.create_all(engine)
+
+logger = get_logger(__name__)
 
 cache = Cache()
 cache.init_app(app, config={"CACHE_TYPE": "SimpleCache", "CACHE_DEFAULT_TIMEOUT": 300})
@@ -45,6 +58,50 @@ limiter = Limiter(
 def get_db_session():
     """Get a new database session"""
     return Session()
+
+
+# ==========================================
+# REQUEST LOGGING
+# ==========================================
+
+
+@app.before_request
+def _log_request_start():
+    """Stamp the request start time for duration tracking."""
+    request._start_time = time.monotonic()
+
+
+@app.after_request
+def _log_request_end(response):
+    """Log every completed request with method, path, status, and duration."""
+    duration_ms = round((time.monotonic() - getattr(request, "_start_time", 0)) * 1000)
+    level = logging.WARNING if response.status_code >= 400 else logging.INFO
+    logger.log(
+        level,
+        f"{request.method} {request.path} -> {response.status_code}",
+        extra={
+            "method": request.method,
+            "path": request.path,
+            "status_code": response.status_code,
+            "duration_ms": duration_ms,
+            "ip": request.remote_addr,
+        },
+    )
+    return response
+
+
+@app.errorhandler(Exception)
+def _handle_unhandled_exception(exc):
+    """Log unhandled exceptions as ERROR before re-raising."""
+    # Let Flask handle its own HTTP exceptions (404, 405, etc.) normally
+    if isinstance(exc, HTTPException):
+        return exc
+    logger.error(
+        f"Unhandled exception on {request.method} {request.path}: {exc}",
+        exc_info=True,
+        extra={"ip": request.remote_addr, "path": request.path},
+    )
+    return "Internal Server Error", 500
 
 
 def get_current_user(session_db):
@@ -246,6 +303,10 @@ def register():
 
             # Log the user in
             flask_session["user_id"] = user.id
+            logger.info(
+                f"New user registered: {username}",
+                extra={"user_id": user.id, "username": username, "ip": request.remote_addr},
+            )
             flash(f"Welcome, {username}! Your account has been created.", "success")
             return redirect(url_for("index"))
 
@@ -266,12 +327,20 @@ def login():
 
             if user and user.check_password(password):
                 flask_session["user_id"] = user.id
+                logger.info(
+                    f"Successful login: {username}",
+                    extra={"user_id": user.id, "username": username, "ip": request.remote_addr},
+                )
                 flash(f"Welcome back, {username}!", "success")
 
                 # Redirect to 'next' page if it exists, otherwise home
                 next_page = request.args.get("next")
                 return redirect(next_page if next_page else url_for("index"))
 
+            logger.warning(
+                f"Failed login attempt: {username}",
+                extra={"username": username, "ip": request.remote_addr},
+            )
             flash("Invalid username or password", "danger")
             return render_template("login.html")
 
@@ -2125,6 +2194,639 @@ def api_docs():
     }
 
     return jsonify(docs)
+
+
+# ==========================================
+# DECADE OVERVIEW ROUTES
+# ==========================================
+
+# Decade flavor text for the index cards
+_DECADE_DESCRIPTIONS = {
+    1920: "The silent era gives way to sound. Hollywood establishes its golden foundation.",
+    1930: "Depression-era escapism drives the studio system to its peak creative output.",
+    1940: "War shapes storytelling. Film noir emerges from the shadows.",
+    1950: "Widescreen spectacle, sci-fi anxieties, and the birth of teen culture.",
+    1960: "The old studio system collapses. Counterculture rewrites cinema's rules.",
+    1970: "The Movie Brats arrive. Auteur filmmaking at its most daring and raw.",
+    1980: "Blockbuster culture takes hold. Practical effects reach their pinnacle.",
+    1990: "Independent cinema explodes. Genre boundaries blur and shatter.",
+    2000: "Digital filmmaking democratizes the art. Franchise era begins.",
+    2010: "Streaming disrupts everything. Prestige TV and cinema converge.",
+    2020: "A pandemic reshapes release windows. Streaming becomes the new normal.",
+}
+
+
+@app.route("/decades")
+def decades():
+    """Decade overview index page"""
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+
+        # Get per-year stats then bucket into decades in Python
+        # (SQLite integer division inside func.cast is unreliable for grouping)
+        year_raw = (
+            session_db.query(
+                func.strftime("%Y", Movie.release_date).label("year"),
+                func.count(Movie.id).label("movie_count"),
+                func.avg(Movie.vote_average).label("avg_rating"),
+                func.sum(Movie.revenue).label("total_revenue"),
+            )
+            .filter(Movie.release_date.isnot(None))
+            .filter(Movie.vote_count > 0)
+            .group_by("year")
+            .all()
+        )
+
+        # Bucket by decade
+        decade_buckets = {}
+        for row in year_raw:
+            if not row.year:
+                continue
+            ds = (int(row.year) // 10) * 10
+            if ds not in decade_buckets:
+                decade_buckets[ds] = {"movie_count": 0, "ratings": [], "total_revenue": 0}
+            decade_buckets[ds]["movie_count"] += row.movie_count
+            if row.avg_rating:
+                decade_buckets[ds]["ratings"].append((float(row.avg_rating), row.movie_count))
+            decade_buckets[ds]["total_revenue"] += row.total_revenue or 0
+
+        # Fetch one representative backdrop per decade (highest popularity)
+        decades_list = []
+        for decade_start in sorted(decade_buckets.keys()):
+            bucket = decade_buckets[decade_start]
+            decade_end = decade_start + 9
+
+            # Weighted average rating across years in this decade
+            total_weighted = sum(r * c for r, c in bucket["ratings"])
+            total_count = sum(c for _, c in bucket["ratings"])
+            avg_rating = total_weighted / total_count if total_count else 0
+
+            # Pick the most popular movie with a backdrop for the card image
+            hero = (
+                session_db.query(Movie)
+                .filter(
+                    Movie.release_date.isnot(None),
+                    func.strftime("%Y", Movie.release_date).between(
+                        str(decade_start), str(decade_end)
+                    ),
+                    Movie.backdrop_path.isnot(None),
+                    Movie.vote_count > 50,
+                )
+                .order_by(desc(Movie.popularity))
+                .first()
+            )
+
+            decades_list.append(
+                {
+                    "decade_start": decade_start,
+                    "decade_end": decade_end,
+                    "label": f"{decade_start}s",
+                    "movie_count": bucket["movie_count"],
+                    "avg_rating": round(avg_rating, 1),
+                    "total_revenue": bucket["total_revenue"],
+                    "description": _DECADE_DESCRIPTIONS.get(decade_start, ""),
+                    "hero_backdrop": hero.backdrop_path if hero else None,
+                }
+            )
+
+        return render_template(
+            "decades.html",
+            decades=decades_list,
+            current_user=user,
+            config=Config,
+        )
+    finally:
+        session_db.close()
+
+
+@app.route("/decade/<int:decade_start>")
+def decade_detail(decade_start):
+    """Individual decade detail page"""
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+        decade_end = decade_start + 9
+
+        # Validate decade
+        if decade_start < 1900 or decade_start > datetime.now().year:
+            return "Decade not found", 404
+
+        base_query = session_db.query(Movie).filter(
+            Movie.release_date.isnot(None),
+            func.strftime("%Y", Movie.release_date).between(str(decade_start), str(decade_end)),
+            Movie.vote_count > 0,
+        )
+
+        total_movies = base_query.count()
+        if total_movies == 0:
+            return "No movies found for this decade", 404
+
+        # Top rated (min 20 votes for reliability)
+        top_rated = (
+            base_query.filter(Movie.vote_count >= 20)
+            .order_by(desc(Movie.vote_average))
+            .limit(12)
+            .all()
+        )
+
+        # Most popular
+        most_popular = base_query.order_by(desc(Movie.popularity)).limit(12).all()
+
+        # Defining films: high rating AND high popularity — the cultural touchstones
+        defining_films = (
+            base_query.filter(Movie.vote_count >= 50)
+            .order_by(desc(Movie.popularity * Movie.vote_average))
+            .limit(6)
+            .all()
+        )
+
+        # Genre breakdown
+        genre_stats = (
+            session_db.query(
+                Genre.name,
+                func.count(Movie.id).label("count"),
+            )
+            .join(Movie.genres)
+            .filter(
+                Movie.release_date.isnot(None),
+                func.strftime("%Y", Movie.release_date).between(str(decade_start), str(decade_end)),
+            )
+            .group_by(Genre.name)
+            .order_by(desc("count"))
+            .all()
+        )
+
+        # Stats
+        avg_rating = (
+            session_db.query(func.avg(Movie.vote_average))
+            .filter(
+                Movie.release_date.isnot(None),
+                func.strftime("%Y", Movie.release_date).between(str(decade_start), str(decade_end)),
+                Movie.vote_count >= 20,
+            )
+            .scalar()
+        )
+        total_revenue = (
+            session_db.query(func.sum(Movie.revenue))
+            .filter(
+                Movie.release_date.isnot(None),
+                func.strftime("%Y", Movie.release_date).between(str(decade_start), str(decade_end)),
+                Movie.revenue > 0,
+            )
+            .scalar()
+        )
+
+        # Movies by year (for chart)
+        by_year = (
+            session_db.query(
+                func.strftime("%Y", Movie.release_date).label("year"),
+                func.count(Movie.id).label("count"),
+                func.avg(Movie.vote_average).label("avg_rating"),
+            )
+            .filter(
+                Movie.release_date.isnot(None),
+                func.strftime("%Y", Movie.release_date).between(str(decade_start), str(decade_end)),
+            )
+            .group_by("year")
+            .order_by("year")
+            .all()
+        )
+
+        stats = {
+            "total_movies": total_movies,
+            "avg_rating": round(float(avg_rating), 2) if avg_rating else 0,
+            "total_revenue": total_revenue or 0,
+            "top_genre": genre_stats[0].name if genre_stats else "N/A",
+        }
+
+        chart_data = {
+            "years": [int(r.year) for r in by_year],
+            "counts": [r.count for r in by_year],
+            "ratings": [round(float(r.avg_rating), 2) if r.avg_rating else 0 for r in by_year],
+        }
+
+        return render_template(
+            "decade_detail.html",
+            decade_start=decade_start,
+            decade_end=decade_end,
+            label=f"{decade_start}s",
+            description=_DECADE_DESCRIPTIONS.get(decade_start, ""),
+            stats=stats,
+            defining_films=defining_films,
+            top_rated=top_rated,
+            most_popular=most_popular,
+            genre_stats=genre_stats,
+            chart_data=chart_data,
+            current_user=user,
+            config=Config,
+        )
+    finally:
+        session_db.close()
+
+
+# ==========================================
+# PRODUCTION COMPANIES ROUTES
+# ==========================================
+
+
+@app.route("/companies")
+def companies():
+    """Production companies listing page"""
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+        page = request.args.get("page", 1, type=int)
+        per_page = 24
+
+        companies_query = (
+            session_db.query(
+                ProductionCompany.id,
+                ProductionCompany.name,
+                ProductionCompany.logo_path,
+                ProductionCompany.origin_country,
+                func.count(Movie.id).label("movie_count"),
+                func.avg(Movie.vote_average).label("avg_rating"),
+                func.sum(Movie.revenue).label("total_revenue"),
+            )
+            .join(ProductionCompany.movies)
+            .group_by(
+                ProductionCompany.id,
+                ProductionCompany.name,
+                ProductionCompany.logo_path,
+                ProductionCompany.origin_country,
+            )
+            .having(func.count(Movie.id) >= 3)
+            .order_by(desc("movie_count"))
+        )
+
+        total = companies_query.count()
+        total_pages = (total + per_page - 1) // per_page
+        companies_data = companies_query.limit(per_page).offset((page - 1) * per_page).all()
+
+        companies_list = []
+        for row in companies_data:
+            top_movies = (
+                session_db.query(Movie)
+                .join(Movie.companies)
+                .filter(ProductionCompany.id == row.id)
+                .order_by(desc(Movie.vote_average))
+                .limit(3)
+                .all()
+            )
+            companies_list.append(
+                {
+                    "id": row.id,
+                    "name": row.name,
+                    "logo_path": row.logo_path,
+                    "origin_country": row.origin_country,
+                    "movie_count": row.movie_count,
+                    "avg_rating": float(row.avg_rating) if row.avg_rating else 0,
+                    "total_revenue": row.total_revenue or 0,
+                    "top_movies": [
+                        {
+                            "id": m.id,
+                            "title": m.title,
+                            "year": m.release_date.year if m.release_date else None,
+                            "vote_average": float(m.vote_average) if m.vote_average else 0,
+                        }
+                        for m in top_movies
+                    ],
+                }
+            )
+
+        return render_template(
+            "companies.html",
+            companies=companies_list,
+            page=page,
+            total_pages=total_pages,
+            total=total,
+            current_user=user,
+            config=Config,
+        )
+    finally:
+        session_db.close()
+
+
+@app.route("/company/<int:company_id>")
+def company_detail(company_id):
+    """Individual production company detail page"""
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+
+        company = session_db.query(ProductionCompany).filter_by(id=company_id).first()
+        if not company:
+            return "Production company not found", 404
+
+        movies = (
+            session_db.query(Movie)
+            .join(Movie.companies)
+            .filter(ProductionCompany.id == company_id)
+            .filter(Movie.vote_count > 0)
+            .order_by(desc(Movie.release_date))
+            .all()
+        )
+
+        total_movies = len(movies)
+        avg_rating = (
+            sum(float(m.vote_average) for m in movies if m.vote_average) / total_movies
+            if total_movies > 0
+            else 0
+        )
+        total_revenue = sum(m.revenue or 0 for m in movies)
+
+        years = [m.release_date.year for m in movies if m.release_date]
+        first_year = min(years) if years else None
+        last_year = max(years) if years else None
+        years_active = (last_year - first_year + 1) if first_year and last_year else 0
+
+        # Genre distribution
+        genre_counts = {}
+        for movie in movies:
+            for genre in movie.genres:
+                genre_counts[genre.name] = genre_counts.get(genre.name, 0) + 1
+        genres = [
+            {"name": name, "count": count}
+            for name, count in sorted(genre_counts.items(), key=lambda x: x[1], reverse=True)
+        ]
+
+        # Chart data by year
+        year_data = {}
+        for movie in movies:
+            if movie.release_date:
+                year = movie.release_date.year
+                if year not in year_data:
+                    year_data[year] = {"ratings": [], "revenues": []}
+                if movie.vote_average:
+                    year_data[year]["ratings"].append(float(movie.vote_average))
+                year_data[year]["revenues"].append((movie.revenue or 0) / 1_000_000)
+
+        chart_years = sorted(year_data.keys())
+        chart_ratings = [
+            (
+                round(sum(year_data[y]["ratings"]) / len(year_data[y]["ratings"]), 2)
+                if year_data[y]["ratings"]
+                else 0
+            )
+            for y in chart_years
+        ]
+        chart_revenues = [round(sum(year_data[y]["revenues"]), 1) for y in chart_years]
+
+        stats = {
+            "total_movies": total_movies,
+            "avg_rating": avg_rating,
+            "total_revenue": total_revenue,
+            "years_active": years_active,
+            "first_year": first_year,
+            "last_year": last_year,
+            "genres": genres,
+        }
+
+        chart_data = {
+            "years": chart_years,
+            "ratings": chart_ratings,
+            "revenues": chart_revenues,
+        }
+
+        movies_list = [
+            {
+                "id": m.id,
+                "title": m.title,
+                "year": m.release_date.year if m.release_date else None,
+                "poster_path": m.poster_path,
+                "vote_average": float(m.vote_average) if m.vote_average else 0,
+                "revenue": m.revenue,
+                "runtime": m.runtime,
+                "genres": [g.name for g in m.genres],
+            }
+            for m in movies
+        ]
+
+        return render_template(
+            "company_detail.html",
+            company=company,
+            movies=movies_list,
+            stats=stats,
+            chart_data=chart_data,
+            current_user=user,
+            config=Config,
+        )
+    finally:
+        session_db.close()
+
+
+# ==========================================
+# COLLECTIONS ROUTES
+# ==========================================
+
+
+@app.route("/collections")
+def collections():
+    """User's collections listing page"""
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+        if not user:
+            flash("Please log in to view your collections", "warning")
+            return redirect(url_for("login", next=request.url))
+
+        user_collections = (
+            session_db.query(Collection)
+            .filter_by(user_id=user.id)
+            .order_by(desc(Collection.updated_at))
+            .all()
+        )
+
+        return render_template(
+            "collections.html",
+            collections=user_collections,
+            current_user=user,
+            config=Config,
+        )
+    finally:
+        session_db.close()
+
+
+@app.route("/collections/create", methods=["POST"])
+def create_collection():
+    """Create a new collection"""
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+        if not user:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        name = request.form.get("name", "").strip()
+        description = request.form.get("description", "").strip()
+
+        if not name:
+            flash("Collection name is required", "danger")
+            return redirect(url_for("collections"))
+
+        if len(name) > 255:
+            flash("Collection name must be 255 characters or fewer", "danger")
+            return redirect(url_for("collections"))
+
+        collection = Collection(
+            user_id=user.id,
+            name=name,
+            description=description or None,
+        )
+        session_db.add(collection)
+        session_db.commit()
+
+        flash(f'Collection "{name}" created', "success")
+        return redirect(url_for("collection_detail", collection_id=collection.id))
+    finally:
+        session_db.close()
+
+
+@app.route("/collection/<int:collection_id>")
+def collection_detail(collection_id):
+    """Individual collection detail page"""
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+        if not user:
+            flash("Please log in to view collections", "warning")
+            return redirect(url_for("login", next=request.url))
+
+        collection = (
+            session_db.query(Collection).filter_by(id=collection_id, user_id=user.id).first()
+        )
+        if not collection:
+            flash("Collection not found", "danger")
+            return redirect(url_for("collections"))
+
+        return render_template(
+            "collection_detail.html",
+            collection=collection,
+            current_user=user,
+            config=Config,
+        )
+    finally:
+        session_db.close()
+
+
+@app.route("/collection/<int:collection_id>/delete", methods=["POST"])
+def delete_collection(collection_id):
+    """Delete a collection"""
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+        if not user:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        collection = (
+            session_db.query(Collection).filter_by(id=collection_id, user_id=user.id).first()
+        )
+        if not collection:
+            return jsonify({"error": "Collection not found"}), 404
+
+        name = collection.name
+        session_db.delete(collection)
+        session_db.commit()
+
+        flash(f'Collection "{name}" deleted', "success")
+        return redirect(url_for("collections"))
+    finally:
+        session_db.close()
+
+
+@app.route("/collection/<int:collection_id>/add/<int:movie_id>", methods=["POST"])
+def add_to_collection(collection_id, movie_id):
+    """Add a movie to a collection"""
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+        if not user:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        collection = (
+            session_db.query(Collection).filter_by(id=collection_id, user_id=user.id).first()
+        )
+        if not collection:
+            return jsonify({"error": "Collection not found"}), 404
+
+        movie = session_db.query(Movie).filter_by(id=movie_id).first()
+        if not movie:
+            return jsonify({"error": "Movie not found"}), 404
+
+        if movie not in collection.movies:
+            collection.movies.append(movie)
+            collection.updated_at = datetime.utcnow()
+            session_db.commit()
+            return jsonify({"status": "added", "count": len(collection.movies)})
+
+        return jsonify({"status": "already_added", "count": len(collection.movies)})
+    finally:
+        session_db.close()
+
+
+@app.route("/collection/<int:collection_id>/remove/<int:movie_id>", methods=["POST"])
+def remove_from_collection(collection_id, movie_id):
+    """Remove a movie from a collection"""
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+        if not user:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        collection = (
+            session_db.query(Collection).filter_by(id=collection_id, user_id=user.id).first()
+        )
+        if not collection:
+            return jsonify({"error": "Collection not found"}), 404
+
+        movie = session_db.query(Movie).filter_by(id=movie_id).first()
+        if not movie:
+            return jsonify({"error": "Movie not found"}), 404
+
+        if movie in collection.movies:
+            collection.movies.remove(movie)
+            collection.updated_at = datetime.utcnow()
+            session_db.commit()
+            return jsonify({"status": "removed", "count": len(collection.movies)})
+
+        return jsonify({"status": "not_found"})
+    finally:
+        session_db.close()
+
+
+@app.route("/api/v1/collections", methods=["GET"])
+@limiter.limit("100 per hour")
+def api_get_collections():
+    """Get current user's collections"""
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+        if not user:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        user_collections = (
+            session_db.query(Collection)
+            .filter_by(user_id=user.id)
+            .order_by(desc(Collection.updated_at))
+            .all()
+        )
+
+        return jsonify(
+            {
+                "collections": [
+                    {
+                        "id": c.id,
+                        "name": c.name,
+                        "description": c.description,
+                        "movie_count": len(c.movies),
+                        "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+                    }
+                    for c in user_collections
+                ]
+            }
+        )
+    finally:
+        session_db.close()
 
 
 # ==========================================

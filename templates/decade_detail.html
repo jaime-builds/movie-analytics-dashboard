@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+
+{% block title %}{{ label }} - Movie Analytics Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/">Home</a></li>
+            <li class="breadcrumb-item"><a href="/decades">Decades</a></li>
+            <li class="breadcrumb-item active">{{ label }}</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-4 mb-1">The {{ label }}</h1>
+            {% if description %}
+            <p class="lead text-muted">{{ description }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card text-center shadow-sm">
+                <div class="card-body">
+                    <h3 class="display-5 text-primary">{{ stats.total_movies }}</h3>
+                    <p class="text-muted mb-0">Movies</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center shadow-sm">
+                <div class="card-body">
+                    <h3 class="display-5 text-warning">
+                        <i class="bi bi-star-fill"></i> {{ stats.avg_rating }}
+                    </h3>
+                    <p class="text-muted mb-0">Avg Rating</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center shadow-sm">
+                <div class="card-body">
+                    <h3 class="display-5 text-success">
+                        {% if stats.total_revenue > 0 %}
+                        ${{ "%.1f"|format(stats.total_revenue / 1000000000) }}B
+                        {% else %}—{% endif %}
+                    </h3>
+                    <p class="text-muted mb-0">Box Office</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center shadow-sm">
+                <div class="card-body">
+                    <h3 class="display-5 text-info">{{ stats.top_genre }}</h3>
+                    <p class="text-muted mb-0">Top Genre</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Movies Released Per Year</h5>
+                    <canvas id="countChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Average Rating Per Year</h5>
+                    <canvas id="ratingChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Defining Films -->
+    {% if defining_films %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <h3 class="mb-3"><i class="bi bi-trophy-fill text-warning"></i> Defining Films</h3>
+            <p class="text-muted small mb-3">The cultural touchstones — highest combined popularity and rating.</p>
+            <div class="row row-cols-2 row-cols-md-3 row-cols-lg-6 g-3">
+                {% for movie in defining_films %}
+                <div class="col">
+                    <a href="/movie/{{ movie.id }}" class="text-decoration-none">
+                        <div class="card h-100 movie-card">
+                            {% if movie.poster_path %}
+                            <img src="https://image.tmdb.org/t/p/w342{{ movie.poster_path }}"
+                                 class="card-img-top" alt="{{ movie.title }}" loading="lazy">
+                            {% else %}
+                            <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center"
+                                 style="height:200px;">
+                                <i class="bi bi-film text-white" style="font-size:3rem;"></i>
+                            </div>
+                            {% endif %}
+                            <div class="card-body p-2">
+                                <h6 class="card-title small mb-1">{{ movie.title }}</h6>
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">
+                                        {{ movie.release_date.year if movie.release_date else '' }}
+                                    </small>
+                                    {% if movie.vote_average %}
+                                    <span class="badge bg-warning text-dark">
+                                        {{ "%.1f"|format(movie.vote_average) }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Top Rated -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0"><i class="bi bi-star-fill text-warning"></i> Top Rated</h3>
+                <a href="/movies?decade={{ decade_start }}&sort=rating" class="btn btn-outline-secondary btn-sm">
+                    See All
+                </a>
+            </div>
+            <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-3">
+                {% for movie in top_rated %}
+                <div class="col">
+                    <a href="/movie/{{ movie.id }}" class="text-decoration-none">
+                        <div class="card h-100 movie-card">
+                            {% if movie.poster_path %}
+                            <img src="https://image.tmdb.org/t/p/w342{{ movie.poster_path }}"
+                                 class="card-img-top" alt="{{ movie.title }}" loading="lazy">
+                            {% else %}
+                            <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center"
+                                 style="height:200px;">
+                                <i class="bi bi-film text-white" style="font-size:3rem;"></i>
+                            </div>
+                            {% endif %}
+                            <div class="card-body p-2">
+                                <h6 class="card-title small mb-1">{{ movie.title }}</h6>
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">
+                                        {{ movie.release_date.year if movie.release_date else '' }}
+                                    </small>
+                                    {% if movie.vote_average %}
+                                    <span class="badge bg-warning text-dark">
+                                        {{ "%.1f"|format(movie.vote_average) }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Most Popular -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0"><i class="bi bi-fire text-danger"></i> Most Popular</h3>
+                <a href="/movies?decade={{ decade_start }}&sort=popularity" class="btn btn-outline-secondary btn-sm">
+                    See All
+                </a>
+            </div>
+            <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-3">
+                {% for movie in most_popular %}
+                <div class="col">
+                    <a href="/movie/{{ movie.id }}" class="text-decoration-none">
+                        <div class="card h-100 movie-card">
+                            {% if movie.poster_path %}
+                            <img src="https://image.tmdb.org/t/p/w342{{ movie.poster_path }}"
+                                 class="card-img-top" alt="{{ movie.title }}" loading="lazy">
+                            {% else %}
+                            <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center"
+                                 style="height:200px;">
+                                <i class="bi bi-film text-white" style="font-size:3rem;"></i>
+                            </div>
+                            {% endif %}
+                            <div class="card-body p-2">
+                                <h6 class="card-title small mb-1">{{ movie.title }}</h6>
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">
+                                        {{ movie.release_date.year if movie.release_date else '' }}
+                                    </small>
+                                    {% if movie.vote_average %}
+                                    <span class="badge bg-warning text-dark">
+                                        {{ "%.1f"|format(movie.vote_average) }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Genre Breakdown -->
+    {% if genre_stats %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="bi bi-tags"></i> Genre Breakdown
+                    </h5>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for genre in genre_stats %}
+                        <a href="/movies?decade={{ decade_start }}&genre_name={{ genre.name }}"
+                           class="text-decoration-none">
+                            <span class="badge bg-primary"
+                                  style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">
+                                {{ genre.name }} ({{ genre.count }})
+                            </span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Decade Navigation -->
+    <div class="d-flex justify-content-between mt-4">
+        {% if decade_start > 1920 %}
+        <a href="/decade/{{ decade_start - 10 }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> {{ decade_start - 10 }}s
+        </a>
+        {% else %}
+        <span></span>
+        {% endif %}
+
+        <a href="/decades" class="btn btn-outline-primary">
+            <i class="bi bi-grid"></i> All Decades
+        </a>
+
+        {% if decade_start + 10 <= 2020 %}
+        <a href="/decade/{{ decade_start + 10 }}" class="btn btn-outline-secondary">
+            {{ decade_start + 10 }}s <i class="bi bi-arrow-right"></i>
+        </a>
+        {% else %}
+        <span></span>
+        {% endif %}
+    </div>
+
+</div>
+
+<style>
+.movie-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+}
+.movie-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
+}
+.card-img-top {
+    height: 200px;
+    object-fit: cover;
+}
+@media (max-width: 768px) {
+    .card-img-top { height: 160px; }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const countCtx = document.getElementById('countChart').getContext('2d');
+    new Chart(countCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ chart_data.years|tojson }},
+            datasets: [{
+                label: 'Movies Released',
+                data: {{ chart_data.counts|tojson }},
+                backgroundColor: 'rgba(13, 110, 253, 0.7)',
+                borderColor: 'rgb(13, 110, 253)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+
+    const ratingCtx = document.getElementById('ratingChart').getContext('2d');
+    new Chart(ratingCtx, {
+        type: 'line',
+        data: {
+            labels: {{ chart_data.years|tojson }},
+            datasets: [{
+                label: 'Avg Rating',
+                data: {{ chart_data.ratings|tojson }},
+                borderColor: 'rgb(255, 193, 7)',
+                backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { min: 0, max: 10 } }
+        }
+    });
+});
+</script>
+{% endblock %}

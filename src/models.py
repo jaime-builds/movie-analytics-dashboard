@@ -42,6 +42,13 @@ movie_companies_table = Table(
     Column("company_id", Integer, ForeignKey("production_companies.id"), primary_key=True),
 )
 
+collection_movies_table = Table(
+    "collection_movies",
+    Base.metadata,
+    Column("collection_id", Integer, ForeignKey("collections.id"), primary_key=True),
+    Column("movie_id", Integer, ForeignKey("movies.id"), primary_key=True),
+)
+
 # Association tables for favorites and watchlist
 user_favorites_table = Table(
     "user_favorites",
@@ -83,6 +90,7 @@ class User(Base):
     # NEW: Relationships for ratings and reviews
     ratings = relationship("Rating", back_populates="user", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="user", cascade="all, delete-orphan")
+    collections = relationship("Collection", back_populates="user", cascade="all, delete-orphan")
 
     def set_password(self, password: str):
         self.password_hash = generate_password_hash(password)
@@ -147,6 +155,9 @@ class Movie(Base):
     # NEW: Relationships for ratings and reviews
     ratings = relationship("Rating", back_populates="movie", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="movie", cascade="all, delete-orphan")
+    collections = relationship(
+        "Collection", secondary=collection_movies_table, back_populates="movies"
+    )
 
     def __repr__(self):
         return f"<Movie(title='{self.title}', year={self.release_date.year if self.release_date else 'N/A'})>"
@@ -203,6 +214,26 @@ class Review(Base):
 
     def __repr__(self):
         return f"<Review(user_id={self.user_id}, movie_id={self.movie_id})>"
+
+
+class Collection(Base):
+    __tablename__ = "collections"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    name = Column(String(255), nullable=False)
+    description = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User", back_populates="collections")
+    movies = relationship("Movie", secondary=collection_movies_table, back_populates="collections")
+
+    __table_args__ = (Index("idx_collections_user_id", "user_id"),)
+
+    def __repr__(self):
+        return f"<Collection(name='{self.name}', user_id={self.user_id})>"
 
 
 class Genre(Base):

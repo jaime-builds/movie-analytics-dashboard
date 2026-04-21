@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}{{ collection.name }} - Movie Analytics Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/">Home</a></li>
+            <li class="breadcrumb-item"><a href="/collections">My Collections</a></li>
+            <li class="breadcrumb-item active">{{ collection.name }}</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="row mb-4 align-items-center">
+        <div class="col">
+            <h1 class="display-5 mb-1">{{ collection.name }}</h1>
+            {% if collection.description %}
+            <p class="text-muted">{{ collection.description }}</p>
+            {% endif %}
+            <span class="badge bg-secondary">
+                {{ collection.movies|length }} movie{{ 's' if collection.movies|length != 1 }}
+            </span>
+        </div>
+        <div class="col-auto d-flex gap-2">
+            <form action="/collection/{{ collection.id }}/delete" method="post"
+                  onsubmit="return confirm('Delete this collection?')">
+                <button type="submit" class="btn btn-outline-danger btn-sm">
+                    <i class="bi bi-trash"></i> Delete Collection
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Movie Grid -->
+    {% if collection.movies %}
+    <div class="row row-cols-2 row-cols-md-4 row-cols-lg-5 g-3" id="collectionGrid">
+        {% for movie in collection.movies %}
+        <div class="col" id="movie-{{ movie.id }}">
+            <div class="card h-100 movie-card">
+                <a href="/movie/{{ movie.id }}" class="text-decoration-none">
+                    {% if movie.poster_path %}
+                    <img src="https://image.tmdb.org/t/p/w342{{ movie.poster_path }}"
+                         class="card-img-top" alt="{{ movie.title }}" loading="lazy">
+                    {% else %}
+                    <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center"
+                         style="height: 220px;">
+                        <i class="bi bi-film text-white" style="font-size: 3rem;"></i>
+                    </div>
+                    {% endif %}
+                </a>
+                <div class="card-body p-2">
+                    <h6 class="card-title small mb-1">
+                        <a href="/movie/{{ movie.id }}" class="text-decoration-none">
+                            {{ movie.title }}
+                        </a>
+                    </h6>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            {{ movie.release_date.year if movie.release_date else '' }}
+                        </small>
+                        {% if movie.vote_average %}
+                        <span class="badge bg-warning text-dark">
+                            <i class="bi bi-star-fill"></i>
+                            {{ "%.1f"|format(movie.vote_average) }}
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-footer p-2 bg-transparent">
+                    <button class="btn btn-outline-danger btn-sm w-100 remove-btn"
+                            data-movie-id="{{ movie.id }}"
+                            data-collection-id="{{ collection.id }}">
+                        <i class="bi bi-x-circle"></i> Remove
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <i class="bi bi-film text-muted" style="font-size: 4rem;"></i>
+        <p class="lead text-muted mt-3">This collection is empty</p>
+        <p class="text-muted">Browse movies and use the <strong>Add to Collection</strong> button to add them here.</p>
+        <a href="/movies" class="btn btn-primary mt-2">
+            <i class="bi bi-search"></i> Browse Movies
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.movie-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.movie-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
+}
+.card-img-top {
+    height: 220px;
+    object-fit: cover;
+}
+@media (max-width: 768px) {
+    .card-img-top { height: 180px; }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.remove-btn').forEach(btn => {
+        btn.addEventListener('click', async function () {
+            const movieId = this.dataset.movieId;
+            const collectionId = this.dataset.collectionId;
+            const card = document.getElementById(`movie-${movieId}`);
+
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+            try {
+                const resp = await fetch(`/collection/${collectionId}/remove/${movieId}`, {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const data = await resp.json();
+                if (data.status === 'removed') {
+                    card.remove();
+                    // Show empty state if no movies left
+                    if (data.count === 0) {
+                        location.reload();
+                    }
+                }
+            } catch (e) {
+                this.disabled = false;
+                this.innerHTML = '<i class="bi bi-x-circle"></i> Remove';
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

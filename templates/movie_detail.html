@@ -77,6 +77,21 @@
             </button>
         </div>
 
+        {% if current_user %}
+        <div class="mt-2">
+            <div class="dropdown">
+                <button class="btn btn-outline-success w-100 dropdown-toggle" type="button"
+                        id="collectionDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+                        data-movie-id="{{ movie.id }}">
+                    <i class="bi bi-collection-play me-1"></i> Add to Collection
+                </button>
+                <ul class="dropdown-menu w-100" aria-labelledby="collectionDropdown" id="collectionMenu">
+                    <li><span class="dropdown-item text-muted small">Loading...</span></li>
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+
     </div>
 
     <!-- Details + Trailer -->
@@ -659,6 +674,62 @@ async function toggleWatchlist(movieId) {
     } finally {
         btn.classList.remove('btn-loading');
     }
+}
+
+// Collection dropdown
+const collectionDropdown = document.getElementById('collectionDropdown');
+const collectionMenu = document.getElementById('collectionMenu');
+
+if (collectionDropdown) {
+    collectionDropdown.addEventListener('show.bs.dropdown', async function () {
+        const movieId = this.dataset.movieId;
+        collectionMenu.innerHTML = '<li><span class="dropdown-item text-muted small">Loading...</span></li>';
+
+        try {
+            const res = await fetch('/api/v1/collections');
+            const data = await res.json();
+            const cols = data.collections || [];
+
+            if (cols.length === 0) {
+                collectionMenu.innerHTML =
+                    '<li><span class="dropdown-item text-muted small">No collections yet</span></li>' +
+                    '<li><hr class="dropdown-divider"></li>' +
+                    '<li><a class="dropdown-item" href="/collections"><i class="bi bi-plus-circle me-1"></i>Create a collection</a></li>';
+            } else {
+                collectionMenu.innerHTML = cols.map(c =>
+                    `<li><a class="dropdown-item collection-add-btn" href="#"
+                        data-collection-id="${c.id}"
+                        data-movie-id="${movieId}">
+                        <i class="bi bi-collection me-1"></i>${c.name}
+                        <span class="text-muted small ms-1">(${c.movie_count})</span>
+                    </a></li>`
+                ).join('') +
+                '<li><hr class="dropdown-divider"></li>' +
+                '<li><a class="dropdown-item" href="/collections"><i class="bi bi-plus-circle me-1"></i>Manage collections</a></li>';
+
+                collectionMenu.querySelectorAll('.collection-add-btn').forEach(btn => {
+                    btn.addEventListener('click', async function (e) {
+                        e.preventDefault();
+                        const cid = this.dataset.collectionId;
+                        const mid = this.dataset.movieId;
+                        try {
+                            const r = await fetch(`/collection/${cid}/add/${mid}`, { method: 'POST' });
+                            const d = await r.json();
+                            if (d.status === 'added') {
+                                this.innerHTML = `<i class="bi bi-check-circle-fill text-success me-1"></i>${this.textContent.trim().split('(')[0].trim()} <span class="text-muted small">(${d.count})</span>`;
+                            } else if (d.status === 'already_added') {
+                                this.innerHTML = `<i class="bi bi-check-circle text-muted me-1"></i>Already in collection`;
+                            }
+                        } catch (err) {
+                            console.error(err);
+                        }
+                    });
+                });
+            }
+        } catch (err) {
+            collectionMenu.innerHTML = '<li><span class="dropdown-item text-danger small">Failed to load collections</span></li>';
+        }
+    });
 }
 </script>
 

@@ -46,14 +46,17 @@ This isn't just another movie app. It's a **portfolio-grade full-stack applicati
 | ⭐ **Ratings & Reviews** | 1-5 star ratings and text reviews for movies |
 | 🎯 **Recommendations** | Personalized suggestions based on your favorites |
 | 🎬 **Director Spotlight** | Explore 300+ directors with complete filmographies |
+| 🏢 **Studios** | Browse production companies with filmographies and box office stats |
+| 🗓️ **Decade Overview** | Curated pages per decade with defining films, top rated, genre breakdown |
+| 🗂️ **Movie Collections** | Create and manage named lists of your favorite movies |
 | 📊 **Analytics Dashboard** | Interactive Chart.js visualizations including budget/revenue scatter and profitability charts |
 | 🔄 **Auto-Sync** | Automated daily updates from TMDB (10,000+ movies) |
 | 🎭 **Actor Profiles** | Top actors with photos and filmography |
 | 💎 **Hidden Gems** | Smart algorithm discovers underrated films |
 | 🌙 **Dark Mode** | Full theme support with localStorage |
 | 📱 **Mobile Responsive** | Optimized layouts for all screen sizes |
-| 🔌 **RESTful API** | JSON endpoints for movies, analytics, and actors |
-| 👤 **User Profile** | Activity dashboard with ratings, reviews, and collections |
+| 🔌 **RESTful API** | JSON endpoints for movies, analytics, actors, and collections |
+| 👤 **User Profile** | Activity dashboard with ratings, reviews, favorites, watchlist, and collections |
 | ⚡ **Infinite Scroll** | Seamless movie browsing without pagination |
 | 🔍 **Search Autocomplete** | Live dropdown with poster thumbnails and keyboard navigation |
 | ⚖️ **Movie Comparison** | Select up to 4 movies for side-by-side stats and visual charts |
@@ -62,6 +65,8 @@ This isn't just another movie app. It's a **portfolio-grade full-stack applicati
 | 🏠 **Home Page Hero** | Two-column hero with live stats bar, jaime-builds branding, and feature shortcut cards |
 | 📤 **CSV Export** | Download full analytics data as a CSV file |
 | 🚦 **Rate Limiting** | Flask-Limiter protecting all API and analytics endpoints |
+| 📋 **Structured Logging** | JSON request logging with daily rotation, failed login tracking, and error alerting |
+| 🐳 **Docker** | Dockerfile + docker-compose with volume mounts and health check |
 
 ### 🎨 User Experience
 
@@ -81,11 +86,12 @@ This isn't just another movie app. It's a **portfolio-grade full-stack applicati
 
 ```text
 ├── MVC Architecture (Flask + SQLAlchemy + Jinja2)
-├── RESTful API with 11 JSON endpoints
+├── RESTful API with 13 JSON endpoints
 ├── Session-based authentication
 ├── Normalized database schema (3NF)
 ├── Repository pattern for data access
 ├── IntersectionObserver infinite scroll
+├── Structured JSON logging with daily rotation
 └── Automated background jobs
 ```
 
@@ -112,6 +118,7 @@ GET  /api/v1/actors/<id>         # Actor details with filmography
 GET  /api/v1/genres              # All genres
 GET  /api/v1/health              # Health check
 GET  /api/v1/docs                # API documentation
+GET  /api/v1/collections         # User's collections (authenticated)
 ```
 
 **Example Usage**
@@ -169,12 +176,14 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 
 **Backend**
 
-- Python 3.10+ with Flask
+- Python 3.11+ with Flask
 - SQLAlchemy ORM
 - Flask-Caching (SimpleCache) for query result caching
+- Flask-Limiter for API rate limiting
+- Structured JSON logging with daily rotation (logs/app.log)
 - Werkzeug password hashing
 - Schedule for automation
-- unittest/pytest for testing
+- pytest for testing
 
 **Frontend**
 
@@ -194,8 +203,9 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 
 **DevOps**
 
+- Docker (Dockerfile + docker-compose with volume mounts and health check)
 - Automated TMDB sync (daily)
-- Comprehensive logging
+- Structured JSON logging
 - GitHub Actions CI/CD
 - Environment-based config
 
@@ -204,11 +214,11 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 - **8,000+** movies with complete metadata
 - **300+** directors with filmographies
 - **1,000+** actors with profiles
-- **80%+** test coverage with unit and integration tests
-- **14** database tables with optimized indexes
-- **30+** Flask routes
-- **12** RESTful API endpoints
-- **22+** Jinja2 templates
+- **87%** test coverage with 339 tests passing
+- **15** database tables with optimized indexes
+- **35+** Flask routes
+- **13** RESTful API endpoints
+- **26+** Jinja2 templates
 
 ## 🎓 Skills Demonstrated
 
@@ -243,9 +253,11 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 ### DevOps & Tools
 
 ✅ Git version control
+✅ Docker containerization
 ✅ Environment configuration
 ✅ Automated data pipelines
 ✅ CI/CD with GitHub Actions
+✅ Structured logging
 ✅ Comprehensive documentation
 
 ## 📚 Detailed Documentation
@@ -355,6 +367,8 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 - `user_watchlist` - Many-to-many (users ↔ watchlist movies)
 - `ratings` - User ratings (1-5 stars) for movies
 - `reviews` - User text reviews for movies
+- `collections` - User-created named movie lists
+- `collection_movies` - Many-to-many (collections ↔ movies)
 
 ### ER Diagram
 
@@ -398,13 +412,22 @@ pytest tests/test_auth.py -v
 - ✅ Database relationships
 - ✅ Security (password hashing)
 
-**Current Coverage**: 80%+ (150+ tests passing)
+**Current Coverage**: 87% (339 tests passing)
 
-### API Testing
+### Run Tests
 
 ```bash
-# Test all API endpoints
-python test_api.py
+# Convenience wrapper (recommended)
+python run_tests.py
+
+# Direct pytest
+pytest
+
+# With coverage
+pytest --cov=src --cov-report=html
+
+# Specific test file
+pytest tests/test_auth.py -v
 ```
 
 </details>
@@ -543,21 +566,20 @@ See [TODO.md](TODO.md) for the complete roadmap.
 
 ### Recently Shipped
 
+- [x] Error logging and monitoring (JSON structured, daily rotation)
+- [x] Docker containerization (Dockerfile + docker-compose)
+- [x] Restored run_tests.py as pytest convenience wrapper
+- [x] Production companies (Studios) page with detail pages
+- [x] Decade overview pages with defining films and charts
+- [x] Movie collections (user-created named lists)
+- [x] Navbar reorganized into Explore and Discover dropdowns
 - [x] Search autocomplete with keyboard navigation
 - [x] Query caching with Flask-Caching (1-hour TTL)
-- [x] Advanced filtering UI (min votes, status, collapsible panel)
 - [x] Movie comparison tool (up to 4 movies, `/compare` page)
-- [x] Budget vs revenue scatter chart + most profitable movies chart
 
-### Current Sprint
+### Up Next
 
-- [x] Test coverage for new features (compare, filters, caching, CSV export)
-- [x] Loading animations / skeleton screens (infinite scroll + button spinners)
-- [x] Export analytics as PDF/CSV
-- [x] API rate limiting (Flask-Limiter)
-- [x] Home page redesign (hero with stats bar, jaime-builds branding, feature cards)
-- [ ] Error logging and monitoring
-- [ ] Docker containerization
+See [TODO.md](TODO.md) for the full roadmap.
 
 ## 📝 License
 

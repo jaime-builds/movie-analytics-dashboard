@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}My Collections - Movie Analytics Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4 align-items-center">
+        <div class="col">
+            <h1 class="display-4">
+                <i class="bi bi-collection-play"></i> My Collections
+            </h1>
+            <p class="lead text-muted">Curated lists of your favorite movies</p>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
+                <i class="bi bi-plus-circle"></i> New Collection
+            </button>
+        </div>
+    </div>
+
+    {% if collections %}
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        {% for collection in collections %}
+        <div class="col">
+            <div class="card h-100 shadow-sm collection-card">
+                <!-- Poster strip -->
+                <div class="collection-strip">
+                    {% for movie in collection.movies[:4] %}
+                        {% if movie.poster_path %}
+                        <img src="https://image.tmdb.org/t/p/w185{{ movie.poster_path }}"
+                             alt="{{ movie.title }}" loading="lazy">
+                        {% endif %}
+                    {% endfor %}
+                    {% if not collection.movies %}
+                    <div class="collection-strip-empty">
+                        <i class="bi bi-film text-muted" style="font-size: 2rem;"></i>
+                        <small class="text-muted d-block mt-1">No movies yet</small>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="card-body">
+                    <h5 class="card-title mb-1">{{ collection.name }}</h5>
+                    {% if collection.description %}
+                    <p class="text-muted small mb-2">{{ collection.description }}</p>
+                    {% endif %}
+                    <span class="badge bg-secondary">
+                        {{ collection.movies|length }} movie{{ 's' if collection.movies|length != 1 }}
+                    </span>
+                </div>
+
+                <div class="card-footer bg-transparent d-flex gap-2">
+                    <a href="/collection/{{ collection.id }}" class="btn btn-primary btn-sm flex-grow-1">
+                        <i class="bi bi-eye"></i> View
+                    </a>
+                    <form action="/collection/{{ collection.id }}/delete" method="post"
+                          onsubmit="return confirm('Delete \'{{ collection.name }}\'?')">
+                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <i class="bi bi-collection-play text-muted" style="font-size: 4rem;"></i>
+        <p class="lead text-muted mt-3">No collections yet</p>
+        <p class="text-muted">Create your first collection to start organizing your movies.</p>
+        <button class="btn btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#createModal">
+            <i class="bi bi-plus-circle"></i> Create Collection
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Create Collection Modal -->
+<div class="modal fade" id="createModal" tabindex="-1" aria-labelledby="createModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createModalLabel">
+                    <i class="bi bi-collection-play"></i> New Collection
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/collections/create" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="collectionName" class="form-label">Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="collectionName" name="name"
+                               placeholder="e.g. Best of the 90s" maxlength="255" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="collectionDesc" class="form-label">Description <span class="text-muted small">(optional)</span></label>
+                        <textarea class="form-control" id="collectionDesc" name="description"
+                                  rows="3" placeholder="What's this collection about?"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Create
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.collection-card { transition: transform 0.2s, box-shadow 0.2s; }
+.collection-card:hover { transform: translateY(-4px); box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important; }
+
+.collection-strip {
+    height: 120px;
+    display: flex;
+    overflow: hidden;
+    background: #1a1a2e;
+    border-radius: 0.375rem 0.375rem 0 0;
+}
+.collection-strip img {
+    flex: 1;
+    object-fit: cover;
+    min-width: 0;
+}
+.collection-strip-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+</style>
+{% endblock %}
