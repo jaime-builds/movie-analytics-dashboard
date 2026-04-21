@@ -12,6 +12,7 @@ from src.app import cache, limiter
 from src.models import (
     Base,
     Cast,
+    Collection,
     Crew,
     Genre,
     Movie,

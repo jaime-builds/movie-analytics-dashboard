@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Decades - Movie Analytics Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-4">
+                <i class="bi bi-clock-history"></i> Browse by Decade
+            </h1>
+            <p class="lead text-muted">A century of cinema, decade by decade</p>
+        </div>
+    </div>
+
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        {% for decade in decades %}
+        <div class="col">
+            <a href="/decade/{{ decade.decade_start }}" class="text-decoration-none">
+                <div class="card h-100 decade-card shadow-sm">
+                    <!-- Backdrop image -->
+                    <div class="decade-backdrop"
+                         {% if decade.hero_backdrop %}
+                         style="background-image: url('https://image.tmdb.org/t/p/w780{{ decade.hero_backdrop }}');"
+                         {% endif %}>
+                        <div class="decade-backdrop-overlay">
+                            <span class="decade-label">{{ decade.label }}</span>
+                        </div>
+                    </div>
+
+                    <div class="card-body">
+                        {% if decade.description %}
+                        <p class="card-text text-muted small mb-3">{{ decade.description }}</p>
+                        {% endif %}
+
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="stat-value text-primary">{{ decade.movie_count }}</div>
+                                <div class="stat-label">Movies</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stat-value text-warning">
+                                    <i class="bi bi-star-fill"></i>
+                                    {{ "%.1f"|format(decade.avg_rating) }}
+                                </div>
+                                <div class="stat-label">Avg Rating</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stat-value text-success">
+                                    {% if decade.total_revenue > 0 %}
+                                    ${{ "%.0f"|format(decade.total_revenue / 1000000000) }}B
+                                    {% else %}
+                                    —
+                                    {% endif %}
+                                </div>
+                                <div class="stat-label">Box Office</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-footer bg-transparent border-top-0 pb-3">
+                        <span class="btn btn-primary btn-sm w-100">
+                            <i class="bi bi-arrow-right-circle"></i> Explore the {{ decade.label }}
+                        </span>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if not decades %}
+    <div class="text-center py-5">
+        <i class="bi bi-clock-history text-muted" style="font-size: 4rem;"></i>
+        <p class="lead text-muted mt-3">No decade data found</p>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.decade-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+    overflow: hidden;
+}
+.decade-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.75rem 1.5rem rgba(0,0,0,0.2) !important;
+}
+
+.decade-backdrop {
+    height: 180px;
+    background-color: #1a1a2e;
+    background-size: cover;
+    background-position: center;
+    position: relative;
+}
+
+.decade-backdrop-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.7) 100%);
+    display: flex;
+    align-items: flex-end;
+    padding: 1rem;
+}
+
+.decade-label {
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: #fff;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+    letter-spacing: -1px;
+}
+
+.stat-value { font-size: 1.1rem; font-weight: bold; }
+.stat-label { font-size: 0.7rem; color: #6c757d; text-transform: uppercase; }
+</style>
+{% endblock %}

@@ -2,84 +2,106 @@
 
 ## 🎯 Current Sprint (Next 2 Weeks)
 
-### Improvements 🔧
-- [ ] **Error logging and monitoring** (4h) - Structured logging with request tracking and error alerting
-- [ ] **Docker containerization** (5h) - Dockerfile and docker-compose for consistent local and prod environments
-- [ ] **restore run_tests.py** (1h) - Repurposed as db check script during debugging; restore to original test runner
+### Main Goal 🚀
+- [ ] **Deploy to production** (6h) - Railway deployment with PostgreSQL, custom domain `movies.jaime.build` via Cloudflare
 
-### Enhancements ✨
-- [ ] **Production companies page** (5h) - Browse studios with full filmographies and stats
-- [ ] **Decade overview pages** (6h) - Curated landing pages per decade with top movies and trends
+### Pre-launch Polish ✨
+- [ ] **Image optimization** (3h) - Serve WebP format posters for faster load times
+- [ ] **Advanced multi-filter search** (4h) - Combine genre, year, rating, runtime in a single unified search UI
 
-### Features 🎬
-- [ ] **Movie collections** (5h) - User-created named lists beyond favorites/watchlist
-- [ ] **Email digest** (5h) - Weekly email of new movies in user's favorite genres
+### Included in Deploy Work 🔧
+- [ ] **SQLite → PostgreSQL migration** - Required for Railway; schema ports cleanly
+- [ ] **CI/CD auto-deploy** - Wire GitHub Actions to deploy on push to main
+- [ ] **Railway cron job** - Daily TMDB sync to keep movie data current
 
 ## 🚀 Next Up (This Month)
 
 - [ ] **Actor collaboration network** (6h) - Graph of actors who've appeared together, showcasing complex SQL joins
-- [ ] **Image optimization** (3h) - Serve WebP format posters for faster load times
 - [ ] **OAuth integration** (5h) - Google/GitHub login alongside existing username/password
+- [ ] **Public collections** (3h) - Toggle to make user collections public; browseable by other users
 - [ ] **Social features** (8h) - Follow users, see friend activity, share favorites
-- [ ] **Deploy to production** (6h) - Railway or Render deployment with PostgreSQL
-- [ ] **Advanced multi-filter search** (4h) - Combine genre, year, rating, runtime in a single search UI
+- [ ] **Movie trivia/quiz** (4h) - Interactive quiz based on the movie database; engaging demo feature
+- [ ] **Streaming availability** (4h) - Show where to watch each movie (Netflix, Hulu, etc.) via TMDB watch providers API
+- [ ] **User activity feed** (3h) - Public feed of recent ratings and reviews across all users
 
 ## 🔮 Future (Next Quarter)
 
 ### Backend & Infrastructure
 
-- [ ] Migrate SQLite → PostgreSQL
-- [ ] CI/CD pipeline (GitHub Actions)
-- [ ] Background job queue for imports
-- [ ] Database migrations with Alembic
+- [ ] Alembic database migrations
+- [ ] Full CI/CD pipeline improvements
+- [ ] Performance monitoring (Sentry or similar)
+- [ ] Architecture diagram
 
 ### User Experience
 
 - [ ] Keyboard shortcuts
-- [ ] Advanced multi-filter search
 - [ ] Breadcrumb navigation
 - [ ] Dark mode improvements
 - [ ] Progressive Web App (PWA)
-- [ ] Image optimization - WebP format (3h)
-- [ ] Production companies page (5h)
-- [ ] Decade overview pages (6h)
-- [ ] Movie collections (5h) - User-created lists
+- [ ] SEO optimization - meta tags, og:image for social sharing
+- [ ] Pagination on collections
 
 ### Social & Engagement
 
 - [ ] Social sharing features
 - [ ] User-to-user recommendations
-- [ ] Movie quiz/trivia
-- [ ] Streaming availability integration
-- [ ] OAuth integration (Google/GitHub login)
-- [ ] Email notifications (5h) - Weekly digest of new movies in favorite genres
-- [ ] Social features (8h) - Follow users, see friend activity, share favorites
+- [ ] Email digest - Weekly email of new movies in favorite genres (requires deployment)
 
 ### Advanced Analytics
 
 - [ ] Rating trends over time (window functions)
 - [ ] Box office by genre (aggregations)
-- [ ] Actor collaboration network (complex joins)
 - [ ] Genre trending analysis
 - [ ] User analytics dashboard
+- [ ] Machine learning recommendations
+
+### Documentation
+
+- [ ] Documentation site
 
 ## 📚 Backlog (Ideas)
 
 - [ ] Mobile app (React Native/Flutter)
-- [ ] Deploy to production (Heroku/Railway)
-- [ ] Documentation site
-- [ ] Contribution guidelines
-- [ ] Architecture diagram
-- [ ] GraphQL API
-- [ ] WebSocket support for real-time updates
-- [ ] Machine learning recommendations
+
+### Portfolio Enhancements
+- [ ] Achievement badges - Gamified milestones for user activity (rate 10 movies, find 5 hidden gems, etc.)
+- [ ] Shareable movie lists - Public URL for collections
+- [ ] Movie of the day - Featured movie on the homepage
+- [ ] Export profile data - Download ratings, reviews, collections as JSON or CSV
+
+### User Experience
+- [ ] "Not interested" dismissal on recommendations to improve suggestions over time
+- [ ] Runtime and content filters - Family-friendly toggle, language filter
+- [ ] Watchlist streaming alert - Notify when a watchlist movie becomes available to stream
+- [ ] "Seen it" quick-log - Mark as watched without requiring a rating or review
+
+### Technical
+- [ ] API key management page - For opening the API publicly
+- [ ] Admin dashboard - Monitor user activity and DB health
+- [ ] Full-text search with SQLite FTS5 - Faster than ILIKE queries
+- [ ] Redis caching - Replace SimpleCache for multi-worker production environments
+
+### Fun & Engagement
+- [ ] Blind pick - Random movie from your watchlist
+- [ ] Year in review - Personal stats for movies watched that year
+- [ ] Movie mood matcher - Pick a mood, get suggestions
+- [ ] Friends' ratings overlay - See what friends rated on movie detail pages
 
 ---
 
 ## ✅ Recently Completed (Last 30 Days)
 
 <details>
-<summary>Click to expand (31 items)</summary>
+<summary>Click to expand (37 items)</summary>
+
+- [✅] **Navbar reorganization** - Explore and Discover dropdowns with hover open; reduced from 9 top-level items to 5 (Apr 21)
+- [✅] **Movie collections** - User-created named lists with poster strip preview; add-to-collection dropdown on movie detail page; collection_movies table (Apr 21)
+- [✅] **Decade overview pages** - Index card page with backdrop images + detail pages per decade with defining films, top rated, most popular, genre breakdown, and year charts (Apr 21)
+- [✅] **Production companies page** - Studios listing with logo, stats, top films, and full filmography detail pages; sync script updated to backfill company data (Apr 21)
+- [✅] **Error logging and monitoring** - JSON structured logging to logs/app.log with daily rotation; request lifecycle logging; WARNING on failed logins/4xx; ERROR on unhandled exceptions (Apr 21)
+- [✅] **Docker containerization** - Dockerfile pinned to Python 3.11; docker-compose.yml with DB and log volume mounts and health check; .dockerignore for lean builds (Apr 21)
+- [✅] **Restore run_tests.py** - Pytest convenience wrapper with --no-cov support; defers to pytest.ini for coverage config (Apr 21)
 
 - [✅] **Home page redesign** - Two-column hero with live stats bar, jaime-builds branding, feature shortcut cards, and section headers with See All links (Mar 30)
 - [✅] **Test isolation fix** - db_session fixture now uses in-memory SQLite; production DB safe from pytest runs (Mar 30)
@@ -131,10 +153,10 @@
 ## 📊 Project Stats
 
 - **Total Movies**: 8,000+
-- **Features Completed**: 39
+- **Features Completed**: 46
 - **In Progress**: 0
-- **Test Coverage**: 80%+ ✅
-- **API Endpoints**: 12 ✅
+- **Test Coverage**: 87% ✅
+- **API Endpoints**: 13 ✅
 
 ## 🎓 Learning Goals
 
@@ -147,9 +169,9 @@ This project showcases:
 - ✅ Database relationships (many-to-many)
 - ✅ RESTful API design
 - ✅ Testing (pytest/unittest)
-- 📅 DevOps (Docker, CI/CD)
-- 📅 Production deployment
+- ✅ DevOps (Docker)
+- 📅 Production deployment (current sprint)
 
 ---
 
-**Last Updated**: March 30, 2026
+**Last Updated**: April 21, 2026

@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}Production Companies - Movie Analytics Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-4">
+                <i class="bi bi-building"></i> Production Companies
+            </h1>
+            <p class="lead text-muted">{{ total }} studios with 3+ movies in the database</p>
+        </div>
+    </div>
+
+    <!-- Search and Sort -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" class="form-control" id="companySearch"
+                       placeholder="Search companies...">
+            </div>
+        </div>
+        <div class="col-md-3">
+            <select class="form-select" id="sortBy">
+                <option value="movies">Most Movies</option>
+                <option value="avg_rating">Highest Avg Rating</option>
+                <option value="total_revenue">Total Revenue</option>
+                <option value="name">Name (A-Z)</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Companies Grid -->
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" id="companiesGrid">
+        {% for company in companies %}
+        <div class="col company-card"
+             data-name="{{ company.name|lower }}"
+             data-movies="{{ company.movie_count }}"
+             data-rating="{{ company.avg_rating }}"
+             data-revenue="{{ company.total_revenue }}">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <!-- Company Header -->
+                    <div class="d-flex align-items-center mb-3">
+                        {% if company.logo_path %}
+                        <img src="https://image.tmdb.org/t/p/w92{{ company.logo_path }}"
+                             alt="{{ company.name }}"
+                             class="company-logo me-3"
+                             loading="lazy">
+                        {% else %}
+                        <div class="company-logo-placeholder me-3">
+                            <i class="bi bi-building text-muted"></i>
+                        </div>
+                        {% endif %}
+                        <div>
+                            <h5 class="card-title mb-0">{{ company.name }}</h5>
+                            {% if company.origin_country %}
+                            <small class="text-muted">
+                                <i class="bi bi-globe2"></i> {{ company.origin_country }}
+                            </small>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Stats Row -->
+                    <div class="row text-center mb-3">
+                        <div class="col-4">
+                            <div class="stat-box">
+                                <div class="stat-value text-primary">{{ company.movie_count }}</div>
+                                <div class="stat-label">Movies</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="stat-box">
+                                <div class="stat-value text-warning">
+                                    <i class="bi bi-star-fill"></i>
+                                    {{ "%.1f"|format(company.avg_rating) }}
+                                </div>
+                                <div class="stat-label">Avg Rating</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="stat-box">
+                                <div class="stat-value text-success">
+                                    ${{ "%.0f"|format(company.total_revenue / 1000000) }}M
+                                </div>
+                                <div class="stat-label">Revenue</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Top Movies -->
+                    {% if company.top_movies %}
+                    <div class="mb-3">
+                        <h6 class="text-muted small mb-2">Notable Films:</h6>
+                        <div class="small">
+                            {% for movie in company.top_movies %}
+                            <div class="mb-1">
+                                <a href="/movie/{{ movie.id }}" class="text-decoration-none">
+                                    <i class="bi bi-film"></i>
+                                    {{ movie.title }}{% if movie.year %} ({{ movie.year }}){% endif %}
+                                    {% if movie.vote_average %}
+                                    <span class="badge bg-warning text-dark">
+                                        {{ "%.1f"|format(movie.vote_average) }}
+                                    </span>
+                                    {% endif %}
+                                </a>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <a href="/company/{{ company.id }}" class="btn btn-primary btn-sm w-100">
+                        <i class="bi bi-arrow-right-circle"></i> View Filmography
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if not companies %}
+    <div class="row">
+        <div class="col-12 text-center py-5">
+            <i class="bi bi-building text-muted" style="font-size: 4rem;"></i>
+            <p class="lead text-muted mt-3">No production companies found</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+    <nav aria-label="Companies pagination" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page > 1 %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page - 1 }}">Previous</a>
+            </li>
+            {% endif %}
+            {% for p in range(1, total_pages + 1) %}
+                {% if p == page %}
+                <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+                <li class="page-item"><a class="page-link" href="?page={{ p }}">{{ p }}</a></li>
+                {% elif p == page - 3 or p == page + 3 %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+            {% endfor %}
+            {% if page < total_pages %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page + 1 }}">Next</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<style>
+.company-logo {
+    width: 60px;
+    height: 40px;
+    object-fit: contain;
+    border-radius: 4px;
+    background: #f8f9fa;
+    padding: 2px;
+}
+
+.company-logo-placeholder {
+    width: 60px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8f9fa;
+    border-radius: 4px;
+    font-size: 1.5rem;
+}
+
+[data-bs-theme="dark"] .company-logo,
+[data-bs-theme="dark"] .company-logo-placeholder {
+    background: #2c3e50;
+}
+
+.stat-box { padding: 0.4rem; }
+.stat-value { font-size: 1.1rem; font-weight: bold; }
+.stat-label { font-size: 0.7rem; color: #6c757d; text-transform: uppercase; }
+
+.company-card { transition: transform 0.2s; }
+.company-card:hover { transform: translateY(-4px); }
+.card { transition: box-shadow 0.2s; }
+.card:hover { box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const searchInput = document.getElementById('companySearch');
+    const sortBy = document.getElementById('sortBy');
+    const grid = document.getElementById('companiesGrid');
+
+    function filterAndSort() {
+        const term = searchInput.value.toLowerCase();
+        const sort = sortBy.value;
+        const cards = Array.from(grid.querySelectorAll('.company-card'));
+
+        cards.forEach(card => {
+            card.style.display = card.dataset.name.includes(term) ? '' : 'none';
+        });
+
+        const visible = cards.filter(c => c.style.display !== 'none');
+        visible.sort((a, b) => {
+            switch (sort) {
+                case 'movies':    return parseInt(b.dataset.movies) - parseInt(a.dataset.movies);
+                case 'avg_rating':return parseFloat(b.dataset.rating) - parseFloat(a.dataset.rating);
+                case 'total_revenue': return parseInt(b.dataset.revenue) - parseInt(a.dataset.revenue);
+                case 'name':      return a.dataset.name.localeCompare(b.dataset.name);
+                default: return 0;
+            }
+        });
+        visible.forEach(card => grid.appendChild(card));
+    }
+
+    searchInput.addEventListener('input', filterAndSort);
+    sortBy.addEventListener('change', filterAndSort);
+});
+</script>
+{% endblock %}

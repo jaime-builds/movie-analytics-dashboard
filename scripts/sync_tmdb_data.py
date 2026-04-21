@@ -29,6 +29,7 @@ from src.models import (
     Person,
     ProductionCompany,
     Session,
+    movie_companies_table,
     movie_genres_table,
 )
 from src.tmdb_api import TMDBClient
@@ -158,6 +159,34 @@ class FastTMDBSyncer:
                         )
                         if genre and genre not in movie.genres:
                             movie.genres.append(genre)
+
+            # Sync production companies
+            if is_new or self.update_existing:
+                if not is_new:
+                    self.session.execute(
+                        movie_companies_table.delete().where(
+                            movie_companies_table.c.movie_id == movie.id
+                        )
+                    )
+                    self.session.flush()
+                with self.session.no_autoflush:
+                    for company_data in details.get("production_companies", []):
+                        company = (
+                            self.session.query(ProductionCompany)
+                            .filter_by(tmdb_id=company_data["id"])
+                            .first()
+                        )
+                        if not company:
+                            company = ProductionCompany(
+                                tmdb_id=company_data["id"],
+                                name=company_data.get("name", ""),
+                                logo_path=company_data.get("logo_path"),
+                                origin_country=company_data.get("origin_country", ""),
+                            )
+                            self.session.add(company)
+                            self.session.flush()
+                        if company not in movie.companies:
+                            movie.companies.append(company)
 
             # Sync cast (top 10)
             if is_new or self.update_existing:

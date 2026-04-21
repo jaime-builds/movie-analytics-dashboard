@@ -33,20 +33,46 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('movies') }}">Movies</a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('top_actors') }}">Top Actors</a>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button"
+                           data-bs-toggle="dropdown" aria-expanded="false">
+                            Explore
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('top_actors') }}">
+                                <i class="bi bi-person-fill me-2"></i>Top Actors
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('directors') }}">
+                                <i class="bi bi-camera-reels me-2"></i>Directors
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('companies') }}">
+                                <i class="bi bi-building me-2"></i>Studios
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('decades') }}">
+                                <i class="bi bi-clock-history me-2"></i>Decades
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('hidden_gems') }}">
+                                <i class="bi bi-gem me-2"></i>Hidden Gems
+                            </a></li>
+                        </ul>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('directors') }}">Directors</a>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button"
+                           data-bs-toggle="dropdown" aria-expanded="false">
+                            Discover
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('recommendations') }}">
+                                <i class="bi bi-lightbulb me-2"></i>Recommendations
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('compare') }}">
+                                <i class="bi bi-bar-chart-line me-2"></i>Compare Movies
+                            </a></li>
+                        </ul>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('analytics') }}">Analytics</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('hidden_gems') }}">Hidden Gems</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('recommendations') }}">Recommendations</a>
                     </li>
                 </ul>
                 <form class="d-flex me-3" action="{{ url_for('search') }}" method="get" autocomplete="off">
@@ -77,6 +103,9 @@
                                 </a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('watchlist') }}">
                                     <i class="bi bi-bookmark-fill text-primary"></i> My Watchlist
+                                </a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('collections') }}">
+                                    <i class="bi bi-collection-play-fill text-success"></i> My Collections
                                 </a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{{ url_for('logout') }}">
