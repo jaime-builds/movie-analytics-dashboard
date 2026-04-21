@@ -1,35 +1,35 @@
 #!/usr/bin/env python
-"""Find all SQLite databases with actual tables"""
-import os
-import sqlite3
+"""
+Convenience test runner for Movie Analytics Dashboard.
+Runs the full pytest suite with coverage reporting.
 
-search_dirs = [
-    os.path.expanduser("~"),
-    r"C:\Users\delap\Documents\Code\GitHub",
-]
+Usage:
+    python run_tests.py              # Run all tests
+    python run_tests.py -v           # Verbose output
+    python run_tests.py -x           # Stop on first failure
+    python run_tests.py -k auth      # Run tests matching 'auth'
+    python run_tests.py --no-cov     # Skip coverage report
+"""
+import sys
 
-found = []
-for search_dir in search_dirs:
-    for root, dirs, files in os.walk(search_dir):
-        # Skip venv and .git directories for speed
-        dirs[:] = [d for d in dirs if d not in ("venv", ".git", "__pycache__", "node_modules")]
-        for f in files:
-            if f.endswith(".db"):
-                path = os.path.join(root, f)
-                try:
-                    size = os.path.getsize(path)
-                    if size > 100000:  # Only files > 100KB
-                        conn = sqlite3.connect(path)
-                        rows = conn.execute(
-                            "SELECT name FROM sqlite_master WHERE type='table'"
-                        ).fetchall()
-                        conn.close()
-                        if rows:
-                            found.append((path, size, [r[0] for r in rows]))
-                            print(f"FOUND: {path} ({size/1024/1024:.1f}MB)")
-                            print(f"  Tables: {[r[0] for r in rows]}")
-                except Exception as e:
-                    pass
+import pytest
 
-if not found:
-    print("No databases with tables found.")
+
+def main():
+    args = sys.argv[1:]
+
+    # pytest.ini already sets coverage flags and --tb=short.
+    # Just pass through any extra args the user provided.
+    default_args = ["tests/"]
+
+    # Allow --no-cov to skip coverage (overrides pytest.ini addopts)
+    if "--no-cov" in args:
+        args.remove("--no-cov")
+        default_args = ["tests/", "--no-cov"]
+
+    exit_code = pytest.main(default_args + args)
+    sys.exit(exit_code)
+
+
+if __name__ == "__main__":
+    main()
