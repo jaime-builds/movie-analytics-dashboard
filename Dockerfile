@@ -1,10 +1,8 @@
-# syntax=docker/dockerfile:1
 # ──────────────────────────────────────────────────────────────
 # Stage 1: build
 #   - Installs all Python dependencies into a virtual environment
-#   - Uses BuildKit cache mount so pip packages are cached across
-#     builds by Depot's persistent NVMe layer — no re-downloading
-#     unless requirements.txt actually changes
+#   - Requirements layer is cached separately from app code so
+#     code-only changes don't re-install packages
 # ──────────────────────────────────────────────────────────────
 FROM python:3.11-slim AS build
 
@@ -19,8 +17,7 @@ ENV PATH="/app/.venv/bin:$PATH"
 # Copy requirements first — this layer is cached separately from
 # your app code, so a code-only change won't re-install packages
 COPY requirements.txt ./
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install -r requirements.txt
+RUN pip install -r requirements.txt
 
 # Copy the rest of the application
 COPY . .
@@ -49,11 +46,8 @@ COPY --from=build --chown=appuser:appgroup /app .
 
 USER appuser
 
-EXPOSE 5000
+EXPOSE 8080
 
-# Gunicorn is a production-grade WSGI server for Flask.
-# Adjust workers based on your dyno/instance size.
-# Formula: (2 x num_cores) + 1  — 3 works for most small servers.
-# Entry point is src/app.py with the Flask app initialized as `app`
-# Config is loaded from config/.env via python-dotenv in the app
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "3", "--timeout", "120", "src.app:app"]
+# Railway injects $PORT at runtime. Use shell form so variable expansion works.
+# Alembic runs migrations first, then gunicorn starts on the assigned port.
+CMD /app/.venv/bin/alembic upgrade head && /app/.venv/bin/python -m gunicorn --bind "0.0.0.0:$PORT" --workers 2 --timeout 120 src.app:app

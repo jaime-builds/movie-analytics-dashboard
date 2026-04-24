@@ -19,7 +19,18 @@ class Config:
     TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p"
 
     # Database
-    DATABASE_URL = os.getenv("DATABASE_URL", _DEFAULT_DB)
+    # Railway injects DATABASE_URL as postgresql:// but SQLAlchemy 2.0 requires
+    # postgresql+psycopg2://. Fix the scheme if needed.
+    _raw_db_url = os.getenv("DATABASE_URL", _DEFAULT_DB)
+    DATABASE_URL = (
+        _raw_db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+        if _raw_db_url.startswith("postgresql://")
+        else _raw_db_url
+    )
+
+    # Redis -- optional, used for caching and rate limiting in production
+    # Set REDIS_URL in the environment to enable. Falls back to in-memory if not set.
+    REDIS_URL = os.getenv("REDIS_URL", None)
 
     # Flask
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")

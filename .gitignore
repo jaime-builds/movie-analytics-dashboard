@@ -11,6 +11,7 @@ config/secrets.py
 .idea/
 .claude/worktrees/
 *.log
+logs/
 
 # SQLite files
 *.db

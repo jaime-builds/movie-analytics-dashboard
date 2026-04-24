@@ -37,22 +37,44 @@ app = Flask(__name__, template_folder="../templates", static_folder="../static")
 app.config.from_object(Config)
 app.secret_key = Config.SECRET_KEY
 
-# Ensure any new tables (e.g. collections) are created on startup
-from src.models import Base, engine  # noqa: E402
-
-Base.metadata.create_all(engine)
-
 logger = get_logger(__name__)
 
-cache = Cache()
-cache.init_app(app, config={"CACHE_TYPE": "SimpleCache", "CACHE_DEFAULT_TIMEOUT": 300})
+# ---------------------------------------------------------------------------
+# Caching -- Redis in production, SimpleCache in local dev
+# ---------------------------------------------------------------------------
+_redis_url = Config.REDIS_URL
 
+if _redis_url:
+    _cache_config = {
+        "CACHE_TYPE": "RedisCache",
+        "CACHE_REDIS_URL": _redis_url,
+        "CACHE_DEFAULT_TIMEOUT": 300,
+    }
+else:
+    _cache_config = {
+        "CACHE_TYPE": "SimpleCache",
+        "CACHE_DEFAULT_TIMEOUT": 300,
+    }
+
+cache = Cache()
+cache.init_app(app, config=_cache_config)
+
+# ---------------------------------------------------------------------------
+# Rate limiting -- Redis in production, memory in local dev
+# In production behind Railway's proxy, trust X-Forwarded-For so the limiter
+# keys on the real client IP rather than the proxy's internal address.
+# ---------------------------------------------------------------------------
 limiter = Limiter(
     key_func=get_remote_address,
     app=app,
     default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://",
+    storage_uri=_redis_url if _redis_url else "memory://",
 )
+
+if _redis_url:
+    from werkzeug.middleware.proxy_fix import ProxyFix
+
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 
 def get_db_session():
@@ -1373,7 +1395,7 @@ def analytics():
         # Movies by year
         year_stats = (
             session.query(
-                func.strftime("%Y", Movie.release_date).label("year"),
+                extract("year", Movie.release_date).label("year"),
                 func.count(Movie.id).label("count"),
             )
             .filter(Movie.release_date.isnot(None))
@@ -1494,7 +1516,7 @@ def analytics_export_csv():
         # Movies by year
         year_stats = (
             session.query(
-                func.strftime("%Y", Movie.release_date).label("year"),
+                extract("year", Movie.release_date).label("year"),
                 func.count(Movie.id).label("count"),
             )
             .filter(Movie.release_date.isnot(None))
@@ -1916,7 +1938,7 @@ def api_analytics_overview():
         # Movies by year
         movies_by_year = (
             session.query(
-                func.strftime("%Y", Movie.release_date).label("year"),
+                extract("year", Movie.release_date).label("year"),
                 func.count(Movie.id).label("count"),
             )
             .filter(Movie.release_date.isnot(None))
@@ -2227,7 +2249,7 @@ def decades():
         # (SQLite integer division inside func.cast is unreliable for grouping)
         year_raw = (
             session_db.query(
-                func.strftime("%Y", Movie.release_date).label("year"),
+                extract("year", Movie.release_date).label("year"),
                 func.count(Movie.id).label("movie_count"),
                 func.avg(Movie.vote_average).label("avg_rating"),
                 func.sum(Movie.revenue).label("total_revenue"),
@@ -2267,9 +2289,8 @@ def decades():
                 session_db.query(Movie)
                 .filter(
                     Movie.release_date.isnot(None),
-                    func.strftime("%Y", Movie.release_date).between(
-                        str(decade_start), str(decade_end)
-                    ),
+                    extract("year", Movie.release_date) >= decade_start,
+                    extract("year", Movie.release_date) <= decade_end,
                     Movie.backdrop_path.isnot(None),
                     Movie.vote_count > 50,
                 )
@@ -2314,7 +2335,8 @@ def decade_detail(decade_start):
 
         base_query = session_db.query(Movie).filter(
             Movie.release_date.isnot(None),
-            func.strftime("%Y", Movie.release_date).between(str(decade_start), str(decade_end)),
+            extract("year", Movie.release_date) >= decade_start,
+            extract("year", Movie.release_date) <= decade_end,
             Movie.vote_count > 0,
         )
 
@@ -2350,7 +2372,8 @@ def decade_detail(decade_start):
             .join(Movie.genres)
             .filter(
                 Movie.release_date.isnot(None),
-                func.strftime("%Y", Movie.release_date).between(str(decade_start), str(decade_end)),
+                extract("year", Movie.release_date) >= decade_start,
+                extract("year", Movie.release_date) <= decade_end,
             )
             .group_by(Genre.name)
             .order_by(desc("count"))
@@ -2362,7 +2385,8 @@ def decade_detail(decade_start):
             session_db.query(func.avg(Movie.vote_average))
             .filter(
                 Movie.release_date.isnot(None),
-                func.strftime("%Y", Movie.release_date).between(str(decade_start), str(decade_end)),
+                extract("year", Movie.release_date) >= decade_start,
+                extract("year", Movie.release_date) <= decade_end,
                 Movie.vote_count >= 20,
             )
             .scalar()
@@ -2371,7 +2395,8 @@ def decade_detail(decade_start):
             session_db.query(func.sum(Movie.revenue))
             .filter(
                 Movie.release_date.isnot(None),
-                func.strftime("%Y", Movie.release_date).between(str(decade_start), str(decade_end)),
+                extract("year", Movie.release_date) >= decade_start,
+                extract("year", Movie.release_date) <= decade_end,
                 Movie.revenue > 0,
             )
             .scalar()
@@ -2380,13 +2405,14 @@ def decade_detail(decade_start):
         # Movies by year (for chart)
         by_year = (
             session_db.query(
-                func.strftime("%Y", Movie.release_date).label("year"),
+                extract("year", Movie.release_date).label("year"),
                 func.count(Movie.id).label("count"),
                 func.avg(Movie.vote_average).label("avg_rating"),
             )
             .filter(
                 Movie.release_date.isnot(None),
-                func.strftime("%Y", Movie.release_date).between(str(decade_start), str(decade_end)),
+                extract("year", Movie.release_date) >= decade_start,
+                extract("year", Movie.release_date) <= decade_end,
             )
             .group_by("year")
             .order_by("year")
