@@ -37,11 +37,6 @@ app = Flask(__name__, template_folder="../templates", static_folder="../static")
 app.config.from_object(Config)
 app.secret_key = Config.SECRET_KEY
 
-# Ensure any new tables (e.g. collections) are created on startup
-from src.models import Base, engine  # noqa: E402
-
-Base.metadata.create_all(engine)
-
 logger = get_logger(__name__)
 
 # ---------------------------------------------------------------------------
