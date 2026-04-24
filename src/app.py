@@ -1400,7 +1400,7 @@ def analytics():
         # Movies by year
         year_stats = (
             session.query(
-                func.strftime("%Y", Movie.release_date).label("year"),
+                extract("year", Movie.release_date).label("year"),
                 func.count(Movie.id).label("count"),
             )
             .filter(Movie.release_date.isnot(None))
@@ -1521,7 +1521,7 @@ def analytics_export_csv():
         # Movies by year
         year_stats = (
             session.query(
-                func.strftime("%Y", Movie.release_date).label("year"),
+                extract("year", Movie.release_date).label("year"),
                 func.count(Movie.id).label("count"),
             )
             .filter(Movie.release_date.isnot(None))
@@ -1943,7 +1943,7 @@ def api_analytics_overview():
         # Movies by year
         movies_by_year = (
             session.query(
-                func.strftime("%Y", Movie.release_date).label("year"),
+                extract("year", Movie.release_date).label("year"),
                 func.count(Movie.id).label("count"),
             )
             .filter(Movie.release_date.isnot(None))
@@ -2254,7 +2254,7 @@ def decades():
         # (SQLite integer division inside func.cast is unreliable for grouping)
         year_raw = (
             session_db.query(
-                func.strftime("%Y", Movie.release_date).label("year"),
+                extract("year", Movie.release_date).label("year"),
                 func.count(Movie.id).label("movie_count"),
                 func.avg(Movie.vote_average).label("avg_rating"),
                 func.sum(Movie.revenue).label("total_revenue"),
@@ -2294,9 +2294,8 @@ def decades():
                 session_db.query(Movie)
                 .filter(
                     Movie.release_date.isnot(None),
-                    func.strftime("%Y", Movie.release_date).between(
-                        str(decade_start), str(decade_end)
-                    ),
+                    extract("year", Movie.release_date) >= decade_start,
+                    extract("year", Movie.release_date) <= decade_end,
                     Movie.backdrop_path.isnot(None),
                     Movie.vote_count > 50,
                 )
@@ -2341,7 +2340,8 @@ def decade_detail(decade_start):
 
         base_query = session_db.query(Movie).filter(
             Movie.release_date.isnot(None),
-            func.strftime("%Y", Movie.release_date).between(str(decade_start), str(decade_end)),
+            extract("year", Movie.release_date) >= decade_start,
+            extract("year", Movie.release_date) <= decade_end,
             Movie.vote_count > 0,
         )
 
@@ -2377,7 +2377,8 @@ def decade_detail(decade_start):
             .join(Movie.genres)
             .filter(
                 Movie.release_date.isnot(None),
-                func.strftime("%Y", Movie.release_date).between(str(decade_start), str(decade_end)),
+                extract("year", Movie.release_date) >= decade_start,
+                extract("year", Movie.release_date) <= decade_end,
             )
             .group_by(Genre.name)
             .order_by(desc("count"))
@@ -2389,7 +2390,8 @@ def decade_detail(decade_start):
             session_db.query(func.avg(Movie.vote_average))
             .filter(
                 Movie.release_date.isnot(None),
-                func.strftime("%Y", Movie.release_date).between(str(decade_start), str(decade_end)),
+                extract("year", Movie.release_date) >= decade_start,
+                extract("year", Movie.release_date) <= decade_end,
                 Movie.vote_count >= 20,
             )
             .scalar()
@@ -2398,7 +2400,8 @@ def decade_detail(decade_start):
             session_db.query(func.sum(Movie.revenue))
             .filter(
                 Movie.release_date.isnot(None),
-                func.strftime("%Y", Movie.release_date).between(str(decade_start), str(decade_end)),
+                extract("year", Movie.release_date) >= decade_start,
+                extract("year", Movie.release_date) <= decade_end,
                 Movie.revenue > 0,
             )
             .scalar()
@@ -2407,13 +2410,14 @@ def decade_detail(decade_start):
         # Movies by year (for chart)
         by_year = (
             session_db.query(
-                func.strftime("%Y", Movie.release_date).label("year"),
+                extract("year", Movie.release_date).label("year"),
                 func.count(Movie.id).label("count"),
                 func.avg(Movie.vote_average).label("avg_rating"),
             )
             .filter(
                 Movie.release_date.isnot(None),
-                func.strftime("%Y", Movie.release_date).between(str(decade_start), str(decade_end)),
+                extract("year", Movie.release_date) >= decade_start,
+                extract("year", Movie.release_date) <= decade_end,
             )
             .group_by("year")
             .order_by("year")
