@@ -8,7 +8,7 @@
 ![SQLAlchemy](https://img.shields.io/badge/sqlalchemy-2.0-orange)
 
 <!-- Add this once deployed -->
-<!-- 📺 **[Live Demo](your-deployed-url)** | 📹 **[Video Walkthrough](youtube-link)** -->
+📺 **[Live Demo](https://movie-analytics-dashboard-production.up.railway.app)**
 
 ![Movie Analytics Dashboard](docs/screenshot.png)
 
@@ -211,7 +211,7 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 
 ## 📊 Project Stats
 
-- **8,000+** movies with complete metadata
+- **8,000+** movies with complete metadata (local) | **1,000+** on live Railway instance
 - **300+** directors with filmographies
 - **1,000+** actors with profiles
 - **87%** test coverage with 339 tests passing
@@ -259,6 +259,9 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 ✅ CI/CD with GitHub Actions
 ✅ Structured logging
 ✅ Comprehensive documentation
+✅ Production deployment (Railway)
+✅ PostgreSQL in production
+✅ Database migrations (Alembic)
 
 ## 📚 Detailed Documentation
 
@@ -576,6 +579,11 @@ See [TODO.md](TODO.md) for the complete roadmap.
 - [x] Search autocomplete with keyboard navigation
 - [x] Query caching with Flask-Caching (1-hour TTL)
 - [x] Movie comparison tool (up to 4 movies, `/compare` page)
+- [x] **Railway deployment** - Live at https://movie-analytics-dashboard-production.up.railway.app
+- [x] **PostgreSQL** - Migrated from SQLite; dual-database compatible
+- [x] **Alembic migrations** - Full schema versioning with baseline migration
+- [x] **CI/CD auto-deploy** - Push to main triggers Railway deployment
+- [x] **Test suite unified** - All tests run in single pytest pass; 339 passing
 
 ### Up Next
 

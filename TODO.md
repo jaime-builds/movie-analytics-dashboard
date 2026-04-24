@@ -2,99 +2,74 @@
 
 ## 🎯 Current Sprint (Next 2 Weeks)
 
-### Main Goal 🚀
-- [ ] **Deploy to production** (6h) - Railway deployment with PostgreSQL, custom domain `movies.jaime.build` via Cloudflare
-
-### Pre-launch Polish ✨
 - [ ] **Image optimization** (3h) - Serve WebP format posters for faster load times
 - [ ] **Advanced multi-filter search** (4h) - Combine genre, year, rating, runtime in a single unified search UI
-
-### Included in Deploy Work 🔧
-- [ ] **SQLite → PostgreSQL migration** - Required for Railway; schema ports cleanly
-- [ ] **CI/CD auto-deploy** - Wire GitHub Actions to deploy on push to main
-- [ ] **Railway cron job** - Daily TMDB sync to keep movie data current
+- [ ] **Actor collaboration network** (6h) - Graph of actors who've appeared together, showcasing complex SQL joins
+- [ ] **Streaming availability** (4h) - Show where to watch each movie (Netflix, Hulu, etc.) via TMDB watch providers API
+- [ ] **Pagination on collections** (2h) - Add pagination to collection detail pages
+- [ ] **Architecture diagram** (2h) - Visual diagram of the full stack: browser, Flask, SQLAlchemy, PostgreSQL, Redis, Railway, GitHub Actions, TMDB API
+- [ ] **Redis add-on** - Add Railway Redis service; swap SimpleCache for RedisCache in production
+- [ ] **TMDB sync automation** - GitHub Actions cron job to keep Railway DB current
 
 ## 🚀 Next Up (This Month)
 
-- [ ] **Actor collaboration network** (6h) - Graph of actors who've appeared together, showcasing complex SQL joins
 - [ ] **OAuth integration** (5h) - Google/GitHub login alongside existing username/password
 - [ ] **Public collections** (3h) - Toggle to make user collections public; browseable by other users
 - [ ] **Social features** (8h) - Follow users, see friend activity, share favorites
 - [ ] **Movie trivia/quiz** (4h) - Interactive quiz based on the movie database; engaging demo feature
-- [ ] **Streaming availability** (4h) - Show where to watch each movie (Netflix, Hulu, etc.) via TMDB watch providers API
 - [ ] **User activity feed** (3h) - Public feed of recent ratings and reviews across all users
+- [ ] **Performance monitoring** (3h) - Sentry integration for error tracking and performance insights
+- [ ] **SEO optimization** (2h) - Meta tags, og:image for social sharing, structured data
+- [ ] **Year in review** (4h) - Personal stats page for movies watched, ratings given, genres explored
 
-## 🔮 Future (Next Quarter)
+## 🔮 Future
 
-### Backend & Infrastructure
-
-- [ ] Alembic database migrations
-- [ ] Full CI/CD pipeline improvements
-- [ ] Performance monitoring (Sentry or similar)
-- [ ] Architecture diagram
-
-### User Experience
-
+- [ ] Migrate from Railway to Render + Supabase (after active dev month)
+- [ ] UptimeRobot pinger for Render free tier keep-alive
 - [ ] Keyboard shortcuts
 - [ ] Breadcrumb navigation
 - [ ] Dark mode improvements
 - [ ] Progressive Web App (PWA)
-- [ ] SEO optimization - meta tags, og:image for social sharing
-- [ ] Pagination on collections
-
-### Social & Engagement
-
 - [ ] Social sharing features
 - [ ] User-to-user recommendations
-- [ ] Email digest - Weekly email of new movies in favorite genres (requires deployment)
-
-### Advanced Analytics
-
+- [ ] Email digest - Weekly email of new movies in favorite genres
 - [ ] Rating trends over time (window functions)
 - [ ] Box office by genre (aggregations)
 - [ ] Genre trending analysis
 - [ ] User analytics dashboard
 - [ ] Machine learning recommendations
-
-### Documentation
-
 - [ ] Documentation site
-
-## 📚 Backlog (Ideas)
-
 - [ ] Mobile app (React Native/Flutter)
-
-### Portfolio Enhancements
-- [ ] Achievement badges - Gamified milestones for user activity (rate 10 movies, find 5 hidden gems, etc.)
+- [ ] Achievement badges - Gamified milestones for user activity
 - [ ] Shareable movie lists - Public URL for collections
 - [ ] Movie of the day - Featured movie on the homepage
 - [ ] Export profile data - Download ratings, reviews, collections as JSON or CSV
-
-### User Experience
-- [ ] "Not interested" dismissal on recommendations to improve suggestions over time
+- [ ] "Not interested" dismissal on recommendations
 - [ ] Runtime and content filters - Family-friendly toggle, language filter
-- [ ] Watchlist streaming alert - Notify when a watchlist movie becomes available to stream
-- [ ] "Seen it" quick-log - Mark as watched without requiring a rating or review
-
-### Technical
-- [ ] API key management page - For opening the API publicly
-- [ ] Admin dashboard - Monitor user activity and DB health
-- [ ] Full-text search with SQLite FTS5 - Faster than ILIKE queries
-- [ ] Redis caching - Replace SimpleCache for multi-worker production environments
-
-### Fun & Engagement
+- [ ] Watchlist streaming alert
+- [ ] "Seen it" quick-log
+- [ ] API key management page
+- [ ] Admin dashboard
+- [ ] Full-text search with SQLite FTS5 / PostgreSQL full-text
+- [ ] Redis caching for multi-worker production
 - [ ] Blind pick - Random movie from your watchlist
-- [ ] Year in review - Personal stats for movies watched that year
-- [ ] Movie mood matcher - Pick a mood, get suggestions
-- [ ] Friends' ratings overlay - See what friends rated on movie detail pages
+- [ ] Movie mood matcher
+- [ ] Friends' ratings overlay
 
 ---
 
 ## ✅ Recently Completed (Last 30 Days)
 
 <details>
-<summary>Click to expand (37 items)</summary>
+<summary>Click to expand (51 items)</summary>
 
+- [✅] **Test suite unified** - Refactored test_favorites_ratings.py from unittest to standard pytest; removed --ignore from pytest.ini; CI workflow simplified to single pytest run (Apr 24)
+- [✅] **Alembic migrations** - Added alembic==1.13.1; alembic.ini + migrations/env.py wired to project Config and Base; 001_initial_schema baseline captures full 15-table schema (Apr 24)
+- [✅] **Railway deployment** - App live at https://movie-analytics-dashboard-production.up.railway.app with PostgreSQL; Docker multi-stage build; gunicorn on dynamic $PORT (Apr 24)
+- [✅] **PostgreSQL migration** - Replaced all SQLite-specific func.strftime() with extract() for dual SQLite/PostgreSQL compatibility; config.py auto-fixes Railway's postgresql:// scheme to postgresql+psycopg2:// (Apr 24)
+- [✅] **CI/CD auto-deploy** - Railway watches main branch; every push triggers build and deploy automatically (Apr 24)
+- [✅] **Redis + rate limiter config** - Cache uses RedisCache when REDIS_URL set, SimpleCache otherwise; rate limiter uses Redis storage in production; ProxyFix middleware for correct client IPs behind Railway proxy (Apr 24)
+- [✅] **load_dotenv fix** - Changed override=True to override=False so externally set env vars (Railway, CI, PowerShell) take precedence over .env file (Apr 24)
 - [✅] **Navbar reorganization** - Explore and Discover dropdowns with hover open; reduced from 9 top-level items to 5 (Apr 21)
 - [✅] **Movie collections** - User-created named lists with poster strip preview; add-to-collection dropdown on movie detail page; collection_movies table (Apr 21)
 - [✅] **Decade overview pages** - Index card page with backdrop images + detail pages per decade with defining films, top rated, most popular, genre breakdown, and year charts (Apr 21)
@@ -102,7 +77,6 @@
 - [✅] **Error logging and monitoring** - JSON structured logging to logs/app.log with daily rotation; request lifecycle logging; WARNING on failed logins/4xx; ERROR on unhandled exceptions (Apr 21)
 - [✅] **Docker containerization** - Dockerfile pinned to Python 3.11; docker-compose.yml with DB and log volume mounts and health check; .dockerignore for lean builds (Apr 21)
 - [✅] **Restore run_tests.py** - Pytest convenience wrapper with --no-cov support; defers to pytest.ini for coverage config (Apr 21)
-
 - [✅] **Home page redesign** - Two-column hero with live stats bar, jaime-builds branding, feature shortcut cards, and section headers with See All links (Mar 30)
 - [✅] **Test isolation fix** - db_session fixture now uses in-memory SQLite; production DB safe from pytest runs (Mar 30)
 - [✅] **Database path fix** - config.py loads .env via absolute path; DATABASE_URL resolves correctly regardless of launch directory (Mar 30)
@@ -141,10 +115,6 @@
 - [✅] Movie trailer embeds
 - [✅] Backdrop image banners
 - [✅] Similar movies recommendations
-- [✅] Pagination controls
-- [✅] Search with results
-- [✅] Movie detail pages with cast/crew
-- [✅] Genre filtering
 
 </details>
 
@@ -152,11 +122,13 @@
 
 ## 📊 Project Stats
 
-- **Total Movies**: 8,000+
-- **Features Completed**: 46
+- **Total Movies**: 1,000 (Railway/PostgreSQL) | 8,000+ (local SQLite)
+- **Features Completed**: 51
 - **In Progress**: 0
 - **Test Coverage**: 87% ✅
+- **Tests Passing**: 339 ✅
 - **API Endpoints**: 13 ✅
+- **Live URL**: https://movie-analytics-dashboard-production.up.railway.app
 
 ## 🎓 Learning Goals
 
@@ -170,8 +142,10 @@ This project showcases:
 - ✅ RESTful API design
 - ✅ Testing (pytest/unittest)
 - ✅ DevOps (Docker)
-- 📅 Production deployment (current sprint)
+- ✅ Production deployment (Railway + PostgreSQL)
+- ✅ Database migrations (Alembic)
+- ✅ CI/CD pipeline (GitHub Actions)
 
 ---
 
-**Last Updated**: April 21, 2026
+**Last Updated**: April 24, 2026
