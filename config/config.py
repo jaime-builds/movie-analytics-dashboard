@@ -7,9 +7,11 @@ _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _DEFAULT_DB = f"sqlite:///{os.path.join(_PROJECT_ROOT, 'movies.db')}"
 
 # Load environment variables — explicitly point to config/.env so it works
-# regardless of which directory the server is launched from
+# regardless of which directory the server is launched from.
+# override=False means existing environment variables take precedence over .env
+# This allows DATABASE_URL and other vars to be set externally (e.g. Railway, CI)
 _ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
-load_dotenv(_ENV_PATH, override=True)
+load_dotenv(_ENV_PATH, override=False)
 
 
 class Config:
