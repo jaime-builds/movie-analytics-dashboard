@@ -5,7 +5,7 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
-    "startCommand": "alembic upgrade head && gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 2 --timeout 120 src.app:app",
+    "startCommand": "/app/.venv/bin/alembic upgrade head && /app/.venv/bin/gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 2 --timeout 120 src.app:app",
     "healthcheckPath": "/api/v1/health",
     "healthcheckTimeout": 60,
     "restartPolicyType": "ON_FAILURE",
