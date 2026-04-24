@@ -49,5 +49,5 @@ USER appuser
 EXPOSE 8080
 
 # Railway injects $PORT dynamically. We default to 8080 for local Docker runs.
-# Gunicorn reads the shell variable at container start time via the shell form.
-CMD gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 2 --timeout 120 src.app:app
+# Run Alembic migrations then start gunicorn using the shell form so $PORT expands.
+CMD /app/.venv/bin/alembic upgrade head && /app/.venv/bin/python -m gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 2 --timeout 120 src.app:app
