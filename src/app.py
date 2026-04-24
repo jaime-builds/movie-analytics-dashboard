@@ -44,15 +44,42 @@ Base.metadata.create_all(engine)
 
 logger = get_logger(__name__)
 
-cache = Cache()
-cache.init_app(app, config={"CACHE_TYPE": "SimpleCache", "CACHE_DEFAULT_TIMEOUT": 300})
+# ---------------------------------------------------------------------------
+# Caching -- Redis in production, SimpleCache in local dev
+# ---------------------------------------------------------------------------
+_redis_url = Config.REDIS_URL
 
+if _redis_url:
+    _cache_config = {
+        "CACHE_TYPE": "RedisCache",
+        "CACHE_REDIS_URL": _redis_url,
+        "CACHE_DEFAULT_TIMEOUT": 300,
+    }
+else:
+    _cache_config = {
+        "CACHE_TYPE": "SimpleCache",
+        "CACHE_DEFAULT_TIMEOUT": 300,
+    }
+
+cache = Cache()
+cache.init_app(app, config=_cache_config)
+
+# ---------------------------------------------------------------------------
+# Rate limiting -- Redis in production, memory in local dev
+# In production behind Railway's proxy, trust X-Forwarded-For so the limiter
+# keys on the real client IP rather than the proxy's internal address.
+# ---------------------------------------------------------------------------
 limiter = Limiter(
     key_func=get_remote_address,
     app=app,
     default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://",
+    storage_uri=_redis_url if _redis_url else "memory://",
 )
+
+if _redis_url:
+    from werkzeug.middleware.proxy_fix import ProxyFix
+
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 
 def get_db_session():
