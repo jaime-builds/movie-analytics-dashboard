@@ -7,9 +7,9 @@
 - [x] **Actor collaboration network** (6h) - D3.js force-directed graph at /actor/<id>/network; nodes are actor photos, edges weighted by shared films, hover reveals movie titles, click navigates to actor profile
 - [x] **Streaming availability** (4h) - Where to Watch card on movie detail page; streams/rent/buy sections with provider logos; US region via TMDB/JustWatch; hidden when no data
 - [x] **Pagination on collections** (2h) - 24 movies per page; showing X-Y of Z counter; pagination controls hidden for small collections
-- [ ] **Architecture diagram** (2h) - Visual diagram of the full stack: browser, Flask, SQLAlchemy, PostgreSQL, Redis, Railway, GitHub Actions, TMDB API
+- [x] **Architecture diagram** (2h) - Mermaid flowchart in README covering browser, Flask, SQLAlchemy, PostgreSQL, Redis, Railway, GitHub Actions, TMDB API
 - [ ] **Redis add-on** - Add Railway Redis service; swap SimpleCache for RedisCache in production
-- [ ] **TMDB sync automation** - GitHub Actions cron job to keep Railway DB current
+- [x] **TMDB sync automation** - GitHub Actions cron job; runs every Sunday 2am UTC; 5,000 movies; manual trigger with configurable limit
 
 ## 🚀 Next Up (This Month)
 

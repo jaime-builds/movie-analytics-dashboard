@@ -84,15 +84,52 @@ This isn't just another movie app. It's a **portfolio-grade full-stack applicati
 
 ### Architecture & Design Patterns
 
-```text
-├── MVC Architecture (Flask + SQLAlchemy + Jinja2)
-├── RESTful API with 13 JSON endpoints
-├── Session-based authentication
-├── Normalized database schema (3NF)
-├── Repository pattern for data access
-├── IntersectionObserver infinite scroll
-├── Structured JSON logging with daily rotation
-└── Automated background jobs
+```mermaid
+flowchart TB
+    subgraph Client["🌐 Browser"]
+        UI["Bootstrap 5 + Jinja2\nChart.js · D3.js · Vanilla JS"]
+    end
+
+    subgraph GH["⚙️ GitHub"]
+        direction LR
+        CI["Actions: CI\nTests · Lint · Security\n(4 Python versions)"]
+        SYNC["Actions: TMDB Sync\nWeekly cron · Manual trigger"]
+    end
+
+    subgraph Railway["🚂 Railway (Production)"]
+        direction TB
+        APP["Flask App\ngunicorn · 2 workers"]
+        PG[("PostgreSQL\n5,000+ movies")]
+        REDIS[("Redis\nCache · Rate limiting")]
+        APP -- SQLAlchemy ORM --> PG
+        APP -- Flask-Caching\nFlask-Limiter --> REDIS
+    end
+
+    subgraph Local["💻 Local Dev"]
+        direction TB
+        FLASK["Flask dev server"]
+        SQLITE[("SQLite\n8,000+ movies")]
+        FLASK -- SQLAlchemy ORM --> SQLITE
+    end
+
+    subgraph External["🔌 External APIs"]
+        TMDB["TMDB API\nMovies · Cast · Trailers\nWatch Providers"]
+    end
+
+    UI -- HTTP --> APP
+    UI -- HTTP --> FLASK
+    APP -- get_movie_videos\nget_watch_providers --> TMDB
+    FLASK -- sync_tmdb_data.py --> TMDB
+    GH -- push to main\nauto-deploy --> Railway
+    SYNC -- DATABASE_URL secret --> PG
+    CI -- pytest · flake8 · bandit --> GH
+
+    subgraph Stack["🛠️ Key Libraries"]
+        direction LR
+        S1["SQLAlchemy 2.0\nAlembic"]
+        S2["Flask-Caching\nFlask-Limiter\nWerkzeug"]
+        S3["pytest\npre-commit\nDocker"]
+    end
 ```
 
 ### RESTful API
@@ -211,14 +248,14 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 
 ## 📊 Project Stats
 
-- **8,000+** movies with complete metadata (local) | **1,000+** on live Railway instance
+- **8,000+** movies with complete metadata (local) | **5,000+** on live Railway instance
 - **300+** directors with filmographies
 - **1,000+** actors with profiles
 - **87%** test coverage with 339 tests passing
 - **15** database tables with optimized indexes
 - **35+** Flask routes
 - **13** RESTful API endpoints
-- **26+** Jinja2 templates
+- **28+** Jinja2 templates
 
 ## 🎓 Skills Demonstrated
 
@@ -569,6 +606,14 @@ See [TODO.md](TODO.md) for the complete roadmap.
 
 ### Recently Shipped
 
+- [x] **Responsive image optimization** - srcset on all poster grids (w185/w342/w500); Jinja2 macro for reuse
+- [x] **Advanced search** - Dedicated `/advanced-search` with genre, era, rating, runtime filters; active filter pills
+- [x] **Actor collaboration network** - D3.js force graph at `/actor/<id>/network`; photo nodes, weighted edges, shared film tooltips
+- [x] **Streaming availability** - Where to Watch card on movie detail; stream/rent/buy via TMDB/JustWatch
+- [x] **Collection pagination** - 24 movies per page with page counter
+- [x] **Weekly TMDB sync** - GitHub Actions cron job; 5,000 movies; manual trigger available
+- [x] **Architecture diagram** - Mermaid flowchart in README covering full stack
+- [x] **PostgreSQL registration fix** - Alembic migration 002 expands password_hash to String(256)
 - [x] Error logging and monitoring (JSON structured, daily rotation)
 - [x] Docker containerization (Dockerfile + docker-compose)
 - [x] Restored run_tests.py as pytest convenience wrapper
