@@ -13,7 +13,7 @@ on:
       update_existing:
         description: 'Update existing movies'
         required: false
-        default: 'true'
+        default: 'false'
         type: boolean
 
 jobs:
@@ -52,7 +52,7 @@ jobs:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         run: |
           LIMIT=${{ github.event.inputs.limit || '5000' }}
-          UPDATE=${{ github.event.inputs.update_existing || 'true' }}
+          UPDATE=${{ github.event.inputs.update_existing || 'false' }}
 
           ARGS="--limit $LIMIT"
           if [ "$UPDATE" = "true" ]; then
