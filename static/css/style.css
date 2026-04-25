@@ -1598,3 +1598,265 @@ a {
         height: 52px;
     }
 }
+
+/* ========================================
+   COMMON FILMS PAGE
+   ======================================== */
+
+.cf-header {
+    background: var(--bg-jumbotron);
+    border-radius: 12px;
+    padding: 2rem 2.5rem;
+    color: white;
+}
+
+.cf-header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.cf-title {
+    font-size: 1.9rem;
+    font-weight: 700;
+    margin: 0 0 0.3rem;
+}
+
+.cf-subtitle {
+    margin: 0;
+    opacity: 0.85;
+    font-size: 0.95rem;
+}
+
+.cf-result-badge {
+    text-align: center;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 12px;
+    padding: 0.75rem 1.5rem;
+    flex-shrink: 0;
+}
+
+.cf-result-count {
+    display: block;
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.cf-result-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.8;
+}
+
+/* Search panel */
+.cf-search-panel {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 2px 8px var(--card-shadow);
+}
+
+.cf-selected-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 48px;
+}
+
+/* Actor chips */
+.cf-actor-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(79,134,247,0.12);
+    border: 1px solid rgba(79,134,247,0.35);
+    border-radius: 24px;
+    padding: 4px 10px 4px 4px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #4f86f7;
+}
+
+.cf-chip-photo {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.cf-chip-name {
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cf-chip-remove {
+    background: none;
+    border: none;
+    color: #4f86f7;
+    cursor: pointer;
+    padding: 0;
+    font-size: 0.9rem;
+    line-height: 1;
+    opacity: 0.7;
+    flex-shrink: 0;
+}
+
+.cf-chip-remove:hover { opacity: 1; }
+
+/* Search input */
+.cf-search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+}
+
+.cf-actor-input {
+    font-size: 0.9rem;
+}
+
+/* Dropdown */
+.cf-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--bg-card);
+    border: 1px solid rgba(128,128,128,0.2);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 4px 12px var(--card-shadow);
+    z-index: 1100;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.cf-dd-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(128,128,128,0.08);
+    transition: background 0.12s;
+}
+
+.cf-dd-item:last-child { border-bottom: none; }
+
+.cf-dd-item:hover,
+.cf-dd-item.active {
+    background: rgba(79,134,247,0.08);
+}
+
+.cf-dd-photo {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.cf-dd-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.cf-dd-meta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.cf-dd-empty {
+    padding: 12px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+/* Hint bar */
+.cf-actor-hint {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+}
+
+/* Results meta */
+.cf-results-meta {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+/* Movie cards */
+.cf-movie-card {
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.cf-movie-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px var(--card-shadow-hover);
+}
+
+/* Empty state */
+.cf-empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--text-muted);
+}
+
+.cf-empty-icon {
+    font-size: 3.5rem;
+    display: block;
+    margin-bottom: 1rem;
+    opacity: 0.3;
+}
+
+.cf-empty-state h3 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.cf-empty-state p {
+    max-width: 440px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
+.cf-quick-pairs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.cf-qs-label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.cf-qs-example {
+    font-size: 0.82rem;
+    padding: 0.3rem 0.9rem;
+    border-radius: 20px;
+    border: 1px solid rgba(128,128,128,0.2);
+    color: var(--text-muted);
+    background: rgba(128,128,128,0.05);
+}
+
+@media (max-width: 576px) {
+    .cf-header { padding: 1.5rem; }
+    .cf-title  { font-size: 1.5rem; }
+    .cf-search-wrap { min-width: 100%; }
+}

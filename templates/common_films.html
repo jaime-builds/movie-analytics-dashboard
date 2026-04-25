@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+{% from "macros.html" import poster_img %}
+
+{% block title %}Common Films - Movie Analytics Dashboard{% endblock %}
+
+{% block content %}
+
+<!-- ===================== HEADER ===================== -->
+<div class="cf-header mb-4">
+    <div class="cf-header-inner">
+        <div>
+            <h1 class="cf-title"><i class="bi bi-people-fill me-2"></i>Common Films</h1>
+            <p class="cf-subtitle">Search for actors and discover which movies they made together.</p>
+        </div>
+        {% if actors and movies %}
+        <div class="cf-result-badge">
+            <span class="cf-result-count">{{ movies|length }}</span>
+            <span class="cf-result-label">film{{ 's' if movies|length != 1 }}</span>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ===================== ACTOR SEARCH ===================== -->
+<div class="cf-search-panel mb-4">
+
+    <!-- Selected actors -->
+    <div class="cf-selected-row mb-3" id="cf-selected-row">
+        {% for actor in actors %}
+        <div class="cf-actor-chip" id="chip-{{ actor.id }}">
+            {% if actor.profile_path %}
+            <img src="{{ config.get_poster_url(actor.profile_path, 'w185') }}"
+                 alt="{{ actor.name }}" class="cf-chip-photo">
+            {% else %}
+            <img src="https://ui-avatars.com/api/?name={{ actor.name|urlencode }}&size=40&background=4f86f7&color=fff&bold=true"
+                 alt="{{ actor.name }}" class="cf-chip-photo">
+            {% endif %}
+            <span class="cf-chip-name">{{ actor.name }}</span>
+            <button class="cf-chip-remove" onclick="removeActor({{ actor.id }})" title="Remove">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+        {% endfor %}
+        {% if actors|length < 5 %}
+        <div class="cf-search-wrap" id="cf-search-wrap">
+            <input type="text"
+                   id="cf-actor-input"
+                   class="form-control cf-actor-input"
+                   placeholder="{% if actors %}Add another actor...{% else %}Search for an actor...{% endif %}"
+                   autocomplete="off">
+            <div class="cf-dropdown" id="cf-dropdown" style="display:none;"></div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if actors %}
+    <div class="cf-actor-hint">
+        <i class="bi bi-info-circle me-1"></i>
+        {% if actors|length == 1 %}
+            Add a second actor to find films they made together. Suggestions are filtered to actors who share at least one film with {{ actors[0].name }}.
+        {% else %}
+            Showing films featuring all {{ actors|length }} selected actors.
+            {% if actors|length < 5 %}Add more to narrow further.{% endif %}
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- ===================== RESULTS ===================== -->
+{% if not actors %}
+<div class="cf-empty-state">
+    <i class="bi bi-people cf-empty-icon"></i>
+    <h3>Find common films</h3>
+    <p>Start by searching for an actor above. Once you've selected two or more, we'll show every film they appeared in together.</p>
+    <div class="cf-quick-pairs mt-3">
+        <span class="cf-qs-label">Try:</span>
+        {% set pairs = [
+            ("Tom Hanks", "Robin Wright"),
+            ("Leonardo DiCaprio", "Kate Winslet"),
+            ("Matt Damon", "Ben Affleck"),
+        ] %}
+        {% for a, b in pairs %}
+        <span class="cf-qs-example">{{ a }} + {{ b }}</span>
+        {% endfor %}
+    </div>
+</div>
+
+{% elif actors|length == 1 %}
+<div class="cf-empty-state">
+    <i class="bi bi-person-plus cf-empty-icon"></i>
+    <h3>Add a second actor</h3>
+    <p>Search for another actor above to see films they share with <strong>{{ actors[0].name }}</strong>.</p>
+</div>
+
+{% elif movies %}
+<div class="cf-results-meta mb-3">
+    <span>
+        <strong>{{ movies|length }}</strong> film{{ 's' if movies|length != 1 }} featuring
+        {% for actor in actors %}
+        <strong>{{ actor.name }}</strong>{% if not loop.last %} &amp; {% endif %}
+        {% endfor %}
+    </span>
+</div>
+
+<div class="row g-3">
+    {% for movie in movies %}
+    <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 col-6">
+        <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+            <div class="card movie-card h-100 cf-movie-card">
+                {{ poster_img(movie, config) }}
+                <div class="card-body p-2">
+                    <h6 class="card-title small mb-1">{{ movie.title }}</h6>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            {% if movie.release_date %}{{ movie.release_date.year }}{% endif %}
+                        </small>
+                        <span class="badge bg-warning text-dark">
+                            <i class="bi bi-star-fill"></i> {{ "%.1f"|format(movie.vote_average) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="cf-empty-state">
+    <i class="bi bi-film cf-empty-icon"></i>
+    <h3>No common films found</h3>
+    <p>
+        {% for actor in actors %}<strong>{{ actor.name }}</strong>{% if not loop.last %} and {% endif %}{% endfor %}
+        don't share any films in our current dataset. Try removing one actor or searching for a different combination.
+    </p>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    const TMDB_IMG   = "https://image.tmdb.org/t/p/w185";
+    const input      = document.getElementById("cf-actor-input");
+    const dropdown   = document.getElementById("cf-dropdown");
+
+    if (!input) return;
+
+    // Current selected actor IDs from URL params (for smart filtering)
+    const selectedIds = {{ actor_ids | tojson }};
+
+    let debounceTimer = null;
+    let activeIndex   = -1;
+    let currentResults = [];
+
+    // ── Autocomplete fetch ──────────────────────────────────────────────
+    function fetchActors() {
+        const q = input.value.trim();
+        if (q.length < 2) { closeDropdown(); return; }
+
+        let url = `/api/v1/actors/search?q=${encodeURIComponent(q)}&per_page=8`;
+        selectedIds.forEach(id => { url += `&with=${id}`; });
+
+        fetch(url)
+            .then(r => r.json())
+            .then(data => {
+                if (input.value.trim() !== q) return;
+                renderDropdown(data.actors || []);
+            })
+            .catch(closeDropdown);
+    }
+
+    function debounced() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(fetchActors, 280);
+    }
+
+    // ── Render dropdown ─────────────────────────────────────────────────
+    function renderDropdown(actors) {
+        dropdown.innerHTML = "";
+        currentResults = actors;
+
+        if (!actors.length) {
+            dropdown.innerHTML = '<div class="cf-dd-empty">No actors found</div>';
+            dropdown.style.display = "block";
+            return;
+        }
+
+        actors.forEach((actor, i) => {
+            const item = document.createElement("div");
+            item.className = "cf-dd-item";
+            item.dataset.index = i;
+
+            const photo = actor.profile_path
+                ? `<img src="${TMDB_IMG}${actor.profile_path}" class="cf-dd-photo" alt="">`
+                : `<img src="https://ui-avatars.com/api/?name=${encodeURIComponent(actor.name)}&size=40&background=4f86f7&color=fff&bold=true" class="cf-dd-photo" alt="">`;
+
+            item.innerHTML = `
+                ${photo}
+                <div class="cf-dd-info">
+                    <div class="cf-dd-name">${escapeHtml(actor.name)}</div>
+                    <div class="cf-dd-meta">${actor.movie_count} film${actor.movie_count !== 1 ? 's' : ''} in DB</div>
+                </div>`;
+
+            item.addEventListener("mousedown", e => e.preventDefault());
+            item.addEventListener("click", () => addActor(actor.id));
+            dropdown.appendChild(item);
+        });
+
+        dropdown.style.display = "block";
+        activeIndex = -1;
+    }
+
+    function closeDropdown() {
+        dropdown.style.display = "none";
+        dropdown.innerHTML = "";
+        activeIndex = -1;
+        currentResults = [];
+    }
+
+    // ── Keyboard nav ────────────────────────────────────────────────────
+    input.addEventListener("keydown", e => {
+        const items = dropdown.querySelectorAll(".cf-dd-item");
+        if (!items.length) return;
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            activeIndex = Math.min(activeIndex + 1, items.length - 1);
+            items.forEach((el, i) => el.classList.toggle("active", i === activeIndex));
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            activeIndex = Math.max(activeIndex - 1, 0);
+            items.forEach((el, i) => el.classList.toggle("active", i === activeIndex));
+        } else if (e.key === "Enter" && activeIndex >= 0) {
+            e.preventDefault();
+            if (currentResults[activeIndex]) addActor(currentResults[activeIndex].id);
+        } else if (e.key === "Escape") {
+            closeDropdown();
+        }
+    });
+
+    input.addEventListener("input", debounced);
+    input.addEventListener("blur", () => setTimeout(closeDropdown, 150));
+
+    // ── Add / remove actors (navigate to updated URL) ───────────────────
+    function addActor(id) {
+        if (selectedIds.includes(id)) { closeDropdown(); return; }
+        const params = [...selectedIds, id].map(i => `actor=${i}`).join("&");
+        window.location.href = `/common-films?${params}`;
+    }
+
+    function escapeHtml(str) {
+        const d = document.createElement("div");
+        d.appendChild(document.createTextNode(str));
+        return d.innerHTML;
+    }
+
+    // Expose removeActor globally for the chip × buttons
+    window.removeActor = function (id) {
+        const params = selectedIds.filter(i => i !== id).map(i => `actor=${i}`).join("&");
+        window.location.href = params ? `/common-films?${params}` : `/common-films`;
+    };
+})();
+</script>
+{% endblock %}

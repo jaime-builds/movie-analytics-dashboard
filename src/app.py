@@ -2049,6 +2049,62 @@ def api_analytics_top_movies():
         session.close()
 
 
+@app.route("/api/v1/actors/search", methods=["GET"])
+@limiter.limit("60 per minute")
+def api_search_actors():
+    """Search actors by name — used by Common Films autocomplete."""
+    session = get_db_session()
+    try:
+        q = request.args.get("q", "").strip()
+        # Optional: only return actors who share movies with already-selected actors
+        with_ids = request.args.getlist("with", type=int)  # list of already-selected person IDs
+        per_page = min(request.args.get("per_page", 8, type=int), 20)
+
+        if not q or len(q) < 2:
+            return jsonify({"actors": []})
+
+        query = (
+            session.query(
+                Person.id,
+                Person.name,
+                Person.profile_path,
+                func.count(Cast.movie_id).label("movie_count"),
+            )
+            .join(Cast, Person.id == Cast.person_id)
+            .filter(Person.name.ilike(f"%{q}%"))
+            .group_by(Person.id, Person.name, Person.profile_path)
+            .having(func.count(Cast.movie_id) >= 1)
+        )
+
+        # If actors already selected, restrict to those who share at least one
+        # movie with ALL of them (avoids dead-end combinations)
+        if with_ids:
+            for wid in with_ids:
+                shared_movies = (
+                    session.query(Cast.movie_id).filter(Cast.person_id == wid).subquery()
+                )
+                query = query.filter(Cast.movie_id.in_(shared_movies))
+
+        query = query.order_by(desc("movie_count")).limit(per_page)
+        results = query.all()
+
+        return jsonify(
+            {
+                "actors": [
+                    {
+                        "id": r.id,
+                        "name": r.name,
+                        "profile_path": r.profile_path,
+                        "movie_count": r.movie_count,
+                    }
+                    for r in results
+                ]
+            }
+        )
+    finally:
+        session.close()
+
+
 @app.route("/api/v1/actors", methods=["GET"])
 @limiter.limit("200 per day; 50 per hour")
 def api_get_actors():
@@ -2970,6 +3026,69 @@ def compare():
             "compare.html",
             movies=movies_list,
             directors=directors,
+            current_user=user,
+            config=Config,
+        )
+    finally:
+        session.close()
+
+
+# ==========================================
+# COMMON FILMS ROUTE
+# ==========================================
+
+
+@app.route("/common-films")
+def common_films():
+    """Find movies shared by a set of selected actors."""
+    session = get_db_session()
+    try:
+        user = get_current_user(session)
+        actor_ids = request.args.getlist("actor", type=int)
+        # cap at 5 actors to keep the query sane
+        actor_ids = actor_ids[:5]
+
+        actors = []
+        movies = []
+
+        if actor_ids:
+            actors = session.query(Person).filter(Person.id.in_(actor_ids)).all()
+            # Preserve selection order
+            actor_map = {a.id: a for a in actors}
+            actors = [actor_map[aid] for aid in actor_ids if aid in actor_map]
+
+            if actors:
+                # Find movies where ALL selected actors appear
+                # Start with movies for the first actor, then intersect
+                base_ids = set(
+                    row.movie_id
+                    for row in session.query(Cast.movie_id)
+                    .filter(Cast.person_id == actors[0].id)
+                    .all()
+                )
+                for actor in actors[1:]:
+                    other_ids = set(
+                        row.movie_id
+                        for row in session.query(Cast.movie_id)
+                        .filter(Cast.person_id == actor.id)
+                        .all()
+                    )
+                    base_ids &= other_ids
+
+                if base_ids:
+                    movies = (
+                        session.query(Movie)
+                        .filter(Movie.id.in_(base_ids))
+                        .filter(Movie.vote_count > 0)
+                        .order_by(desc(Movie.popularity))
+                        .all()
+                    )
+
+        return render_template(
+            "common_films.html",
+            actors=actors,
+            movies=movies,
+            actor_ids=actor_ids,
             current_user=user,
             config=Config,
         )
