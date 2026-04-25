@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros.html" import poster_img %}
 
 {% block title %}My Watchlist - Movie Analytics Dashboard{% endblock %}
 
@@ -17,18 +18,7 @@
         <div class="col-md-3 col-sm-6 mb-4">
             <div class="card h-100 shadow-sm hover-card">
                 <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
-                    {% if movie.poster_path %}
-                    <img src="{{ config.get_poster_url(movie.poster_path) }}"
-                         class="card-img-top"
-                         alt="{{ movie.title }}"
-                         style="height: 400px; object-fit: cover;"
-                         loading="lazy">
-                    {% else %}
-                    <div class="bg-secondary d-flex align-items-center justify-content-center"
-                         style="height: 400px;">
-                        <i class="bi bi-film" style="font-size: 3rem; color: #666;"></i>
-                    </div>
-                    {% endif %}
+                    {{ poster_img(movie, config, css_class='card-img-top', placeholder_height='400px') }}
 
                     <div class="card-body">
                         <h5 class="card-title text-dark">{{ movie.title }}</h5>

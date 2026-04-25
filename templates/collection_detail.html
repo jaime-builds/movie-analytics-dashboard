@@ -22,7 +22,7 @@
             <p class="text-muted">{{ collection.description }}</p>
             {% endif %}
             <span class="badge bg-secondary">
-                {{ collection.movies|length }} movie{{ 's' if collection.movies|length != 1 }}
+                {{ total }} movie{{ 's' if total != 1 }}
             </span>
         </div>
         <div class="col-auto d-flex gap-2">
@@ -36,9 +36,9 @@
     </div>
 
     <!-- Movie Grid -->
-    {% if collection.movies %}
+    {% if movies %}
     <div class="row row-cols-2 row-cols-md-4 row-cols-lg-5 g-3" id="collectionGrid">
-        {% for movie in collection.movies %}
+        {% for movie in movies %}
         <div class="col" id="movie-{{ movie.id }}">
             <div class="card h-100 movie-card">
                 <a href="/movie/{{ movie.id }}" class="text-decoration-none">
@@ -81,6 +81,41 @@
         </div>
         {% endfor %}
     </div>
+
+    {% if total_pages > 1 %}
+    <nav class="mt-4" aria-label="Collection pagination">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <small class="text-muted">
+                Showing {{ (page - 1) * per_page + 1 }}–{{ [page * per_page, total] | min }} of {{ total }} movies
+            </small>
+            <small class="text-muted">Page {{ page }} of {{ total_pages }}</small>
+        </div>
+        <ul class="pagination justify-content-center">
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('collection_detail', collection_id=collection.id, page=page-1) }}">
+                    <i class="bi bi-chevron-left"></i>
+                </a>
+            </li>
+            {% for p in range(1, total_pages + 1) %}
+                {% if p == page %}
+                    <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('collection_detail', collection_id=collection.id, page=p) }}">{{ p }}</a>
+                    </li>
+                {% elif p == page - 3 or p == page + 3 %}
+                    <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                {% endif %}
+            {% endfor %}
+            <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('collection_detail', collection_id=collection.id, page=page+1) }}">
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
+
     {% else %}
     <div class="text-center py-5">
         <i class="bi bi-film text-muted" style="font-size: 4rem;"></i>

@@ -49,6 +49,25 @@ class Config:
         return f"{Config.TMDB_IMAGE_BASE_URL}/{size}{poster_path}"
 
     @staticmethod
+    def get_poster_srcset(poster_path):
+        """Generate a srcset string for responsive poster images.
+
+        Returns a tuple of (srcset, sizes) strings for use in <img> or <picture> tags.
+        TMDB provides w185, w342, and w500 variants.
+        """
+        if not poster_path:
+            return None, None
+        base = Config.TMDB_IMAGE_BASE_URL
+        srcset = (
+            f"{base}/w185{poster_path} 185w, "
+            f"{base}/w342{poster_path} 342w, "
+            f"{base}/w500{poster_path} 500w"
+        )
+        # Render at ~100% of its container up to 342px, then cap at 500px
+        sizes = "(max-width: 576px) 185px, (max-width: 992px) 342px, 500px"
+        return srcset, sizes
+
+    @staticmethod
     def get_backdrop_url(backdrop_path, size="w1280"):
         """Generate full URL for movie backdrop"""
         if not backdrop_path:

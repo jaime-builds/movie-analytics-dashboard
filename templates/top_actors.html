@@ -25,7 +25,10 @@
             <a href="{{ url_for('actor_detail', actor_id=actor.person.id) }}" class="text-decoration-none">
                 <div class="card actor-card h-100">
                     {% if actor.person.profile_path %}
-                    <img src="{{ config.get_poster_url(actor.person.profile_path, 'w300') }}"
+                    {% set srcset = 'https://image.tmdb.org/t/p/w185' ~ actor.person.profile_path ~ ' 185w, https://image.tmdb.org/t/p/w342' ~ actor.person.profile_path ~ ' 342w' %}
+                    <img src="https://image.tmdb.org/t/p/w342{{ actor.person.profile_path }}"
+                         srcset="{{ srcset }}"
+                         sizes="(max-width: 576px) 185px, 342px"
                          class="card-img-top"
                          alt="{{ actor.person.name }}"
                          style="object-fit: cover; height: 300px;"

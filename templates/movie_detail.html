@@ -166,6 +166,77 @@
             </div>
         </div>
         {% endif %}
+
+        <!-- Streaming Availability -->
+        {% set streaming = watch_providers.get('flatrate', []) %}
+        {% set rent = watch_providers.get('rent', []) %}
+        {% set buy = watch_providers.get('buy', []) %}
+        {% if streaming or rent or buy %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-display me-2"></i>Where to Watch
+                    <small class="text-muted fw-normal ms-2">US availability via JustWatch</small>
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if streaming %}
+                <div class="mb-3">
+                    <p class="small fw-semibold text-muted text-uppercase mb-2" style="letter-spacing:.05em;">Stream</p>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for p in streaming %}
+                        <div class="watch-provider" title="{{ p.provider_name }}">
+                            <img src="https://image.tmdb.org/t/p/w45{{ p.logo_path }}"
+                                 alt="{{ p.provider_name }}"
+                                 class="watch-provider-logo"
+                                 loading="lazy">
+                            <span class="watch-provider-name">{{ p.provider_name }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                {% if rent %}
+                <div class="mb-3">
+                    <p class="small fw-semibold text-muted text-uppercase mb-2" style="letter-spacing:.05em;">Rent</p>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for p in rent %}
+                        <div class="watch-provider" title="{{ p.provider_name }}">
+                            <img src="https://image.tmdb.org/t/p/w45{{ p.logo_path }}"
+                                 alt="{{ p.provider_name }}"
+                                 class="watch-provider-logo"
+                                 loading="lazy">
+                            <span class="watch-provider-name">{{ p.provider_name }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                {% if buy %}
+                <div class="mb-1">
+                    <p class="small fw-semibold text-muted text-uppercase mb-2" style="letter-spacing:.05em;">Buy</p>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for p in buy %}
+                        <div class="watch-provider" title="{{ p.provider_name }}">
+                            <img src="https://image.tmdb.org/t/p/w45{{ p.logo_path }}"
+                                 alt="{{ p.provider_name }}"
+                                 class="watch-provider-logo"
+                                 loading="lazy">
+                            <span class="watch-provider-name">{{ p.provider_name }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                <p class="text-muted small mb-0 mt-3">
+                    <i class="bi bi-info-circle me-1"></i>Data provided by
+                    <a href="https://www.justwatch.com" target="_blank" rel="noopener" class="text-muted">JustWatch</a>
+                    via TMDB &middot; US only
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
     </div>
 </div>
 

@@ -1,0 +1,26 @@
+{% macro poster_img(movie, config, css_class="card-img-top", placeholder_height="450px") %}
+{#
+    Renders a responsive poster <img> with srcset for TMDB size variants.
+    Falls back to a placeholder div if no poster_path is available.
+
+    Args:
+        movie:              Movie object with .poster_path and .title
+        config:             Config object (passed from route context)
+        css_class:          CSS class(es) for the <img> tag (default: card-img-top)
+        placeholder_height: Height of the fallback placeholder div
+#}
+{% if movie.poster_path %}
+    {% set srcset, sizes = config.get_poster_srcset(movie.poster_path) %}
+    <img src="{{ config.get_poster_url(movie.poster_path, 'w342') }}"
+         srcset="{{ srcset }}"
+         sizes="{{ sizes }}"
+         class="{{ css_class }}"
+         alt="{{ movie.title }}"
+         loading="lazy">
+{% else %}
+    <div class="bg-secondary d-flex align-items-center justify-content-center {{ css_class }}"
+         style="height: {{ placeholder_height }};">
+        <i class="bi bi-film" style="font-size: 3rem; color: #666;"></i>
+    </div>
+{% endif %}
+{% endmacro %}

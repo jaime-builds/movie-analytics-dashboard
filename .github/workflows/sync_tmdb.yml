@@ -1,0 +1,66 @@
+name: Sync TMDB Data
+
+on:
+  schedule:
+    # Every Sunday at 2:00 AM UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Number of movies to sync'
+        required: false
+        default: '5000'
+      update_existing:
+        description: 'Update existing movies'
+        required: false
+        default: 'true'
+        type: boolean
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run TMDB sync
+        env:
+          DATABASE_URL: ${{ secrets.RAILWAY_DATABASE_URL }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: |
+          LIMIT=${{ github.event.inputs.limit || '5000' }}
+          UPDATE=${{ github.event.inputs.update_existing || 'true' }}
+
+          ARGS="--limit $LIMIT"
+          if [ "$UPDATE" = "true" ]; then
+            ARGS="$ARGS --update-existing"
+          fi
+
+          echo "Running: python scripts/sync_tmdb_data.py $ARGS"
+          python scripts/sync_tmdb_data.py $ARGS
+
+      - name: Report result
+        if: always()
+        run: |
+          echo "Sync completed at $(date -u)"
+          echo "Status: ${{ job.status }}"

@@ -1,0 +1,344 @@
+{% extends "base.html" %}
+
+{% block title %}{{ actor.name }} — Collaboration Network{% endblock %}
+
+{% block content %}
+
+<!-- ===================== HEADER ===================== -->
+<div class="an-header mb-4">
+    <div class="an-header-inner">
+        <div class="an-header-left">
+            {% if actor.profile_path %}
+            <img src="{{ config.get_poster_url(actor.profile_path, 'w185') }}"
+                 class="an-actor-thumb"
+                 alt="{{ actor.name }}">
+            {% else %}
+            <img src="https://ui-avatars.com/api/?name={{ actor.name|urlencode }}&size=80&background=0D8ABC&color=fff&bold=true"
+                 class="an-actor-thumb"
+                 alt="{{ actor.name }}">
+            {% endif %}
+            <div>
+                <p class="an-header-eyebrow">Collaboration Network</p>
+                <h1 class="an-header-name">{{ actor.name }}</h1>
+                <p class="an-header-meta">
+                    {{ collaborator_count }} collaborator{{ 's' if collaborator_count != 1 }}
+                    &middot; based on shared cast credits
+                </p>
+            </div>
+        </div>
+        <div class="an-header-actions">
+            <a href="{{ url_for('actor_detail', actor_id=actor.id) }}"
+               class="btn btn-outline-light btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Back to profile
+            </a>
+        </div>
+    </div>
+</div>
+
+{% if graph_data.nodes | length > 1 %}
+
+<!-- ===================== LEGEND + CONTROLS ===================== -->
+<div class="an-controls mb-3">
+    <div class="an-legend">
+        <span class="an-legend-dot an-legend-focal"></span><span>{{ actor.name }}</span>
+        <span class="an-legend-dot an-legend-collab ms-3"></span><span>Collaborator</span>
+        <span class="an-legend-line ms-3"></span><span>Shared films (thicker = more)</span>
+    </div>
+    <div class="an-hint">
+        <i class="bi bi-info-circle me-1"></i>Drag nodes &middot; scroll to zoom &middot; hover for details
+    </div>
+</div>
+
+<!-- ===================== GRAPH ===================== -->
+<div class="an-graph-wrap" id="an-graph-wrap">
+    <svg id="an-svg"></svg>
+    <!-- Tooltip -->
+    <div class="an-tooltip" id="an-tooltip" style="display:none;"></div>
+</div>
+
+{% else %}
+<div class="an-empty">
+    <i class="bi bi-diagram-3 an-empty-icon"></i>
+    <h3>No collaboration data</h3>
+    <p>There aren't enough shared cast credits in the current dataset to build a network for this actor.</p>
+    <a href="{{ url_for('actor_detail', actor_id=actor.id) }}" class="btn btn-primary mt-2">
+        Back to profile
+    </a>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+{% if graph_data.nodes | length > 1 %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script>
+(function () {
+    // ── Data ──────────────────────────────────────────────────────────────
+    const graphData = {{ graph_data | tojson }};
+    const focalId   = {{ actor.id }};
+    const TMDB_BASE = "https://image.tmdb.org/t/p/w185";
+
+    // ── Theme-aware colours ───────────────────────────────────────────────
+    function isDark() {
+        return document.documentElement.getAttribute("data-bs-theme") === "dark";
+    }
+    function colours() {
+        const dark = isDark();
+        return {
+            bg:          dark ? "#121212" : "#f8f9fa",
+            focalFill:   "#4f86f7",
+            collabFill:  dark ? "#3a3a5c" : "#e8eeff",
+            focalStroke: "#2563eb",
+            collabStroke:dark ? "#6366f1" : "#4f86f7",
+            linkColor:   dark ? "rgba(255,255,255,0.15)" : "rgba(79,134,247,0.25)",
+            labelColor:  dark ? "#e0e0e0" : "#1e293b",
+            labelShadow: dark ? "#121212" : "#ffffff",
+        };
+    }
+
+    // ── Layout ────────────────────────────────────────────────────────────
+    const wrap   = document.getElementById("an-graph-wrap");
+    const W      = wrap.clientWidth  || 900;
+    const H      = Math.max(560, Math.min(window.innerHeight * 0.65, 720));
+    wrap.style.height = H + "px";
+
+    const svg = d3.select("#an-svg")
+        .attr("width",  W)
+        .attr("height", H);
+
+    // Zoom container
+    const g = svg.append("g");
+
+    svg.call(
+        d3.zoom()
+          .scaleExtent([0.3, 4])
+          .on("zoom", (e) => g.attr("transform", e.transform))
+    );
+
+    // ── Force simulation ──────────────────────────────────────────────────
+    const maxShared = d3.max(graphData.links, d => d.value) || 1;
+
+    const sim = d3.forceSimulation(graphData.nodes)
+        .force("link", d3.forceLink(graphData.links)
+            .id(d => d.id)
+            .distance(d => 120 - d.value * 8)   // more shared = closer
+            .strength(0.6))
+        .force("charge",  d3.forceManyBody().strength(-280))
+        .force("center",  d3.forceCenter(W / 2, H / 2))
+        .force("collide", d3.forceCollide(38));
+
+    // ── Draw edges ────────────────────────────────────────────────────────
+    const linkStrokeScale = d3.scaleLinear()
+        .domain([1, maxShared])
+        .range([1, 5]);
+
+    // Visible lines
+    const link = g.append("g").attr("class", "an-links")
+        .selectAll("line")
+        .data(graphData.links)
+        .join("line")
+        .attr("stroke-width", d => linkStrokeScale(d.value))
+        .attr("stroke", colours().linkColor)
+        .attr("stroke-linecap", "round");
+
+    // Invisible wide hit-area lines (transparent, for easy hovering)
+    const linkHit = g.append("g").attr("class", "an-links-hit")
+        .selectAll("line")
+        .data(graphData.links)
+        .join("line")
+        .attr("stroke-width", 14)
+        .attr("stroke", "transparent")
+        .attr("stroke-linecap", "round")
+        .style("cursor", "crosshair")
+        .each(function (d, i) { this._visibleLine = link.nodes()[i]; });
+
+    // ── Node groups ───────────────────────────────────────────────────────
+    const node = g.append("g").attr("class", "an-nodes")
+        .selectAll("g")
+        .data(graphData.nodes)
+        .join("g")
+        .attr("class", "an-node")
+        .style("cursor", "pointer")
+        .call(drag(sim));
+
+    const R_FOCAL  = 32;
+    const R_COLLAB = 22;
+
+    // Circle background
+    node.append("circle")
+        .attr("r",    d => d.focal ? R_FOCAL : R_COLLAB)
+        .attr("fill", d => d.focal ? colours().focalFill : colours().collabFill)
+        .attr("stroke", d => d.focal ? colours().focalStroke : colours().collabStroke)
+        .attr("stroke-width", d => d.focal ? 3 : 1.5);
+
+    // Clip path for avatar image
+    const defs = svg.append("defs");
+    graphData.nodes.forEach(n => {
+        defs.append("clipPath")
+            .attr("id", `clip-${n.id}`)
+          .append("circle")
+            .attr("r", n.focal ? R_FOCAL - 2 : R_COLLAB - 2);
+    });
+
+    // Avatar image (or fallback icon)
+    node.append("image")
+        .attr("href", d => d.profile_path
+            ? TMDB_BASE + d.profile_path
+            : `https://ui-avatars.com/api/?name=${encodeURIComponent(d.name)}&size=64&background=${d.focal ? "4f86f7" : "6366f1"}&color=fff&bold=true`)
+        .attr("width",  d => d.focal ? R_FOCAL * 2 - 4  : R_COLLAB * 2 - 4)
+        .attr("height", d => d.focal ? R_FOCAL * 2 - 4  : R_COLLAB * 2 - 4)
+        .attr("x",      d => d.focal ? -(R_FOCAL - 2)   : -(R_COLLAB - 2))
+        .attr("y",      d => d.focal ? -(R_FOCAL - 2)   : -(R_COLLAB - 2))
+        .attr("clip-path", d => `url(#clip-${d.id})`);
+
+    // Focal star badge
+    node.filter(d => d.focal)
+        .append("text")
+        .attr("x", R_FOCAL - 8)
+        .attr("y", -(R_FOCAL - 8))
+        .attr("text-anchor", "middle")
+        .attr("font-size", "14px")
+        .text("⭐");
+
+    // Labels
+    node.append("text")
+        .attr("class", "an-node-label")
+        .attr("y", d => (d.focal ? R_FOCAL : R_COLLAB) + 14)
+        .attr("text-anchor", "middle")
+        .attr("font-size", d => d.focal ? "13px" : "11px")
+        .attr("font-weight", d => d.focal ? "700" : "400")
+        .attr("fill", colours().labelColor)
+        .attr("paint-order", "stroke")
+        .attr("stroke", colours().labelShadow)
+        .attr("stroke-width", "3px")
+        .text(d => d.name.length > 16 ? d.name.slice(0, 15) + "…" : d.name);
+
+    // ── Tooltip ───────────────────────────────────────────────────────────
+    const tooltip = document.getElementById("an-tooltip");
+
+    // Edge tooltips — show shared movie titles on hover
+    // Track the currently highlighted visible line so we can always reset it
+    let activeVisibleLine = null;
+
+    function clearEdgeHighlight() {
+        if (activeVisibleLine) {
+            const d = d3.select(activeVisibleLine).datum();
+            d3.select(activeVisibleLine)
+                .attr("stroke",       colours().linkColor)
+                .attr("stroke-width", linkStrokeScale(d ? d.value : 1));
+            activeVisibleLine = null;
+        }
+        tooltip.style.display = "none";
+    }
+
+    linkHit.on("mouseenter", function (event, d) {
+        clearEdgeHighlight();
+        const rect      = wrap.getBoundingClientRect();
+        const movieList = (d.movies && d.movies.length)
+            ? d.movies.map(t => `<span class="an-tt-movie">${t}</span>`).join("")
+            : "<span class='an-tt-sub'>No title data</span>";
+        tooltip.innerHTML =
+            `<strong>${d.value} shared film${d.value !== 1 ? "s" : ""}</strong><br>${movieList}`;
+        tooltip.style.left    = (event.clientX - rect.left + 14) + "px";
+        tooltip.style.top     = (event.clientY - rect.top  - 10) + "px";
+        tooltip.style.display = "block";
+        activeVisibleLine = this._visibleLine;
+        d3.select(activeVisibleLine)
+            .attr("stroke", "#f59e0b")
+            .attr("stroke-width", linkStrokeScale(d.value) + 2);
+    })
+    .on("mousemove", function (event) {
+        const rect = wrap.getBoundingClientRect();
+        tooltip.style.left = (event.clientX - rect.left + 14) + "px";
+        tooltip.style.top  = (event.clientY - rect.top  - 10) + "px";
+    })
+    .on("mouseleave", function () {
+        clearEdgeHighlight();
+    });
+
+    // Safety net: clear highlight if mouse leaves the SVG entirely
+    svg.on("mouseleave", clearEdgeHighlight);
+
+    // Node tooltips
+    node.on("mouseenter", function (event, d) {
+        clearEdgeHighlight();
+        const rect = wrap.getBoundingClientRect();
+        const x    = event.clientX - rect.left + 14;
+        const y    = event.clientY - rect.top  - 10;
+
+        tooltip.innerHTML = d.focal
+            ? `<strong>${d.name}</strong><br><span class="an-tt-sub">Focal actor</span>`
+            : `<strong>${d.name}</strong><br>
+               <span class="an-tt-sub">${d.shared_movies} shared film${d.shared_movies !== 1 ? "s" : ""}</span>`;
+
+        tooltip.style.left    = x + "px";
+        tooltip.style.top     = y + "px";
+        tooltip.style.display = "block";
+    })
+    .on("mousemove", function (event) {
+        const rect = wrap.getBoundingClientRect();
+        tooltip.style.left = (event.clientX - rect.left + 14) + "px";
+        tooltip.style.top  = (event.clientY - rect.top  - 10) + "px";
+    })
+    .on("mouseleave", () => { tooltip.style.display = "none"; });
+
+    // Click → navigate to actor page
+    node.on("click", (event, d) => {
+        if (!d.focal) {
+            window.location.href = `/actor/${d.id}`;
+        }
+    });
+
+    // ── Tick ──────────────────────────────────────────────────────────────
+    sim.on("tick", () => {
+        link
+            .attr("x1", d => d.source.x)
+            .attr("y1", d => d.source.y)
+            .attr("x2", d => d.target.x)
+            .attr("y2", d => d.target.y);
+
+        linkHit
+            .attr("x1", d => d.source.x)
+            .attr("y1", d => d.source.y)
+            .attr("x2", d => d.target.x)
+            .attr("y2", d => d.target.y);
+
+        node.attr("transform", d => `translate(${d.x},${d.y})`);
+    });
+
+    // ── Drag helpers ──────────────────────────────────────────────────────
+    function drag(simulation) {
+        return d3.drag()
+            .on("start", (event, d) => {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x; d.fy = d.y;
+            })
+            .on("drag", (event, d) => { d.fx = event.x; d.fy = event.y; })
+            .on("end",  (event, d) => {
+                if (!event.active) simulation.alphaTarget(0);
+                // keep fx/fy set so the node stays pinned where dropped
+            });
+    }
+
+    // ── Re-colour on dark-mode toggle ─────────────────────────────────────
+    const themeToggle = document.getElementById("darkModeToggle");
+    if (themeToggle) {
+        themeToggle.addEventListener("click", () => {
+            setTimeout(() => {
+                const c = colours();
+                link.attr("stroke", c.linkColor);
+                d3.selectAll(".an-node circle")
+                    .attr("fill",   d => d.focal ? c.focalFill   : c.collabFill)
+                    .attr("stroke", d => d.focal ? c.focalStroke : c.collabStroke);
+                d3.selectAll(".an-node-label")
+                    .attr("fill",   c.labelColor)
+                    .attr("stroke", c.labelShadow);
+                svg.style("background", c.bg);
+            }, 50);
+        });
+    }
+})();
+</script>
+{% endif %}
+{% endblock %}

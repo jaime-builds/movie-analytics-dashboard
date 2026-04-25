@@ -56,6 +56,17 @@ class TMDBClient:
         """Get videos (trailers, teasers, etc.) for a movie"""
         return self._make_request(f"movie/{movie_id}/videos")
 
+    def get_watch_providers(self, movie_id: int, region: str = "US") -> Dict:
+        """Get streaming/rental/purchase availability for a movie.
+
+        Returns a dict with keys like 'flatrate', 'rent', 'buy', each a list
+        of provider dicts with 'provider_name' and 'logo_path'.
+        Returns an empty dict if no data is available for the region.
+        """
+        data = self._make_request(f"movie/{movie_id}/watch/providers")
+        results = data.get("results", {})
+        return results.get(region, {})
+
     def search_movies(self, query: str, page: int = 1) -> Dict:
         """Search for movies"""
         return self._make_request("search/movie", {"query": query, "page": page})

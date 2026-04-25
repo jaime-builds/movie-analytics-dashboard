@@ -1310,6 +1310,10 @@ def movie_detail(movie_id):
         # Get trailer from TMDB API
         trailer = get_trailer_for_movie(movie.tmdb_id)
 
+        # Get streaming/watch providers from TMDB API
+        client = TMDBClient()
+        watch_providers = client.get_watch_providers(movie.tmdb_id)
+
         # Check if movie is in user's favorites/watchlist
         is_favorited = False
         is_in_watchlist = False
@@ -1358,6 +1362,7 @@ def movie_detail(movie_id):
             directors=directors,
             similar_movies=similar_movies,
             trailer=trailer,
+            watch_providers=watch_providers,
             current_user=user,
             is_favorited=is_favorited,
             is_in_watchlist=is_in_watchlist,
@@ -2725,9 +2730,24 @@ def collection_detail(collection_id):
             flash("Collection not found", "danger")
             return redirect(url_for("collections"))
 
+        # Paginate the movies in this collection
+        page = request.args.get("page", 1, type=int)
+        per_page = 24
+        all_movies = collection.movies
+        total = len(all_movies)
+        total_pages = (total + per_page - 1) // per_page if total else 1
+        page = max(1, min(page, total_pages))
+        offset = (page - 1) * per_page
+        paged_movies = all_movies[offset : offset + per_page]
+
         return render_template(
             "collection_detail.html",
             collection=collection,
+            movies=paged_movies,
+            total=total,
+            page=page,
+            total_pages=total_pages,
+            per_page=per_page,
             current_user=user,
             config=Config,
         )
@@ -2950,6 +2970,323 @@ def compare():
             "compare.html",
             movies=movies_list,
             directors=directors,
+            current_user=user,
+            config=Config,
+        )
+    finally:
+        session.close()
+
+
+# ==========================================
+# ACTOR COLLABORATION NETWORK ROUTE
+# ==========================================
+
+
+@app.route("/actor/<int:actor_id>/network")
+def actor_network(actor_id):
+    """Collaboration network for a given actor.
+
+    Nodes  = the focal actor + everyone who has shared at least one movie with them.
+    Edges  = (actor_a, actor_b, shared_movie_count) for every collaborating pair,
+             including edges between collaborators themselves (second-ring links).
+    Capped at 30 collaborators so the graph stays readable.
+    """
+    session = get_db_session()
+    try:
+        user = get_current_user(session)
+
+        actor = session.query(Person).filter_by(id=actor_id).first()
+        if not actor:
+            return "Actor not found", 404
+
+        # ── Step 1: movies the focal actor appeared in ──────────────────────
+        focal_movie_ids = [
+            row.movie_id
+            for row in session.query(Cast.movie_id).filter(Cast.person_id == actor_id).all()
+        ]
+
+        if not focal_movie_ids:
+            return render_template(
+                "actor_network.html",
+                actor=actor,
+                graph_data={"nodes": [], "links": []},
+                collaborator_count=0,
+                current_user=user,
+                config=Config,
+            )
+
+        # ── Step 2: direct collaborators (other actors in the same movies) ──
+        from sqlalchemy.orm import aliased
+
+        collaborators_raw = (
+            session.query(
+                Person.id,
+                Person.name,
+                Person.profile_path,
+                func.count(func.distinct(Cast.movie_id)).label("shared_movies"),
+            )
+            .join(Cast, Person.id == Cast.person_id)
+            .filter(
+                Cast.movie_id.in_(focal_movie_ids),
+                Person.id != actor_id,
+            )
+            .group_by(Person.id, Person.name, Person.profile_path)
+            .order_by(desc("shared_movies"))
+            .limit(30)
+            .all()
+        )
+
+        if not collaborators_raw:
+            return render_template(
+                "actor_network.html",
+                actor=actor,
+                graph_data={"nodes": [], "links": []},
+                collaborator_count=0,
+                current_user=user,
+                config=Config,
+            )
+
+        collab_ids = [r.id for r in collaborators_raw]
+
+        # ── Step 3: edges between collaborators (second-ring links) ─────────
+        # Find movies shared between any two collaborators (excluding focal actor)
+        c1 = aliased(Cast)
+        c2 = aliased(Cast)
+        collab_edges_raw = (
+            session.query(
+                c1.person_id.label("actor_a"),
+                c2.person_id.label("actor_b"),
+                func.count(func.distinct(c1.movie_id)).label("shared"),
+            )
+            .join(c2, c1.movie_id == c2.movie_id)
+            .filter(
+                c1.person_id.in_(collab_ids),
+                c2.person_id.in_(collab_ids),
+                c1.person_id < c2.person_id,  # avoid duplicates
+            )
+            .group_by(c1.person_id, c2.person_id)
+            .having(func.count(func.distinct(c1.movie_id)) >= 1)
+            .all()
+        )
+
+        # ── Step 4: build D3-ready graph data ────────────────────────────────
+        # Build a lookup: (person_id) -> set of movie_ids for focal actor
+        focal_movie_set = set(focal_movie_ids)
+
+        # Build movie title lookup
+        all_relevant_ids = focal_movie_ids.copy()
+        # Also gather movie ids for collab-collab edges
+        collab_movie_ids = [
+            row.movie_id
+            for row in session.query(Cast.movie_id).filter(Cast.person_id.in_(collab_ids)).all()
+        ]
+        all_relevant_ids = list(set(all_relevant_ids + collab_movie_ids))
+
+        movies_lookup = {
+            m.id: m.title
+            for m in session.query(Movie.id, Movie.title)
+            .filter(Movie.id.in_(all_relevant_ids))
+            .all()
+        }
+
+        # Build per-person movie_id sets for shared title resolution
+        person_movie_sets = {}
+        for row in (
+            session.query(Cast.person_id, Cast.movie_id)
+            .filter(Cast.person_id.in_(collab_ids + [actor_id]))
+            .all()
+        ):
+            person_movie_sets.setdefault(row.person_id, set()).add(row.movie_id)
+
+        nodes = [
+            {
+                "id": actor.id,
+                "name": actor.name,
+                "profile_path": actor.profile_path,
+                "shared_movies": 0,
+                "focal": True,
+            }
+        ]
+        for r in collaborators_raw:
+            nodes.append(
+                {
+                    "id": r.id,
+                    "name": r.name,
+                    "profile_path": r.profile_path,
+                    "shared_movies": r.shared_movies,
+                    "focal": False,
+                }
+            )
+
+        # Focal-actor → collaborator edges with movie titles
+        links = []
+        for r in collaborators_raw:
+            shared_ids = focal_movie_set & person_movie_sets.get(r.id, set())
+            links.append(
+                {
+                    "source": actor.id,
+                    "target": r.id,
+                    "value": r.shared_movies,
+                    "movies": [movies_lookup[mid] for mid in shared_ids if mid in movies_lookup],
+                }
+            )
+
+        # Collaborator → collaborator edges with movie titles
+        for edge in collab_edges_raw:
+            shared_ids = person_movie_sets.get(edge.actor_a, set()) & person_movie_sets.get(
+                edge.actor_b, set()
+            )
+            links.append(
+                {
+                    "source": edge.actor_a,
+                    "target": edge.actor_b,
+                    "value": edge.shared,
+                    "movies": [movies_lookup[mid] for mid in shared_ids if mid in movies_lookup],
+                }
+            )
+
+        graph_data = {"nodes": nodes, "links": links}
+
+        return render_template(
+            "actor_network.html",
+            actor=actor,
+            graph_data=graph_data,
+            collaborator_count=len(collaborators_raw),
+            current_user=user,
+            config=Config,
+        )
+    finally:
+        session.close()
+
+
+# ==========================================
+# ADVANCED SEARCH ROUTE
+# ==========================================
+
+
+@app.route("/advanced-search")
+def advanced_search():
+    """Advanced multi-filter search — combines text query with genre, year,
+    decade, rating range, and runtime range in a single unified UI."""
+    session = get_db_session()
+    try:
+        user = get_current_user(session)
+
+        # Pull every filter param
+        q = request.args.get("q", "").strip()
+        genre_id = request.args.get("genre", type=int)
+        decade = request.args.get("decade", type=int)
+        year = request.args.get("year", type=int)
+        rating_min = request.args.get("rating_min", type=float)
+        rating_max = request.args.get("rating_max", type=float)
+        runtime_min = request.args.get("runtime_min", type=int)
+        runtime_max = request.args.get("runtime_max", type=int)
+        min_votes = request.args.get("min_votes", type=int)
+        sort_by = request.args.get("sort", default="relevance")
+        page = request.args.get("page", default=1, type=int)
+        per_page = 24
+
+        # Only run the query when at least one filter is present
+        has_filters = any(
+            [
+                q,
+                genre_id,
+                decade,
+                year,
+                rating_min is not None,
+                rating_max is not None,
+                runtime_min is not None,
+                runtime_max is not None,
+                min_votes is not None,
+            ]
+        )
+
+        movies_list = []
+        total = 0
+        total_pages = 0
+
+        if has_filters:
+            query = session.query(Movie)
+
+            # Text search across title and overview
+            if q:
+                query = query.filter(
+                    (Movie.title.ilike(f"%{q}%")) | (Movie.overview.ilike(f"%{q}%"))
+                )
+
+            # Genre
+            if genre_id:
+                query = query.join(Movie.genres).filter(Genre.id == genre_id)
+
+            # Decade takes precedence over single year when both are set
+            if decade:
+                query = query.filter(
+                    extract("year", Movie.release_date) >= decade,
+                    extract("year", Movie.release_date) <= decade + 9,
+                )
+            elif year:
+                query = query.filter(extract("year", Movie.release_date) == year)
+
+            # Rating range
+            if rating_min is not None:
+                query = query.filter(Movie.vote_average >= rating_min)
+            if rating_max is not None:
+                query = query.filter(Movie.vote_average <= rating_max)
+
+            # Runtime range
+            if runtime_min is not None:
+                query = query.filter(Movie.runtime >= runtime_min)
+            if runtime_max is not None:
+                query = query.filter(Movie.runtime <= runtime_max)
+
+            # Minimum vote count
+            if min_votes is not None:
+                query = query.filter(Movie.vote_count >= min_votes)
+
+            # Sorting
+            if sort_by == "rating":
+                query = query.order_by(desc(Movie.vote_average))
+            elif sort_by == "release_date":
+                query = query.filter(Movie.release_date.isnot(None)).order_by(
+                    desc(Movie.release_date)
+                )
+            elif sort_by == "title":
+                query = query.order_by(Movie.title)
+            elif sort_by == "runtime":
+                query = query.filter(Movie.runtime.isnot(None)).order_by(Movie.runtime)
+            else:  # relevance / popularity default
+                query = query.order_by(desc(Movie.popularity))
+
+            total = query.count()
+            total_pages = (total + per_page - 1) // per_page
+            movies_list = query.limit(per_page).offset((page - 1) * per_page).all()
+
+        # Sidebar data
+        all_genres = session.query(Genre).order_by(Genre.name).all()
+        current_year = datetime.now().year
+        available_decades = list(range(1920, current_year + 1, 10))
+
+        return render_template(
+            "advanced_search.html",
+            movies=movies_list,
+            total=total,
+            total_pages=total_pages,
+            page=page,
+            per_page=per_page,
+            has_filters=has_filters,
+            genres=all_genres,
+            available_decades=available_decades,
+            # echo back every param so the form re-populates
+            q=q,
+            selected_genre=genre_id,
+            selected_decade=decade,
+            selected_year=year,
+            selected_rating_min=rating_min,
+            selected_rating_max=rating_max,
+            selected_runtime_min=runtime_min,
+            selected_runtime_max=runtime_max,
+            selected_min_votes=min_votes,
+            selected_sort=sort_by,
             current_user=user,
             config=Config,
         )

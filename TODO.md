@@ -2,11 +2,11 @@
 
 ## 🎯 Current Sprint (Next 2 Weeks)
 
-- [ ] **Image optimization** (3h) - Serve WebP format posters for faster load times
-- [ ] **Advanced multi-filter search** (4h) - Combine genre, year, rating, runtime in a single unified search UI
-- [ ] **Actor collaboration network** (6h) - Graph of actors who've appeared together, showcasing complex SQL joins
-- [ ] **Streaming availability** (4h) - Show where to watch each movie (Netflix, Hulu, etc.) via TMDB watch providers API
-- [ ] **Pagination on collections** (2h) - Add pagination to collection detail pages
+- [x] **Image optimization** (3h) - Responsive srcset on all poster grids (w185/w342/w500); Jinja2 macro for reuse
+- [x] **Advanced multi-filter search** (4h) - Dedicated /advanced-search page; sticky sidebar with genre, decade/year, rating range, runtime range, min votes, sort; active filter pills; quick-search presets; responsive grid results
+- [x] **Actor collaboration network** (6h) - D3.js force-directed graph at /actor/<id>/network; nodes are actor photos, edges weighted by shared films, hover reveals movie titles, click navigates to actor profile
+- [x] **Streaming availability** (4h) - Where to Watch card on movie detail page; streams/rent/buy sections with provider logos; US region via TMDB/JustWatch; hidden when no data
+- [x] **Pagination on collections** (2h) - 24 movies per page; showing X-Y of Z counter; pagination controls hidden for small collections
 - [ ] **Architecture diagram** (2h) - Visual diagram of the full stack: browser, Flask, SQLAlchemy, PostgreSQL, Redis, Railway, GitHub Actions, TMDB API
 - [ ] **Redis add-on** - Add Railway Redis service; swap SimpleCache for RedisCache in production
 - [ ] **TMDB sync automation** - GitHub Actions cron job to keep Railway DB current

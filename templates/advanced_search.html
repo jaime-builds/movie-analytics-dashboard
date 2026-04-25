@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+{% from "macros.html" import poster_img %}
+
+{% block title %}Advanced Search - Movie Analytics Dashboard{% endblock %}
+
+{% block content %}
+
+<!-- ===================== PAGE HEADER ===================== -->
+<div class="as-header mb-4">
+    <div class="as-header-inner">
+        <div>
+            <h1 class="as-title">
+                <i class="bi bi-sliders me-2"></i>Advanced Search
+            </h1>
+            <p class="as-subtitle">Combine title, genre, era, rating, and runtime to find exactly the film you're after.</p>
+        </div>
+        {% if has_filters and total > 0 %}
+        <div class="as-result-badge">
+            <span class="as-result-count">{{ total }}</span>
+            <span class="as-result-label">result{{ 's' if total != 1 }}</span>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ===================== LAYOUT ===================== -->
+<div class="as-layout">
+
+    <!-- ---- FILTER PANEL ---- -->
+    <aside class="as-sidebar">
+        <form method="get" action="{{ url_for('advanced_search') }}" id="as-form">
+
+            <!-- Text search -->
+            <div class="as-filter-group">
+                <label class="as-filter-label" for="as-q">
+                    <i class="bi bi-search me-1"></i>Keywords
+                </label>
+                <div class="as-search-input-wrap">
+                    <input type="text"
+                           id="as-q"
+                           name="q"
+                           class="form-control as-search-input"
+                           placeholder="Title or description..."
+                           value="{{ q or '' }}"
+                           autocomplete="off">
+                    {% if q %}
+                    <button type="button" class="as-clear-input" onclick="clearField('as-q')" title="Clear">
+                        <i class="bi bi-x"></i>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Genre -->
+            <div class="as-filter-group">
+                <label class="as-filter-label" for="as-genre">
+                    <i class="bi bi-tag me-1"></i>Genre
+                </label>
+                <select name="genre" id="as-genre" class="form-select as-select">
+                    <option value="">Any genre</option>
+                    {% for genre in genres %}
+                    <option value="{{ genre.id }}" {% if selected_genre == genre.id %}selected{% endif %}>
+                        {{ genre.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Era: Decade OR Year -->
+            <div class="as-filter-group">
+                <label class="as-filter-label">
+                    <i class="bi bi-calendar3 me-1"></i>Era
+                </label>
+                <select name="decade" id="as-decade" class="form-select as-select mb-2">
+                    <option value="">Any decade</option>
+                    {% for d in available_decades %}
+                    <option value="{{ d }}" {% if selected_decade == d %}selected{% endif %}>{{ d }}s</option>
+                    {% endfor %}
+                </select>
+                <div class="as-or-divider">or exact year</div>
+                <input type="number"
+                       name="year"
+                       id="as-year"
+                       class="form-control as-input"
+                       placeholder="e.g. 1994"
+                       min="1900" max="2030"
+                       value="{{ selected_year or '' }}">
+            </div>
+
+            <!-- Rating range -->
+            <div class="as-filter-group">
+                <label class="as-filter-label">
+                    <i class="bi bi-star-half me-1"></i>Rating
+                </label>
+                <div class="as-range-row">
+                    <input type="number"
+                           name="rating_min"
+                           id="as-rating-min"
+                           class="form-control as-input"
+                           placeholder="Min (0)"
+                           min="0" max="10" step="0.1"
+                           value="{{ selected_rating_min or '' }}">
+                    <span class="as-range-sep">to</span>
+                    <input type="number"
+                           name="rating_max"
+                           id="as-rating-max"
+                           class="form-control as-input"
+                           placeholder="Max (10)"
+                           min="0" max="10" step="0.1"
+                           value="{{ selected_rating_max or '' }}">
+                </div>
+            </div>
+
+            <!-- Runtime range -->
+            <div class="as-filter-group">
+                <label class="as-filter-label">
+                    <i class="bi bi-clock me-1"></i>Runtime (minutes)
+                </label>
+                <div class="as-range-row">
+                    <input type="number"
+                           name="runtime_min"
+                           id="as-runtime-min"
+                           class="form-control as-input"
+                           placeholder="Min"
+                           min="0"
+                           value="{{ selected_runtime_min or '' }}">
+                    <span class="as-range-sep">to</span>
+                    <input type="number"
+                           name="runtime_max"
+                           id="as-runtime-max"
+                           class="form-control as-input"
+                           placeholder="Max"
+                           min="0"
+                           value="{{ selected_runtime_max or '' }}">
+                </div>
+            </div>
+
+            <!-- Min votes -->
+            <div class="as-filter-group">
+                <label class="as-filter-label" for="as-min-votes">
+                    <i class="bi bi-people me-1"></i>Min. Votes
+                </label>
+                <input type="number"
+                       name="min_votes"
+                       id="as-min-votes"
+                       class="form-control as-input"
+                       placeholder="e.g. 100"
+                       min="0"
+                       value="{{ selected_min_votes or '' }}">
+                <small class="as-hint">Filters out obscure titles with few ratings</small>
+            </div>
+
+            <!-- Sort -->
+            <div class="as-filter-group">
+                <label class="as-filter-label" for="as-sort">
+                    <i class="bi bi-sort-down me-1"></i>Sort by
+                </label>
+                <select name="sort" id="as-sort" class="form-select as-select">
+                    <option value="relevance" {% if selected_sort == 'relevance' %}selected{% endif %}>Popularity</option>
+                    <option value="rating"    {% if selected_sort == 'rating'    %}selected{% endif %}>Highest Rated</option>
+                    <option value="release_date" {% if selected_sort == 'release_date' %}selected{% endif %}>Newest First</option>
+                    <option value="title"     {% if selected_sort == 'title'     %}selected{% endif %}>Title A–Z</option>
+                    <option value="runtime"   {% if selected_sort == 'runtime'   %}selected{% endif %}>Shortest Runtime</option>
+                </select>
+            </div>
+
+            <!-- Actions -->
+            <div class="as-filter-actions">
+                <button type="submit" class="btn btn-primary as-search-btn">
+                    <i class="bi bi-search me-1"></i>Search
+                </button>
+                <a href="{{ url_for('advanced_search') }}" class="btn btn-outline-secondary as-reset-btn">
+                    <i class="bi bi-x-circle me-1"></i>Reset
+                </a>
+            </div>
+
+            <!-- Active filter pills -->
+            {% if has_filters %}
+            <div class="as-active-filters mt-3">
+                {% if q %}<span class="as-pill">{{ q }} <a href="{{ url_for('advanced_search', genre=selected_genre, decade=selected_decade, year=selected_year, rating_min=selected_rating_min, rating_max=selected_rating_max, runtime_min=selected_runtime_min, runtime_max=selected_runtime_max, min_votes=selected_min_votes, sort=selected_sort) }}" class="as-pill-remove">×</a></span>{% endif %}
+                {% if selected_genre %}{% for g in genres %}{% if g.id == selected_genre %}<span class="as-pill">{{ g.name }} <a href="{{ url_for('advanced_search', q=q, decade=selected_decade, year=selected_year, rating_min=selected_rating_min, rating_max=selected_rating_max, runtime_min=selected_runtime_min, runtime_max=selected_runtime_max, min_votes=selected_min_votes, sort=selected_sort) }}" class="as-pill-remove">×</a></span>{% endif %}{% endfor %}{% endif %}
+                {% if selected_decade %}<span class="as-pill">{{ selected_decade }}s <a href="{{ url_for('advanced_search', q=q, genre=selected_genre, year=selected_year, rating_min=selected_rating_min, rating_max=selected_rating_max, runtime_min=selected_runtime_min, runtime_max=selected_runtime_max, min_votes=selected_min_votes, sort=selected_sort) }}" class="as-pill-remove">×</a></span>{% endif %}
+                {% if selected_year %}<span class="as-pill">{{ selected_year }} <a href="{{ url_for('advanced_search', q=q, genre=selected_genre, decade=selected_decade, rating_min=selected_rating_min, rating_max=selected_rating_max, runtime_min=selected_runtime_min, runtime_max=selected_runtime_max, min_votes=selected_min_votes, sort=selected_sort) }}" class="as-pill-remove">×</a></span>{% endif %}
+                {% if selected_rating_min is not none or selected_rating_max is not none %}<span class="as-pill">Rating {{ selected_rating_min or '0' }}–{{ selected_rating_max or '10' }} <a href="{{ url_for('advanced_search', q=q, genre=selected_genre, decade=selected_decade, year=selected_year, runtime_min=selected_runtime_min, runtime_max=selected_runtime_max, min_votes=selected_min_votes, sort=selected_sort) }}" class="as-pill-remove">×</a></span>{% endif %}
+                {% if selected_runtime_min is not none or selected_runtime_max is not none %}<span class="as-pill">Runtime {{ selected_runtime_min or '0' }}–{{ selected_runtime_max or '∞' }}m <a href="{{ url_for('advanced_search', q=q, genre=selected_genre, decade=selected_decade, year=selected_year, rating_min=selected_rating_min, rating_max=selected_rating_max, min_votes=selected_min_votes, sort=selected_sort) }}" class="as-pill-remove">×</a></span>{% endif %}
+                {% if selected_min_votes is not none %}<span class="as-pill">{{ selected_min_votes }}+ votes <a href="{{ url_for('advanced_search', q=q, genre=selected_genre, decade=selected_decade, year=selected_year, rating_min=selected_rating_min, rating_max=selected_rating_max, runtime_min=selected_runtime_min, runtime_max=selected_runtime_max, sort=selected_sort) }}" class="as-pill-remove">×</a></span>{% endif %}
+            </div>
+            {% endif %}
+
+        </form>
+    </aside>
+
+    <!-- ---- RESULTS PANEL ---- -->
+    <section class="as-results">
+
+        {% if not has_filters %}
+        <!-- Empty state: prompt -->
+        <div class="as-empty-state">
+            <i class="bi bi-film as-empty-icon"></i>
+            <h3>Find your next film</h3>
+            <p>Use the filters on the left to search by title, genre, era, rating, or runtime. You can mix and match as many as you like.</p>
+            <div class="as-quick-searches">
+                <span class="as-qs-label">Quick searches:</span>
+                <a href="{{ url_for('advanced_search', rating_min=8, min_votes=500) }}" class="as-qs-btn">Highly rated</a>
+                <a href="{{ url_for('advanced_search', decade=1990) }}" class="as-qs-btn">90s classics</a>
+                <a href="{{ url_for('advanced_search', runtime_max=90, rating_min=7) }}" class="as-qs-btn">Under 90 min</a>
+                <a href="{{ url_for('advanced_search', decade=2020, sort='release_date') }}" class="as-qs-btn">Recent releases</a>
+            </div>
+        </div>
+
+        {% elif total == 0 %}
+        <!-- No results -->
+        <div class="as-empty-state">
+            <i class="bi bi-search as-empty-icon"></i>
+            <h3>No results</h3>
+            <p>Try widening your filters — fewer criteria tend to return more matches.</p>
+            <a href="{{ url_for('advanced_search') }}" class="btn btn-outline-primary mt-2">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>Reset all filters
+            </a>
+        </div>
+
+        {% else %}
+        <!-- Results grid -->
+        <div class="as-results-meta mb-3">
+            <span class="as-results-count">{{ (page - 1) * per_page + 1 }}–{{ [(page * per_page), total] | min }} of {{ total }} result{{ 's' if total != 1 }}</span>
+            <span class="as-results-page">Page {{ page }} of {{ total_pages }}</span>
+        </div>
+
+        <div class="row g-3 as-grid">
+            {% for movie in movies %}
+            <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 col-6">
+                <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+                    <div class="card movie-card h-100 as-movie-card">
+                        {{ poster_img(movie, config) }}
+                        <div class="card-body p-2">
+                            <h6 class="card-title small mb-1">{{ movie.title }}</h6>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    {% if movie.release_date %}{{ movie.release_date.year }}{% endif %}
+                                    {% if movie.runtime %}&middot; {{ movie.runtime }}m{% endif %}
+                                </small>
+                                <span class="badge bg-warning text-dark">
+                                    <i class="bi bi-star-fill"></i> {{ "%.1f"|format(movie.vote_average) }}
+                                </span>
+                            </div>
+                            {% if movie.genres %}
+                            <div class="as-genre-tags mt-1">
+                                {% for g in movie.genres[:2] %}
+                                <span class="as-genre-tag">{{ g.name }}</span>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if total_pages > 1 %}
+        <nav class="mt-4" aria-label="Search results pagination">
+            <ul class="pagination justify-content-center flex-wrap">
+
+                <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('advanced_search', q=q, genre=selected_genre, decade=selected_decade, year=selected_year, rating_min=selected_rating_min, rating_max=selected_rating_max, runtime_min=selected_runtime_min, runtime_max=selected_runtime_max, min_votes=selected_min_votes, sort=selected_sort, page=page-1) }}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+
+                {% for p in range(1, total_pages + 1) %}
+                    {% if p == page %}
+                        <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                    {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('advanced_search', q=q, genre=selected_genre, decade=selected_decade, year=selected_year, rating_min=selected_rating_min, rating_max=selected_rating_max, runtime_min=selected_runtime_min, runtime_max=selected_runtime_max, min_votes=selected_min_votes, sort=selected_sort, page=p) }}">{{ p }}</a>
+                        </li>
+                    {% elif p == page - 3 or p == page + 3 %}
+                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                    {% endif %}
+                {% endfor %}
+
+                <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('advanced_search', q=q, genre=selected_genre, decade=selected_decade, year=selected_year, rating_min=selected_rating_min, rating_max=selected_rating_max, runtime_min=selected_runtime_min, runtime_max=selected_runtime_max, min_votes=selected_min_votes, sort=selected_sort, page=page+1) }}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+
+            </ul>
+        </nav>
+        {% endif %}
+
+        {% endif %}
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function clearField(id) {
+    document.getElementById(id).value = '';
+    document.getElementById('as-form').submit();
+}
+
+// Auto-clear year when decade selected and vice versa
+document.getElementById('as-decade').addEventListener('change', function () {
+    if (this.value) document.getElementById('as-year').value = '';
+});
+document.getElementById('as-year').addEventListener('input', function () {
+    if (this.value) document.getElementById('as-decade').value = '';
+});
+</script>
+{% endblock %}
