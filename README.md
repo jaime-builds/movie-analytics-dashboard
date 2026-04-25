@@ -50,8 +50,10 @@ This isn't just another movie app. It's a **portfolio-grade full-stack applicati
 | 🗓️ **Decade Overview** | Curated pages per decade with defining films, top rated, genre breakdown |
 | 🗂️ **Movie Collections** | Create and manage named lists of your favorite movies |
 | 📊 **Analytics Dashboard** | Interactive Chart.js visualizations including budget/revenue scatter and profitability charts |
-| 🔄 **Auto-Sync** | Automated daily updates from TMDB (10,000+ movies) |
-| 🎭 **Actor Profiles** | Top actors with photos and filmography |
+| 🔄 **Auto-Sync** | Weekly GitHub Actions cron job syncing 5,000 movies from TMDB |
+| 🎭 **Actor Profiles** | Top actors with photos, filmography, and collaboration network |
+| 🕸️ **Collaboration Network** | D3.js force graph showing actor connections weighted by shared films |
+| 🎞️ **Common Films** | Find movies shared by any combination of up to 5 actors |
 | 💎 **Hidden Gems** | Smart algorithm discovers underrated films |
 | 🌙 **Dark Mode** | Full theme support with localStorage |
 | 📱 **Mobile Responsive** | Optimized layouts for all screen sizes |
@@ -59,8 +61,10 @@ This isn't just another movie app. It's a **portfolio-grade full-stack applicati
 | 👤 **User Profile** | Activity dashboard with ratings, reviews, favorites, watchlist, and collections |
 | ⚡ **Infinite Scroll** | Seamless movie browsing without pagination |
 | 🔍 **Search Autocomplete** | Live dropdown with poster thumbnails and keyboard navigation |
+| 🔎 **Advanced Search** | Combine title, genre, era, rating, and runtime filters in one unified UI |
 | ⚖️ **Movie Comparison** | Select up to 4 movies for side-by-side stats and visual charts |
-| 🚀 **Query Caching** | Flask-Caching on analytics and genre routes for faster responses |
+| 📺 **Streaming Availability** | Where to Watch card showing stream/rent/buy options via TMDB/JustWatch |
+| 🚀 **Query Caching** | Redis-backed Flask-Caching on analytics and genre routes |
 | 🎛️ **Advanced Filters** | Min vote count and status filters with collapsible panel |
 | 🏠 **Home Page Hero** | Two-column hero with live stats bar, jaime-builds branding, and feature shortcut cards |
 | 📤 **CSV Export** | Download full analytics data as a CSV file |
@@ -215,7 +219,7 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 
 - Python 3.11+ with Flask
 - SQLAlchemy ORM
-- Flask-Caching (SimpleCache) for query result caching
+- Flask-Caching (RedisCache in production, SimpleCache in dev)
 - Flask-Limiter for API rate limiting
 - Structured JSON logging with daily rotation (logs/app.log)
 - Werkzeug password hashing
@@ -226,6 +230,7 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 
 - Bootstrap 5 (responsive design)
 - Chart.js (data visualization)
+- D3.js (actor collaboration network force graph)
 - Vanilla JavaScript (DOM manipulation, infinite scroll, toast notifications)
 - Jinja2 templating
 - Native lazy loading (`loading="lazy"`)
@@ -233,17 +238,19 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 **Database**
 
 - SQLite (development)
-- PostgreSQL-ready (production)
-- Normalized schema with 14 tables
+- PostgreSQL (production via Railway)
+- Normalized schema with 15 tables
 - Many-to-many relationships
 - Compound indexes
+- Alembic migrations
 
 **DevOps**
 
 - Docker (Dockerfile + docker-compose with volume mounts and health check)
-- Automated TMDB sync (daily)
+- Redis (Railway add-on — caching + rate limiter storage)
+- Weekly TMDB sync via GitHub Actions cron
 - Structured JSON logging
-- GitHub Actions CI/CD
+- GitHub Actions CI/CD (tests, lint, security — 4 Python versions)
 - Environment-based config
 
 ## 📊 Project Stats
@@ -253,9 +260,9 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 - **1,000+** actors with profiles
 - **87%** test coverage with 339 tests passing
 - **15** database tables with optimized indexes
-- **35+** Flask routes
-- **13** RESTful API endpoints
-- **28+** Jinja2 templates
+- **37+** Flask routes
+- **14** RESTful API endpoints
+- **29+** Jinja2 templates
 
 ## 🎓 Skills Demonstrated
 
@@ -299,6 +306,9 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 ✅ Production deployment (Railway)
 ✅ PostgreSQL in production
 ✅ Database migrations (Alembic)
+✅ Redis caching + rate limiting in production
+✅ D3.js interactive data visualization
+✅ GitHub Actions cron job automation
 
 ## 📚 Detailed Documentation
 
@@ -606,6 +616,8 @@ See [TODO.md](TODO.md) for the complete roadmap.
 
 ### Recently Shipped
 
+- [x] **Redis** - Railway Redis add-on; production app now uses RedisCache + Redis rate limiter storage
+- [x] **Common Films** - `/common-films`; find movies shared by up to 5 actors with smart autocomplete
 - [x] **Responsive image optimization** - srcset on all poster grids (w185/w342/w500); Jinja2 macro for reuse
 - [x] **Advanced search** - Dedicated `/advanced-search` with genre, era, rating, runtime filters; active filter pills
 - [x] **Actor collaboration network** - D3.js force graph at `/actor/<id>/network`; photo nodes, weighted edges, shared film tooltips
