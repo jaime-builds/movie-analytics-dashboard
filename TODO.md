@@ -9,6 +9,7 @@
 - [ ] **Public collections** (3h) - Toggle to make user collections public; browseable by other users
 - [ ] **Movie of the day** (1h) - Featured movie on the homepage, refreshes daily
 - [ ] **Box office by genre** (2h) - Aggregation chart on analytics page showing total revenue per genre
+- [ ] **TMDB data dump sync** (2h) - Replace popular movies pagination with daily TMDB export file; removes 10,000 movie ceiling, faster ID collection, better movie selection by popularity
 - [ ] **Breadcrumb navigation** (1h) - Breadcrumbs on detail pages (movie, actor, director, studio, decade, collection)
 
 ## 🚀 Next Up (This Month)
