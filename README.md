@@ -225,7 +225,6 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 - Flask-WTF (CSRF protection)
 - Structured JSON logging with daily rotation (logs/app.log)
 - Werkzeug password hashing
-- Schedule for automation
 - pytest for testing
 
 **Frontend**
@@ -294,7 +293,7 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 ✅ Error handling & logging
 ✅ Virtual environments
 ✅ Automated testing (unittest/pytest)
-✅ Background job scheduling
+✅ Environment-aware configuration & fail-fast production validation
 
 ### DevOps & Tools
 
