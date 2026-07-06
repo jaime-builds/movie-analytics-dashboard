@@ -71,7 +71,7 @@ jobs:
 
     - name: Install linting tools
       run: |
-        pip install flake8 black isort
+        pip install flake8 black==23.12.1 isort==5.13.2
 
     - name: Lint with flake8
       run: |
