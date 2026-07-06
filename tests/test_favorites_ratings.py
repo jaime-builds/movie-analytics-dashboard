@@ -137,7 +137,7 @@ class TestAuthentication:
     def test_logout(self, client, db_session):
         _make_user(db_session)
         _login(client)
-        response = client.get("/logout", follow_redirects=True)
+        response = client.post("/logout", follow_redirects=True)
         assert response.status_code == 200
         with client.session_transaction() as sess:
             assert "user_id" not in sess
@@ -173,10 +173,11 @@ class TestFavorites:
     def test_add_favorite_already_exists(self, client, db_session):
         user = _make_user(db_session, username="fav_user2")
         movie = _make_movie(db_session, tmdb_id=888810002)
+        movie_id = movie.id
         with client.session_transaction() as sess:
             sess["user_id"] = user.id
-        client.post(f"/movie/{movie.id}/favorite")
-        response = client.post(f"/movie/{movie.id}/favorite")
+        client.post(f"/movie/{movie_id}/favorite")
+        response = client.post(f"/movie/{movie_id}/favorite")
         assert response.status_code == 200
         assert response.get_json()["status"] == "already_added"
 
@@ -195,10 +196,11 @@ class TestFavorites:
     def test_remove_favorite_success(self, client, db_session):
         user = _make_user(db_session, username="fav_user5")
         movie = _make_movie(db_session, tmdb_id=888810005)
+        movie_id = movie.id
         with client.session_transaction() as sess:
             sess["user_id"] = user.id
-        client.post(f"/movie/{movie.id}/favorite")
-        response = client.post(f"/movie/{movie.id}/unfavorite")
+        client.post(f"/movie/{movie_id}/favorite")
+        response = client.post(f"/movie/{movie_id}/unfavorite")
         assert response.status_code == 200
         assert response.get_json()["status"] == "removed"
 
@@ -246,20 +248,22 @@ class TestWatchlist:
     def test_add_watchlist_already_exists(self, client, db_session):
         user = _make_user(db_session, username="watch_user2")
         movie = _make_movie(db_session, tmdb_id=888820002)
+        movie_id = movie.id
         with client.session_transaction() as sess:
             sess["user_id"] = user.id
-        client.post(f"/movie/{movie.id}/watchlist")
-        response = client.post(f"/movie/{movie.id}/watchlist")
+        client.post(f"/movie/{movie_id}/watchlist")
+        response = client.post(f"/movie/{movie_id}/watchlist")
         assert response.status_code == 200
         assert response.get_json()["status"] == "already_added"
 
     def test_remove_watchlist_success(self, client, db_session):
         user = _make_user(db_session, username="watch_user3")
         movie = _make_movie(db_session, tmdb_id=888820003)
+        movie_id = movie.id
         with client.session_transaction() as sess:
             sess["user_id"] = user.id
-        client.post(f"/movie/{movie.id}/watchlist")
-        response = client.post(f"/movie/{movie.id}/unwatchlist")
+        client.post(f"/movie/{movie_id}/watchlist")
+        response = client.post(f"/movie/{movie_id}/unwatchlist")
         assert response.status_code == 200
         assert response.get_json()["status"] == "removed"
 
@@ -303,10 +307,11 @@ class TestRatingsAndReviews:
     def test_update_rating(self, client, db_session):
         user = _make_user(db_session, username="rate_user3")
         movie = _make_movie(db_session, tmdb_id=888830003)
+        movie_id = movie.id
         with client.session_transaction() as sess:
             sess["user_id"] = user.id
-        client.post(f"/movie/{movie.id}/rate", data={"rating": 3})
-        response = client.post(f"/movie/{movie.id}/rate", data={"rating": 5})
+        client.post(f"/movie/{movie_id}/rate", data={"rating": 3})
+        response = client.post(f"/movie/{movie_id}/rate", data={"rating": 5})
         assert response.status_code == 200
         assert response.get_json()["rating"] == 5
 

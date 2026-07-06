@@ -22,6 +22,10 @@ def _csrf_meta_token_from_response(response):
     return match.group(1).decode()
 
 
+def _select_statements(statements):
+    return [s.lower() for s in statements if s.lstrip().lower().startswith("select")]
+
+
 class TestUserModel:
     """Tests for User model"""
 
@@ -314,6 +318,25 @@ class TestFavoritesFeature:
         movie = db_session.query(Movie).filter_by(id=movie_id).first()
         assert movie in user.favorites.all()
 
+    def test_duplicate_favorite_uses_exists_membership_query(
+        self, client, logged_in_user, sample_movies, db_session, capture_sql
+    ):
+        user_id = logged_in_user.id
+        movie_id = sample_movies[0].id
+        user = db_session.query(User).filter_by(id=user_id).first()
+        for movie in sample_movies:
+            user.favorites.append(movie)
+        db_session.commit()
+
+        with capture_sql() as statements:
+            response = client.post(f"/movie/{movie_id}/favorite")
+
+        assert response.status_code == 200
+        assert response.get_json()["status"] == "already_added"
+        selects = _select_statements(statements)
+        assert len(selects) <= 3
+        assert any("exists" in statement and "user_favorites" in statement for statement in selects)
+
     def test_add_favorite_requires_login(self, client, sample_movie):
         """Test that adding favorite requires authentication"""
         response = client.post(f"/movie/{sample_movie.id}/favorite")
@@ -432,6 +455,25 @@ class TestWatchlistFeature:
         user = db_session.query(User).filter_by(id=user_id).first()
         movie = db_session.query(Movie).filter_by(id=movie_id).first()
         assert movie not in user.watchlist.all()
+
+    def test_remove_watchlist_uses_exists_membership_query(
+        self, client, logged_in_user, sample_movies, db_session, capture_sql
+    ):
+        user_id = logged_in_user.id
+        movie_id = sample_movies[0].id
+        user = db_session.query(User).filter_by(id=user_id).first()
+        for movie in sample_movies:
+            user.watchlist.append(movie)
+        db_session.commit()
+
+        with capture_sql() as statements:
+            response = client.post(f"/movie/{movie_id}/unwatchlist")
+
+        assert response.status_code == 200
+        assert response.get_json()["status"] == "removed"
+        selects = _select_statements(statements)
+        assert len(selects) <= 3
+        assert any("exists" in statement and "user_watchlist" in statement for statement in selects)
 
     def test_watchlist_nonexistent_movie(self, client, logged_in_user):
         """Test adding a non-existent movie to watchlist"""

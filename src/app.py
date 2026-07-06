@@ -13,7 +13,7 @@ from flask_caching import Cache
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFError, CSRFProtect
-from sqlalchemy import Integer, and_, desc, extract, func, select
+from sqlalchemy import Integer, and_, desc, exists, extract, func, select
 from werkzeug.exceptions import HTTPException
 
 from config.config import Config
@@ -32,6 +32,8 @@ from src.models import (
     User,
     collection_movies_table,
     movie_genres_table,
+    user_favorites_table,
+    user_watchlist_table,
 )
 from src.tmdb_api import TMDBClient
 
@@ -85,6 +87,38 @@ if _redis_url:
 def get_db_session():
     """Get a new database session"""
     return Session()
+
+
+def _association_filters(table, **column_values):
+    return [table.c[column] == value for column, value in column_values.items()]
+
+
+def _association_exists(session_db, table, **column_values):
+    return bool(
+        session_db.query(exists().where(*_association_filters(table, **column_values))).scalar()
+    )
+
+
+def _association_count(session_db, table, **column_values):
+    return (
+        session_db.query(func.count())
+        .select_from(table)
+        .filter(*_association_filters(table, **column_values))
+        .scalar()
+        or 0
+    )
+
+
+def _collection_movies_page(session_db, collection_id, offset, limit):
+    return (
+        session_db.query(Movie)
+        .join(collection_movies_table, Movie.id == collection_movies_table.c.movie_id)
+        .filter(collection_movies_table.c.collection_id == collection_id)
+        .order_by(Movie.id)
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
 
 
 # ==========================================
@@ -527,9 +561,12 @@ def add_favorite(movie_id):
         if not movie:
             return jsonify({"error": "Movie not found"}), 404
 
-        # Check if already in favorites
-        if movie not in user.favorites.all():
-            user.favorites.append(movie)
+        if not _association_exists(
+            session_db, user_favorites_table, user_id=user.id, movie_id=movie.id
+        ):
+            session_db.execute(
+                user_favorites_table.insert().values(user_id=user.id, movie_id=movie.id)
+            )
             session_db.commit()
             return jsonify({"status": "added"})
 
@@ -550,8 +587,15 @@ def remove_favorite(movie_id):
         if not movie:
             return jsonify({"error": "Movie not found"}), 404
 
-        if movie in user.favorites.all():
-            user.favorites.remove(movie)
+        if _association_exists(
+            session_db, user_favorites_table, user_id=user.id, movie_id=movie.id
+        ):
+            session_db.execute(
+                user_favorites_table.delete().where(
+                    user_favorites_table.c.user_id == user.id,
+                    user_favorites_table.c.movie_id == movie.id,
+                )
+            )
             session_db.commit()
             return jsonify({"status": "removed"})
 
@@ -572,8 +616,12 @@ def add_watchlist(movie_id):
         if not movie:
             return jsonify({"error": "Movie not found"}), 404
 
-        if movie not in user.watchlist.all():
-            user.watchlist.append(movie)
+        if not _association_exists(
+            session_db, user_watchlist_table, user_id=user.id, movie_id=movie.id
+        ):
+            session_db.execute(
+                user_watchlist_table.insert().values(user_id=user.id, movie_id=movie.id)
+            )
             session_db.commit()
             return jsonify({"status": "added"})
 
@@ -594,8 +642,15 @@ def remove_watchlist(movie_id):
         if not movie:
             return jsonify({"error": "Movie not found"}), 404
 
-        if movie in user.watchlist.all():
-            user.watchlist.remove(movie)
+        if _association_exists(
+            session_db, user_watchlist_table, user_id=user.id, movie_id=movie.id
+        ):
+            session_db.execute(
+                user_watchlist_table.delete().where(
+                    user_watchlist_table.c.user_id == user.id,
+                    user_watchlist_table.c.movie_id == movie.id,
+                )
+            )
             session_db.commit()
             return jsonify({"status": "removed"})
 
@@ -2941,12 +2996,11 @@ def collection_detail(collection_id):
         # Paginate the movies in this collection
         page = _html_page_arg()
         per_page = 24
-        all_movies = collection.movies
-        total = len(all_movies)
+        total = _association_count(session_db, collection_movies_table, collection_id=collection.id)
         total_pages = (total + per_page - 1) // per_page if total else 1
         page = max(1, min(page, total_pages))
         offset = (page - 1) * per_page
-        paged_movies = all_movies[offset : offset + per_page]
+        paged_movies = _collection_movies_page(session_db, collection.id, offset, per_page)
 
         return render_template(
             "collection_detail.html",
@@ -3007,13 +3061,23 @@ def add_to_collection(collection_id, movie_id):
         if not movie:
             return jsonify({"error": "Movie not found"}), 404
 
-        if movie not in collection.movies:
-            collection.movies.append(movie)
+        if not _association_exists(
+            session_db, collection_movies_table, collection_id=collection.id, movie_id=movie.id
+        ):
+            session_db.execute(
+                collection_movies_table.insert().values(
+                    collection_id=collection.id, movie_id=movie.id
+                )
+            )
             collection.updated_at = datetime.utcnow()
+            count = _association_count(
+                session_db, collection_movies_table, collection_id=collection.id
+            )
             session_db.commit()
-            return jsonify({"status": "added", "count": len(collection.movies)})
+            return jsonify({"status": "added", "count": count})
 
-        return jsonify({"status": "already_added", "count": len(collection.movies)})
+        count = _association_count(session_db, collection_movies_table, collection_id=collection.id)
+        return jsonify({"status": "already_added", "count": count})
     finally:
         session_db.close()
 
@@ -3037,11 +3101,21 @@ def remove_from_collection(collection_id, movie_id):
         if not movie:
             return jsonify({"error": "Movie not found"}), 404
 
-        if movie in collection.movies:
-            collection.movies.remove(movie)
+        if _association_exists(
+            session_db, collection_movies_table, collection_id=collection.id, movie_id=movie.id
+        ):
+            session_db.execute(
+                collection_movies_table.delete().where(
+                    collection_movies_table.c.collection_id == collection.id,
+                    collection_movies_table.c.movie_id == movie.id,
+                )
+            )
             collection.updated_at = datetime.utcnow()
+            count = _association_count(
+                session_db, collection_movies_table, collection_id=collection.id
+            )
             session_db.commit()
-            return jsonify({"status": "removed", "count": len(collection.movies)})
+            return jsonify({"status": "removed", "count": count})
 
         return jsonify({"status": "not_found"})
     finally:
@@ -3059,8 +3133,24 @@ def api_get_collections():
             return jsonify({"error": "Unauthorized"}), 401
 
         user_collections = (
-            session_db.query(Collection)
-            .filter_by(user_id=user.id)
+            session_db.query(
+                Collection.id,
+                Collection.name,
+                Collection.description,
+                Collection.updated_at,
+                func.count(collection_movies_table.c.movie_id).label("movie_count"),
+            )
+            .outerjoin(
+                collection_movies_table,
+                Collection.id == collection_movies_table.c.collection_id,
+            )
+            .filter(Collection.user_id == user.id)
+            .group_by(
+                Collection.id,
+                Collection.name,
+                Collection.description,
+                Collection.updated_at,
+            )
             .order_by(desc(Collection.updated_at))
             .all()
         )
@@ -3072,7 +3162,7 @@ def api_get_collections():
                         "id": c.id,
                         "name": c.name,
                         "description": c.description,
-                        "movie_count": len(c.movies),
+                        "movie_count": c.movie_count,
                         "updated_at": (c.updated_at.isoformat() if c.updated_at else None),
                     }
                     for c in user_collections

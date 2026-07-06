@@ -16,6 +16,10 @@ from src.models import Collection, Movie, ProductionCompany, User
 # ============================================
 
 
+def _select_statements(statements):
+    return [s.lower() for s in statements if s.lstrip().lower().startswith("select")]
+
+
 @pytest.fixture
 def company_with_movies(db_session, sample_production_company):
     """Attach 3 movies to the sample production company so it appears on the listing."""
@@ -345,6 +349,27 @@ class TestCollectionDetailRoute:
         assert b"Test Movie 0" in response.data
         assert b"Test Movie 1" in response.data
 
+    def test_collection_detail_uses_query_level_count_and_pagination(
+        self, client, logged_in_user, sample_collection, sample_movies, db_session, capture_sql
+    ):
+        collection_id = sample_collection.id
+        for movie in sample_movies:
+            sample_collection.movies.append(movie)
+        db_session.commit()
+
+        with capture_sql() as statements:
+            response = client.get(f"/collection/{collection_id}?page=2")
+
+        assert response.status_code == 200
+        selects = _select_statements(statements)
+        assert any(
+            "count" in statement and "collection_movies" in statement for statement in selects
+        )
+        assert any(
+            "limit" in statement and "offset" in statement and "collection_movies" in statement
+            for statement in selects
+        )
+
     def test_collection_detail_404_wrong_user(self, client, db_session, sample_collection):
         """Another user cannot access someone else's collection."""
         other_user = User(username="otheruser")
@@ -489,6 +514,28 @@ class TestCollectionsAPI:
         response = client.get("/api/v1/collections")
         data = response.get_json()
         assert data["collections"][0]["movie_count"] == 2
+
+    def test_api_collections_counts_movies_without_per_collection_queries(
+        self, client, db_session, logged_in_user, sample_movies, capture_sql
+    ):
+        user_id = logged_in_user.id
+        for index in range(3):
+            collection = Collection(user_id=user_id, name=f"Counted Collection {index}")
+            collection.movies.extend(sample_movies[index : index + 2])
+            db_session.add(collection)
+        db_session.commit()
+
+        with capture_sql() as statements:
+            response = client.get("/api/v1/collections")
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert {c["movie_count"] for c in data["collections"]} == {2}
+        selects = _select_statements(statements)
+        assert len(selects) <= 3
+        assert any(
+            "count" in statement and "collection_movies" in statement for statement in selects
+        )
 
     def test_api_collections_only_returns_own_collections(
         self, client, db_session, logged_in_user, sample_collection

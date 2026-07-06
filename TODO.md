@@ -59,7 +59,7 @@
 
 ## ✅ Recently Completed (July 5, 2026)
 
-- [x] **Security audit + fixes (Rounds 1-4)** - CSRF protection (Flask-WTF), POST-only logout, Alembic as sole schema init path, analytics cache-leak fix, collection-name XSS fix, API pagination validation, rate limit on /api/v1/movies, query indexes, review uniqueness, deployment/doc drift cleanup, and low-risk correctness fixes. Full findings and status: docs/audits/app-audit-2026-07-05.md
+- [x] **Security audit + fixes (Rounds 1-5)** - CSRF protection (Flask-WTF), POST-only logout, Alembic as sole schema init path, analytics cache-leak fix, collection-name XSS fix, API pagination validation, rate limit on /api/v1/movies, query indexes, review uniqueness, deployment/doc drift cleanup, production config hardening, and relationship-query fixes. Full findings and status: docs/audits/app-audit-2026-07-05.md
 
 ## ✅ Recently Completed (April 25, 2026)
 
@@ -77,7 +77,7 @@
 <details>
 <summary>Earlier completions (click to expand)</summary>
 
-- [x] **Test suite unified** - Main pytest suite unified; legacy `tests/test_favorites_ratings.py` remains ignored pending cleanup (Apr 24)
+- [x] **Test suite unified** - Main pytest suite unified; legacy `tests/test_favorites_ratings.py` re-enabled in Round 5 (Apr 24, updated Jul 6)
 - [x] **Alembic migrations** - Added alembic==1.13.1; alembic.ini + migrations/env.py wired to project Config and Base; 001_initial_schema baseline captures full 15-table schema (Apr 24)
 - [x] **Railway deployment** - App live at https://movie-analytics-dashboard-production.up.railway.app with PostgreSQL; Docker multi-stage build; gunicorn on dynamic $PORT (Apr 24)
 - [x] **PostgreSQL migration** - Replaced all SQLite-specific func.strftime() with extract() for dual SQLite/PostgreSQL compatibility; config.py auto-fixes Railway's postgresql:// scheme to postgresql+psycopg2:// (Apr 24)
@@ -120,7 +120,7 @@
 - **Total Movies**: 5,000+ (Railway/PostgreSQL) | 8,000+ (local SQLite)
 - **Features Completed**: 62
 - **Test Coverage**: 87% ✅
-- **Tests Passing**: 372 ✅
+- **Tests Passing**: 407 ✅
 - **API Endpoints**: 13 ✅
 - **Jinja2 Templates**: 28 ✅
 - **Live URL**: https://movie-analytics-dashboard-production.up.railway.app

@@ -13,6 +13,48 @@ _DEFAULT_DB = f"sqlite:///{os.path.join(_PROJECT_ROOT, 'movies.db')}"
 _ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
 load_dotenv(_ENV_PATH, override=False)
 
+_DEV_SECRET_KEY = "dev-secret-key-change-in-production"
+_PRODUCTION_ENV_VALUES = {"production", "prod"}
+_LOCAL_ENV_VALUES = {"development", "dev", "local"}
+_RAILWAY_ENV_MARKERS = (
+    "RAILWAY_ENVIRONMENT",
+    "RAILWAY_ENVIRONMENT_NAME",
+    "RAILWAY_PROJECT_ID",
+    "RAILWAY_SERVICE_ID",
+)
+
+
+def _current_environment():
+    """Return the explicit runtime environment, defaulting to local development."""
+    return (
+        os.getenv("FLASK_ENV") or os.getenv("APP_ENV") or os.getenv("ENV") or "development"
+    ).lower()
+
+
+def _is_production_environment():
+    """Detect production only from explicit production/Railway environment signals."""
+    environment = _current_environment()
+    return environment in _PRODUCTION_ENV_VALUES or any(
+        os.getenv(name) for name in _RAILWAY_ENV_MARKERS
+    )
+
+
+def _debug_default():
+    """Enable debug only for local development unless DEBUG explicitly overrides it."""
+    debug_value = os.getenv("DEBUG")
+    if debug_value:
+        return debug_value.lower() in {"1", "true", "yes", "on"}
+    return _current_environment() in _LOCAL_ENV_VALUES
+
+
+def _secret_key():
+    secret_key = os.getenv("SECRET_KEY") or _DEV_SECRET_KEY
+    if _is_production_environment() and secret_key == _DEV_SECRET_KEY:
+        raise RuntimeError(
+            "SECRET_KEY must be set to a non-default value when running in production."
+        )
+    return secret_key
+
 
 class Config:
     # TMDB API
@@ -35,8 +77,13 @@ class Config:
     REDIS_URL = os.getenv("REDIS_URL", None)
 
     # Flask
-    SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
-    DEBUG = os.getenv("DEBUG", "True") == "True"
+    ENVIRONMENT = _current_environment()
+    IS_PRODUCTION = _is_production_environment()
+    SECRET_KEY = _secret_key()
+    DEBUG = _debug_default()
+    SESSION_COOKIE_SECURE = IS_PRODUCTION
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
 
     # Pagination
     MOVIES_PER_PAGE = 20

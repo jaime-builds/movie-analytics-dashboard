@@ -260,7 +260,7 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 - **8,000+** movies with complete metadata (local) | **5,000+** on live Railway instance
 - **300+** directors with filmographies
 - **1,000+** actors with profiles
-- **87%** test coverage with 372 tests passing
+- **87%** test coverage with 407 tests passing
 - **15** database tables with optimized indexes
 - **37+** Flask routes
 - **13** RESTful API endpoints
@@ -388,12 +388,6 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 
    Visit: <http://127.0.0.1:5000>
 
-8. **Optional: Enable auto-sync**
-
-   ```bash
-   python scripts/scheduler.py
-   ```
-
 </details>
 
 <details>
@@ -467,7 +461,7 @@ pytest tests/test_auth.py -v
 - ✅ Database relationships
 - ✅ Security (password hashing)
 
-**Current Coverage**: 87% (372 tests passing)
+**Current Coverage**: 87% (407 tests passing)
 
 ### Run Tests
 
@@ -505,18 +499,12 @@ python scripts/sync_tmdb_data.py --limit 1000 --workers 20
 
 ### Automated Sync
 
-The scheduler runs:
+Automated TMDB sync is handled by `.github/workflows/sync_tmdb.yml`:
 
-- **Daily full sync** at 2:00 AM (5,000 movies)
-- **Hourly updates** for recently modified movies
+- **Weekly sync** every Sunday at 2:00 AM UTC
+- **Manual trigger** with configurable movie limit and update mode
 
-```bash
-# Start scheduler
-python scripts/scheduler.py
-
-# Run as background service
-nohup python scripts/scheduler.py &
-```
+For local or ad hoc updates, run `python scripts/sync_tmdb_data.py` manually.
 
 ### What Gets Synced
 
@@ -645,7 +633,7 @@ See [TODO.md](TODO.md) for the complete roadmap.
 - [x] **PostgreSQL** - Migrated from SQLite; dual-database compatible
 - [x] **Alembic migrations** - Full schema versioning with baseline migration
 - [x] **CI/CD auto-deploy** - Push to main triggers Railway deployment
-- [x] **Test suite unified** - Main test suite runs in a single pytest pass; 372 passing
+- [x] **Test suite unified** - Main test suite runs in a single pytest pass; 407 passing
 
 ### Up Next
 

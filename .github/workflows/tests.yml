@@ -39,7 +39,7 @@ jobs:
 
     - name: Initialize database
       run: |
-        python -m src.models
+        alembic upgrade head
 
     - name: Run pytest tests
       env:

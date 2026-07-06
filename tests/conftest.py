@@ -2,9 +2,11 @@
 Pytest configuration and fixtures for testing
 """
 
+from contextlib import contextmanager
 from datetime import datetime
 
 import pytest
+from sqlalchemy import event
 
 from config.config import Config
 from src.app import app as flask_app
@@ -75,6 +77,27 @@ def db_session(app):
 def client(app, db_session):
     """Create test client - depends on db_session to ensure proper setup"""
     return app.test_client()
+
+
+@pytest.fixture(scope="function")
+def capture_sql(db_session):
+    """Capture SQL statements executed through the current test connection."""
+
+    @contextmanager
+    def _capture():
+        statements = []
+        bind = db_session.get_bind()
+
+        def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+            statements.append(statement)
+
+        event.listen(bind, "before_cursor_execute", before_cursor_execute)
+        try:
+            yield statements
+        finally:
+            event.remove(bind, "before_cursor_execute", before_cursor_execute)
+
+    return _capture
 
 
 @pytest.fixture(scope="function")

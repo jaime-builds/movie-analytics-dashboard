@@ -12,6 +12,8 @@ config/secrets.py
 .claude/worktrees/
 *.log
 logs/
+.coverage
+coverage.xml
 
 # SQLite files
 *.db
