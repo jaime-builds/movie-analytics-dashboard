@@ -608,6 +608,7 @@ See [TODO.md](TODO.md) for the complete roadmap.
 
 ### Recently Shipped
 
+- [x] **Collection ordering fix** - collections now track when each movie was added (added_at) and display in that order instead of by internal ID
 - [x] **Redis** - Railway Redis add-on; production app now uses RedisCache + Redis rate limiter storage
 - [x] **Common Films** - `/common-films`; find movies shared by up to 5 actors with smart autocomplete
 - [x] **Responsive image optimization** - srcset on all poster grids (w185/w342/w500); Jinja2 macro for reuse

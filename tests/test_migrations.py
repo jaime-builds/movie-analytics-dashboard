@@ -44,6 +44,12 @@ def test_alembic_upgrade_head_builds_clean_sqlite_database(tmp_path):
     user_columns = {column["name"]: column for column in inspector.get_columns("users")}
     assert user_columns["password_hash"]["type"].length == 256
 
+    collection_movie_columns = {
+        column["name"]: column for column in inspector.get_columns("collection_movies")
+    }
+    assert "added_at" in collection_movie_columns
+    assert collection_movie_columns["added_at"]["nullable"] is False
+
     expected_indexes = {
         "cast": {"idx_cast_movie_id", "idx_cast_person_id"},
         "crew": {"idx_crew_movie_id", "idx_crew_person_id", "idx_crew_person_job"},

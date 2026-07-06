@@ -114,7 +114,7 @@ def _collection_movies_page(session_db, collection_id, offset, limit):
         session_db.query(Movie)
         .join(collection_movies_table, Movie.id == collection_movies_table.c.movie_id)
         .filter(collection_movies_table.c.collection_id == collection_id)
-        .order_by(Movie.id)
+        .order_by(collection_movies_table.c.added_at, Movie.id)
         .offset(offset)
         .limit(limit)
         .all()

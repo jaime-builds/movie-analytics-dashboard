@@ -49,6 +49,7 @@ collection_movies_table = Table(
     Base.metadata,
     Column("collection_id", Integer, ForeignKey("collections.id"), primary_key=True),
     Column("movie_id", Integer, ForeignKey("movies.id"), primary_key=True),
+    Column("added_at", DateTime, nullable=False, default=datetime.utcnow),
 )
 
 # Association tables for favorites and watchlist

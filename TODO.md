@@ -11,6 +11,7 @@
 - [ ] **Box office by genre** (2h) - Aggregation chart on analytics page showing total revenue per genre
 - [ ] **TMDB data dump sync** (2h) - Replace popular movies pagination with daily TMDB export file; removes 10,000 movie ceiling, faster ID collection, better movie selection by popularity
 - [ ] **Breadcrumb navigation** (1h) - Breadcrumbs on detail pages (movie, actor, director, studio, decade, collection)
+- [ ] **Smoke test timeouts** (15m) - Add HTTP timeouts to scripts/smoke_test.py requests; flagged by Bandit (B113) during lint/security scope expansion, low priority since it's a manual dev-only script
 
 ## 🚀 Next Up (This Month)
 
@@ -56,6 +57,11 @@
 - [ ] Friends' ratings overlay
 
 ---
+
+## ✅ Recently Completed (July 6, 2026)
+
+- [x] **Lint/security scope expansion** - flake8, black, isort, and bandit now scan scripts/ and migrations/ in addition to src/; templates/ and static/ excluded since they're not Python
+- [x] **Collection ordering fix** - collection_movies gets an added_at column (migration 004); collection detail page now orders movies by add time instead of Movie.id
 
 ## ✅ Recently Completed (July 5, 2026)
 
@@ -146,4 +152,4 @@ This project showcases:
 
 ---
 
-**Last Updated**: July 5, 2026
+**Last Updated**: July 6, 2026

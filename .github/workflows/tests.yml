@@ -76,17 +76,17 @@ jobs:
     - name: Lint with flake8
       run: |
         # Stop the build if there are Python syntax errors or undefined names
-        flake8 src --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 src scripts migrations --count --select=E9,F63,F7,F82 --show-source --statistics
         # Exit-zero treats all errors as warnings
-        flake8 src --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        flake8 src scripts migrations --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
     - name: Check code formatting with black
       run: |
-        black --check src --line-length 100
+        black --check src scripts migrations --line-length 100
 
     - name: Check import sorting with isort
       run: |
-        isort --check-only --profile black src
+        isort --check-only --profile black src scripts migrations
 
   security:
     runs-on: ubuntu-latest
@@ -106,7 +106,7 @@ jobs:
 
     - name: Run security checks with bandit
       run: |
-        bandit -r src -f json -o bandit-report.json
+        bandit -r src scripts migrations -f json -o bandit-report.json
       continue-on-error: true
 
     - name: Upload bandit results
