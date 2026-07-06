@@ -1,8 +1,11 @@
+import logging
 from typing import Dict, List, Optional
 
 import requests
 
 from config.config import Config
+
+logger = logging.getLogger(__name__)
 
 
 class TMDBClient:
@@ -11,6 +14,7 @@ class TMDBClient:
     def __init__(self):
         self.api_key = Config.TMDB_API_KEY
         self.base_url = Config.TMDB_BASE_URL
+        self.timeout = (3.05, 10)
 
     def _make_request(self, endpoint: str, params: Optional[Dict] = None) -> Dict:
         """Make a request to TMDB API"""
@@ -21,11 +25,17 @@ class TMDBClient:
         url = f"{self.base_url}/{endpoint}"
 
         try:
-            response = requests.get(url, params=params)
+            response = requests.get(url, params=params, timeout=self.timeout)
             response.raise_for_status()
             return response.json()
+        except requests.RequestException as e:
+            logger.warning("TMDB request failed for %s: %s", url, e)
+            return {}
+        except ValueError as e:
+            logger.warning("TMDB returned invalid JSON for %s: %s", url, e)
+            return {}
         except Exception as e:
-            print(f"Error making request to {url}: {e}")
+            logger.warning("Unexpected TMDB request error for %s: %s", url, e)
             return {}
 
     def get_popular_movies(self, page: int = 1) -> Dict:

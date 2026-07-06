@@ -75,7 +75,7 @@
 <script>
 async function removeFavorite(movieId, button) {
     const url = `/movie/${movieId}/unfavorite`;
-    const res = await fetch(url, { method: 'POST' });
+    const res = await csrfFetch(url, { method: 'POST' });
 
     if (res.ok) {
         // Remove the movie card from the page

@@ -28,6 +28,7 @@
         <div class="col-auto d-flex gap-2">
             <form action="/collection/{{ collection.id }}/delete" method="post"
                   onsubmit="return confirm('Delete this collection?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-outline-danger btn-sm">
                     <i class="bi bi-trash"></i> Delete Collection
                 </button>
@@ -157,7 +158,7 @@ document.addEventListener('DOMContentLoaded', function () {
             this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
 
             try {
-                const resp = await fetch(`/collection/${collectionId}/remove/${movieId}`, {
+                const resp = await csrfFetch(`/collection/${collectionId}/remove/${movieId}`, {
                     method: 'POST',
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 });

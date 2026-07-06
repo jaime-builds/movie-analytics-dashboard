@@ -5,6 +5,8 @@ Replaces the manual test_api.py script with proper pytest coverage.
 
 import pytest
 
+from src.app import limiter
+
 
 class TestHealthEndpoint:
     """Tests for /api/v1/health"""
@@ -29,6 +31,26 @@ class TestHealthEndpoint:
         data = response.get_json()
         assert "movie_count" in data
         assert data["movie_count"] >= 0
+
+    def test_health_hides_raw_database_errors(self, client, monkeypatch):
+        class BrokenSession:
+            def query(self, *args, **kwargs):
+                raise RuntimeError("secret database detail")
+
+            def close(self):
+                pass
+
+        import src.app as app_module
+
+        monkeypatch.setattr(app_module, "get_db_session", lambda: BrokenSession())
+
+        response = client.get("/api/v1/health")
+        data = response.get_json()
+
+        assert response.status_code == 500
+        assert data["status"] == "unhealthy"
+        assert data["error"] == "database unavailable"
+        assert b"secret database detail" not in response.data
 
 
 class TestDocsEndpoint:
@@ -96,6 +118,14 @@ class TestMoviesApiEndpoint:
         data = response.get_json()
         assert data["per_page"] <= 100
 
+    @pytest.mark.parametrize("query", ["per_page=0", "per_page=-1", "page=0", "page=-5"])
+    def test_movies_reject_invalid_pagination(self, client, sample_movies, query):
+        response = client.get(f"/api/v1/movies?{query}")
+        data = response.get_json()
+
+        assert response.status_code == 400
+        assert "error" in data
+
     def test_movies_sort_by_rating(self, client, sample_movies):
         response = client.get("/api/v1/movies?sort=rating")
         assert response.status_code == 200
@@ -132,6 +162,27 @@ class TestMoviesApiEndpoint:
             assert "tmdb_id" in movie
             assert "genres" in movie
 
+    def test_movies_endpoint_is_rate_limited_when_enabled(self, app, sample_movies):
+        previous_enabled = getattr(limiter, "enabled", True)
+        app.config["RATELIMIT_ENABLED"] = True
+        limiter.enabled = True
+        limiter.reset()
+        try:
+            with app.test_client() as rate_limited_client:
+                responses = [
+                    rate_limited_client.get(
+                        "/api/v1/movies",
+                        environ_base={"REMOTE_ADDR": "203.0.113.25"},
+                    )
+                    for _ in range(61)
+                ]
+        finally:
+            limiter.reset()
+            limiter.enabled = previous_enabled
+            app.config["RATELIMIT_ENABLED"] = False
+
+        assert responses[-1].status_code == 429
+
 
 class TestMovieDetailApiEndpoint:
     """Tests for /api/v1/movies/<id>"""
@@ -149,7 +200,15 @@ class TestMovieDetailApiEndpoint:
     def test_movie_detail_has_required_fields(self, client, sample_movie):
         response = client.get(f"/api/v1/movies/{sample_movie.id}")
         data = response.get_json()
-        for field in ["id", "title", "overview", "genres", "cast", "crew", "user_rating"]:
+        for field in [
+            "id",
+            "title",
+            "overview",
+            "genres",
+            "cast",
+            "crew",
+            "user_rating",
+        ]:
             assert field in data
 
     def test_movie_detail_404_for_invalid_id(self, client):
@@ -212,6 +271,14 @@ class TestMovieSearchApiEndpoint:
         data = response.get_json()
         assert data["page"] == 1
         assert len(data["movies"]) <= 5
+
+    @pytest.mark.parametrize("query", ["per_page=0", "page=-1"])
+    def test_search_rejects_invalid_pagination(self, client, sample_movies, query):
+        response = client.get(f"/api/v1/movies/search?q=Test&{query}")
+        data = response.get_json()
+
+        assert response.status_code == 400
+        assert "error" in data
 
 
 class TestGenresApiEndpoint:
@@ -295,6 +362,14 @@ class TestAnalyticsApiEndpoints:
         data = response.get_json()
         assert len(data["movies"]) <= 5
 
+    @pytest.mark.parametrize("limit", ["0", "-10"])
+    def test_top_movies_rejects_invalid_limit(self, client, sample_movies, limit):
+        response = client.get(f"/api/v1/analytics/top-movies?metric=popularity&limit={limit}")
+        data = response.get_json()
+
+        assert response.status_code == 400
+        assert "error" in data
+
 
 class TestActorsApiEndpoints:
     """Tests for /api/v1/actors"""
@@ -314,6 +389,21 @@ class TestActorsApiEndpoints:
         response = client.get("/api/v1/actors")
         data = response.get_json()
         assert isinstance(data["actors"], list)
+
+    @pytest.mark.parametrize("query", ["per_page=0", "page=-1"])
+    def test_actors_reject_invalid_pagination(self, client, sample_cast, query):
+        response = client.get(f"/api/v1/actors?{query}")
+        data = response.get_json()
+
+        assert response.status_code == 400
+        assert "error" in data
+
+    def test_actor_search_rejects_invalid_per_page(self, client, sample_cast):
+        response = client.get("/api/v1/actors/search?q=Brad&per_page=0")
+        data = response.get_json()
+
+        assert response.status_code == 400
+        assert "error" in data
 
     def test_actor_detail_returns_200(self, client, sample_person, sample_cast):
         response = client.get(f"/api/v1/actors/{sample_person.id}")

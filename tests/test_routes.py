@@ -3,8 +3,13 @@ Tests for Flask application routes
 """
 
 from datetime import datetime
+from pathlib import Path
+from unittest.mock import patch
 
 import pytest
+
+from src.app import cache
+from src.models import Rating, Review, User
 
 
 class TestIndexRoute:
@@ -116,6 +121,54 @@ class TestMovieDetailRoute:
         assert response.status_code == 200
         # Should show some similar movies
 
+    @patch("src.app.TMDBClient.get_watch_providers", return_value={})
+    @patch("src.app.TMDBClient.get_movie_videos", return_value={"results": []})
+    def test_movie_detail_uses_review_count_in_heading(
+        self, mock_videos, mock_providers, client, db_session, sample_movie
+    ):
+        """The reviews heading should count reviews, not ratings."""
+        reviewer = User(username="reviewer")
+        reviewer.set_password("password")
+        rater = User(username="rater")
+        rater.set_password("password")
+        db_session.add_all([reviewer, rater])
+        db_session.flush()
+        db_session.add_all(
+            [
+                Rating(user_id=reviewer.id, movie_id=sample_movie.id, rating=5),
+                Rating(user_id=rater.id, movie_id=sample_movie.id, rating=4),
+                Review(
+                    user_id=reviewer.id,
+                    movie_id=sample_movie.id,
+                    content="A written review.",
+                ),
+            ]
+        )
+        db_session.commit()
+
+        response = client.get(f"/movie/{sample_movie.id}")
+
+        assert response.status_code == 200
+        assert b"User Reviews (1)" in response.data
+        assert b"User Reviews (2)" not in response.data
+
+    @patch("src.app.TMDBClient.get_watch_providers", side_effect=TimeoutError("slow"))
+    @patch("src.app.TMDBClient.get_movie_videos", side_effect=TimeoutError("slow"))
+    def test_movie_detail_handles_tmdb_timeout_fallbacks(
+        self, mock_videos, mock_providers, client, sample_movie
+    ):
+        """TMDB failures should not prevent the detail page from rendering."""
+        response = client.get(f"/movie/{sample_movie.id}")
+        assert response.status_code == 200
+
+    def test_collection_dropdown_uses_text_nodes_for_collection_names(self):
+        """Collection names should not be interpolated into HTML strings."""
+        template = Path("templates/movie_detail.html").read_text()
+
+        assert "${c.name}" not in template
+        assert "document.createTextNode(c.name)" in template
+        assert "button.dataset.collectionName" in template
+
 
 class TestSearchRoute:
     """Tests for search functionality"""
@@ -182,6 +235,30 @@ class TestAnalyticsRoute:
         response = client.get("/analytics")
         assert response.status_code == 200
         # Should contain year data
+
+    def test_analytics_does_not_cache_logged_in_navbar_for_anonymous(
+        self, app, client, sample_user
+    ):
+        """Full-page analytics HTML should not reuse logged-in navbar state."""
+        cache.init_app(app, config={"CACHE_TYPE": "SimpleCache", "CACHE_DEFAULT_TIMEOUT": 300})
+        cache.clear()
+        try:
+            with client.session_transaction() as sess:
+                sess["user_id"] = sample_user.id
+            logged_in_response = client.get("/analytics")
+            assert logged_in_response.status_code == 200
+            assert b"testuser" in logged_in_response.data
+
+            with client.session_transaction() as sess:
+                sess.clear()
+            anonymous_response = client.get("/analytics")
+
+            assert anonymous_response.status_code == 200
+            assert b"testuser" not in anonymous_response.data
+            assert b"Login" in anonymous_response.data
+        finally:
+            cache.clear()
+            cache.init_app(app, config={"CACHE_TYPE": "NullCache"})
 
 
 class TestTemplateFilters:

@@ -4,6 +4,7 @@ import logging
 import time
 from datetime import datetime
 from typing import Dict, Optional
+from urllib.parse import unquote, urlsplit
 
 from flask import Flask, Response, flash, jsonify, redirect, render_template, request
 from flask import session as flask_session
@@ -11,6 +12,7 @@ from flask import url_for
 from flask_caching import Cache
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_wtf.csrf import CSRFError, CSRFProtect
 from sqlalchemy import Integer, and_, desc, extract, func, select
 from werkzeug.exceptions import HTTPException
 
@@ -58,6 +60,9 @@ else:
 
 cache = Cache()
 cache.init_app(app, config=_cache_config)
+
+csrf = CSRFProtect()
+csrf.init_app(app)
 
 # ---------------------------------------------------------------------------
 # Rate limiting -- Redis in production, memory in local dev
@@ -126,6 +131,19 @@ def _handle_unhandled_exception(exc):
     return "Internal Server Error", 500
 
 
+@app.errorhandler(CSRFError)
+def _handle_csrf_error(exc):
+    """Return a clear CSRF failure for forms and fetch requests."""
+    if (
+        request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or request.accept_mimetypes.best == "application/json"
+        or request.path.startswith("/api/")
+    ):
+        return jsonify({"error": "CSRF token missing or invalid"}), 400
+
+    return "CSRF token missing or invalid", 400
+
+
 def get_current_user(session_db):
     """Get the currently logged-in user from session"""
     user_id = flask_session.get("user_id")
@@ -134,10 +152,76 @@ def get_current_user(session_db):
     return session_db.query(User).filter_by(id=user_id).first()
 
 
+def _is_safe_relative_redirect(target: Optional[str]) -> bool:
+    """Allow only local relative redirects such as /favorites."""
+    if not target:
+        return False
+
+    target = target.strip()
+    decoded = unquote(target)
+    if not decoded or "\r" in decoded or "\n" in decoded or "\\" in decoded:
+        return False
+
+    parsed = urlsplit(decoded)
+    if parsed.scheme or parsed.netloc:
+        return False
+
+    return decoded.startswith("/") and not decoded.startswith("//")
+
+
+def _safe_next_url() -> Optional[str]:
+    """Return a safe next URL from form/query params, or None."""
+    next_url = request.form.get("next") or request.args.get("next")
+    if _is_safe_relative_redirect(next_url):
+        return next_url.strip()
+    return None
+
+
+def _current_relative_url() -> str:
+    """Use the current path/query as a safe login return target."""
+    return request.full_path if request.query_string else request.path
+
+
+def _html_page_arg(name: str = "page", default: int = 1) -> int:
+    """Clamp HTML pagination to a positive page number."""
+    value = request.args.get(name, default=default, type=int)
+    if not value or value < 1:
+        return default
+    return value
+
+
+def _api_positive_int_arg(name: str, default: int, max_value: Optional[int] = None):
+    """Parse a positive integer API argument, capping optional maximums."""
+    raw_value = request.args.get(name)
+    if raw_value in (None, ""):
+        value = default
+    else:
+        try:
+            value = int(raw_value)
+        except (TypeError, ValueError):
+            return None, (
+                jsonify({"error": f"Invalid {name}: must be an integer"}),
+                400,
+            )
+
+    if value < 1:
+        return None, (jsonify({"error": f"Invalid {name}: must be at least 1"}), 400)
+
+    if max_value is not None:
+        value = min(value, max_value)
+
+    return value, None
+
+
 def get_trailer_for_movie(tmdb_id: int) -> Optional[Dict]:
     """Fetch the best YouTube trailer for a movie from TMDB API."""
     client = TMDBClient()
-    videos_data = client.get_movie_videos(tmdb_id)
+    try:
+        videos_data = client.get_movie_videos(tmdb_id)
+    except Exception as exc:
+        logger.warning(f"Unable to fetch trailer for tmdb_id={tmdb_id}: {exc}", exc_info=True)
+        return None
+
     results = videos_data.get("results", [])
 
     youtube_videos = [v for v in results if v.get("site") == "YouTube"]
@@ -327,7 +411,11 @@ def register():
             flask_session["user_id"] = user.id
             logger.info(
                 f"New user registered: {username}",
-                extra={"user_id": user.id, "username": username, "ip": request.remote_addr},
+                extra={
+                    "user_id": user.id,
+                    "username": username,
+                    "ip": request.remote_addr,
+                },
             )
             flash(f"Welcome, {username}! Your account has been created.", "success")
             return redirect(url_for("index"))
@@ -351,12 +439,16 @@ def login():
                 flask_session["user_id"] = user.id
                 logger.info(
                     f"Successful login: {username}",
-                    extra={"user_id": user.id, "username": username, "ip": request.remote_addr},
+                    extra={
+                        "user_id": user.id,
+                        "username": username,
+                        "ip": request.remote_addr,
+                    },
                 )
                 flash(f"Welcome back, {username}!", "success")
 
                 # Redirect to 'next' page if it exists, otherwise home
-                next_page = request.args.get("next")
+                next_page = _safe_next_url()
                 return redirect(next_page if next_page else url_for("index"))
 
             logger.warning(
@@ -364,14 +456,14 @@ def login():
                 extra={"username": username, "ip": request.remote_addr},
             )
             flash("Invalid username or password", "danger")
-            return render_template("login.html")
+            return render_template("login.html", next_url=_safe_next_url())
 
-        return render_template("login.html")
+        return render_template("login.html", next_url=_safe_next_url())
     finally:
         session_db.close()
 
 
-@app.route("/logout")
+@app.route("/logout", methods=["POST"])
 def logout():
     flask_session.pop("user_id", None)
     flash("You have been logged out successfully.", "info")
@@ -391,7 +483,7 @@ def favorites():
         user = get_current_user(session_db)
         if not user:
             flash("Please log in to view your favorites", "warning")
-            return redirect(url_for("login", next=request.url))
+            return redirect(url_for("login", next=_current_relative_url()))
 
         # Convert dynamic relationship to list
         favorites = user.favorites.all()
@@ -411,7 +503,7 @@ def watchlist():
         user = get_current_user(session_db)
         if not user:
             flash("Please log in to view your watchlist", "warning")
-            return redirect(url_for("login", next=request.url))
+            return redirect(url_for("login", next=_current_relative_url()))
 
         # Convert dynamic relationship to list
         watchlist = user.watchlist.all()
@@ -583,7 +675,7 @@ def submit_review(movie_id):
         user = get_current_user(session_db)
         if not user:
             flash("Please log in to submit a review", "warning")
-            return redirect(url_for("login", next=request.url))
+            return redirect(url_for("login", next=_current_relative_url()))
 
         review_content = request.form.get("review_content", "").strip()
 
@@ -663,7 +755,7 @@ def recommendations():
         user = get_current_user(session_db)
         if not user:
             flash("Please log in to see personalized recommendations", "warning")
-            return redirect(url_for("login", next=request.url))
+            return redirect(url_for("login", next=_current_relative_url()))
 
         # Get personalized recommendations
         recommended_movies = get_personalized_recommendations(session_db, user, limit=12)
@@ -688,7 +780,7 @@ def directors():
     """Director spotlight page"""
     session_db = get_db_session()
     try:
-        page = request.args.get("page", 1, type=int)
+        page = _html_page_arg()
         per_page = 24
 
         user = get_current_user(session_db)
@@ -835,7 +927,11 @@ def director_detail(director_id):
             "genres": genres,
         }
 
-        chart_data = {"years": chart_years, "ratings": chart_ratings, "revenues": chart_revenues}
+        chart_data = {
+            "years": chart_years,
+            "ratings": chart_ratings,
+            "revenues": chart_revenues,
+        }
 
         movies_list = [
             {
@@ -933,7 +1029,7 @@ def movies():
         # Get filter parameters
         genre_id = request.args.get("genre", type=int)
         sort_by = request.args.get("sort", default="popularity")
-        page = request.args.get("page", default=1, type=int)
+        page = _html_page_arg()
 
         # Advanced filter parameters
         year = request.args.get("year", type=int)
@@ -1061,7 +1157,7 @@ def hidden_gems():
         min_rating = request.args.get("min_rating", default=7.0, type=float)
         max_popularity = request.args.get("max_popularity", default=20.0, type=float)
         sort_by = request.args.get("sort", default="gem_score")
-        page = request.args.get("page", default=1, type=int)
+        page = _html_page_arg()
         per_page = 24
 
         # Base query for hidden gems
@@ -1140,7 +1236,7 @@ def top_actors():
         user = get_current_user(session)
 
         sort_by = request.args.get("sort", default="movie_count")
-        page = request.args.get("page", default=1, type=int)
+        page = _html_page_arg()
         per_page = 24
 
         # Base query - count movies per actor
@@ -1312,7 +1408,14 @@ def movie_detail(movie_id):
 
         # Get streaming/watch providers from TMDB API
         client = TMDBClient()
-        watch_providers = client.get_watch_providers(movie.tmdb_id)
+        try:
+            watch_providers = client.get_watch_providers(movie.tmdb_id)
+        except Exception as exc:
+            logger.warning(
+                f"Unable to fetch watch providers for tmdb_id={movie.tmdb_id}: {exc}",
+                exc_info=True,
+            )
+            watch_providers = {}
 
         # Check if movie is in user's favorites/watchlist
         is_favorited = False
@@ -1337,7 +1440,7 @@ def movie_detail(movie_id):
         )
 
         # NEW: Get reviews (paginated)
-        review_page = request.args.get("page", 1, type=int)
+        review_page = _html_page_arg()
         per_page = 10
 
         reviews_query = (
@@ -1371,6 +1474,7 @@ def movie_detail(movie_id):
             num_ratings=num_ratings or 0,
             reviews=reviews,
             review_page=review_page,
+            total_reviews=total_reviews,
             total_review_pages=total_review_pages,
             personalized_recommendations=personalized_recs,
             config=Config,
@@ -1380,7 +1484,6 @@ def movie_detail(movie_id):
 
 
 @app.route("/analytics")
-@cache.cached(timeout=3600)
 def analytics():
     """Analytics dashboard"""
     session = get_db_session()
@@ -1533,7 +1636,11 @@ def analytics_export_csv():
         # Top 25 movies by rating
         top_rated = (
             session.query(
-                Movie.title, Movie.vote_average, Movie.vote_count, Movie.revenue, Movie.release_date
+                Movie.title,
+                Movie.vote_average,
+                Movie.vote_count,
+                Movie.revenue,
+                Movie.release_date,
             )
             .filter(Movie.vote_count > 100)
             .order_by(desc(Movie.vote_average))
@@ -1544,7 +1651,11 @@ def analytics_export_csv():
         # Top 25 movies by revenue
         top_revenue = (
             session.query(
-                Movie.title, Movie.budget, Movie.revenue, Movie.vote_average, Movie.release_date
+                Movie.title,
+                Movie.budget,
+                Movie.revenue,
+                Movie.vote_average,
+                Movie.release_date,
             )
             .filter(Movie.revenue > 0)
             .order_by(desc(Movie.revenue))
@@ -1639,7 +1750,11 @@ def search():
         )
 
         return render_template(
-            "search.html", movies=movies_list, query=query, current_user=user, config=Config
+            "search.html",
+            movies=movies_list,
+            query=query,
+            current_user=user,
+            config=Config,
         )
     finally:
         session.close()
@@ -1677,23 +1792,24 @@ def format_date(date_obj):
 
 
 @app.route("/api/v1/movies", methods=["GET"])
-@limiter.exempt
+@limiter.limit("60 per minute")
 def api_get_movies():
     """Get list of movies with filtering and pagination"""
     session = get_db_session()
     try:
         # Get query parameters
-        page = request.args.get("page", 1, type=int)
-        per_page = request.args.get("per_page", 20, type=int)
+        page, error = _api_positive_int_arg("page", 1)
+        if error:
+            return error
+        per_page, error = _api_positive_int_arg("per_page", 20, max_value=100)
+        if error:
+            return error
         genre_id = request.args.get("genre", type=int)
         sort_by = request.args.get("sort", default="popularity")
         year = request.args.get("year", type=int)
         min_rating = request.args.get("min_rating", type=float)
         min_vote_count = request.args.get("min_vote_count", type=int)
         status_filter = request.args.get("status", "")
-
-        # Limit per_page to prevent abuse
-        per_page = min(per_page, 100)
 
         # Base query
         query = session.query(Movie)
@@ -1739,9 +1855,11 @@ def api_get_movies():
                     "title": movie.title,
                     "original_title": movie.original_title,
                     "overview": movie.overview,
-                    "release_date": movie.release_date.isoformat() if movie.release_date else None,
+                    "release_date": (
+                        movie.release_date.isoformat() if movie.release_date else None
+                    ),
                     "runtime": movie.runtime,
-                    "vote_average": float(movie.vote_average) if movie.vote_average else None,
+                    "vote_average": (float(movie.vote_average) if movie.vote_average else None),
                     "vote_count": movie.vote_count,
                     "popularity": float(movie.popularity) if movie.popularity else None,
                     "poster_path": movie.poster_path,
@@ -1803,7 +1921,7 @@ def api_get_movie(movie_id):
             "title": movie.title,
             "original_title": movie.original_title,
             "overview": movie.overview,
-            "release_date": movie.release_date.isoformat() if movie.release_date else None,
+            "release_date": (movie.release_date.isoformat() if movie.release_date else None),
             "runtime": movie.runtime,
             "budget": movie.budget,
             "revenue": movie.revenue,
@@ -1854,14 +1972,15 @@ def api_search_movies():
     session = get_db_session()
     try:
         query_text = request.args.get("q", "")
-        page = request.args.get("page", 1, type=int)
-        per_page = request.args.get("per_page", 20, type=int)
+        page, error = _api_positive_int_arg("page", 1)
+        if error:
+            return error
+        per_page, error = _api_positive_int_arg("per_page", 20, max_value=100)
+        if error:
+            return error
 
         if not query_text:
             return jsonify({"error": "Query parameter 'q' is required"}), 400
-
-        # Limit per_page
-        per_page = min(per_page, 100)
 
         # Search query
         search_query = (
@@ -1885,8 +2004,10 @@ def api_search_movies():
                     "tmdb_id": movie.tmdb_id,
                     "title": movie.title,
                     "overview": movie.overview,
-                    "release_date": movie.release_date.isoformat() if movie.release_date else None,
-                    "vote_average": float(movie.vote_average) if movie.vote_average else None,
+                    "release_date": (
+                        movie.release_date.isoformat() if movie.release_date else None
+                    ),
+                    "vote_average": (float(movie.vote_average) if movie.vote_average else None),
                     "poster_path": movie.poster_path,
                 }
             )
@@ -2009,8 +2130,9 @@ def api_analytics_top_movies():
     session = get_db_session()
     try:
         metric = request.args.get("metric", "rating")
-        limit = request.args.get("limit", 10, type=int)
-        limit = min(limit, 100)
+        limit, error = _api_positive_int_arg("limit", 10, max_value=100)
+        if error:
+            return error
 
         if metric == "rating":
             movies = (
@@ -2031,13 +2153,16 @@ def api_analytics_top_movies():
         elif metric == "popularity":
             movies = session.query(Movie).order_by(desc(Movie.popularity)).limit(limit).all()
         else:
-            return jsonify({"error": "Invalid metric. Use: rating, revenue, or popularity"}), 400
+            return (
+                jsonify({"error": "Invalid metric. Use: rating, revenue, or popularity"}),
+                400,
+            )
 
         movies_data = [
             {
                 "id": movie.id,
                 "title": movie.title,
-                "vote_average": float(movie.vote_average) if movie.vote_average else None,
+                "vote_average": (float(movie.vote_average) if movie.vote_average else None),
                 "revenue": movie.revenue,
                 "popularity": float(movie.popularity) if movie.popularity else None,
             }
@@ -2058,7 +2183,9 @@ def api_search_actors():
         q = request.args.get("q", "").strip()
         # Optional: only return actors who share movies with already-selected actors
         with_ids = request.args.getlist("with", type=int)  # list of already-selected person IDs
-        per_page = min(request.args.get("per_page", 8, type=int), 20)
+        per_page, error = _api_positive_int_arg("per_page", 8, max_value=20)
+        if error:
+            return error
 
         if not q or len(q) < 2:
             return jsonify({"actors": []})
@@ -2111,9 +2238,12 @@ def api_get_actors():
     """Get list of actors with pagination"""
     session = get_db_session()
     try:
-        page = request.args.get("page", 1, type=int)
-        per_page = request.args.get("per_page", 20, type=int)
-        per_page = min(per_page, 100)
+        page, error = _api_positive_int_arg("page", 1)
+        if error:
+            return error
+        per_page, error = _api_positive_int_arg("per_page", 20, max_value=100)
+        if error:
+            return error
 
         # Get actors with movie count
         actors_query = (
@@ -2193,8 +2323,10 @@ def api_get_actor(actor_id):
                     "movie_id": movie.id,
                     "title": movie.title,
                     "character": cast.character_name,
-                    "release_date": movie.release_date.isoformat() if movie.release_date else None,
-                    "vote_average": float(movie.vote_average) if movie.vote_average else None,
+                    "release_date": (
+                        movie.release_date.isoformat() if movie.release_date else None
+                    ),
+                    "vote_average": (float(movie.vote_average) if movie.vote_average else None),
                 }
                 for movie, cast in filmography
             ],
@@ -2216,7 +2348,8 @@ def api_health():
 
         return jsonify({"status": "healthy", "database": "connected", "movie_count": movie_count})
     except Exception as e:
-        return jsonify({"status": "unhealthy", "error": str(e)}), 500
+        logger.error(f"Health check database failure: {e}", exc_info=True)
+        return jsonify({"status": "unhealthy", "error": "database unavailable"}), 500
     finally:
         session.close()
 
@@ -2328,7 +2461,11 @@ def decades():
                 continue
             ds = (int(row.year) // 10) * 10
             if ds not in decade_buckets:
-                decade_buckets[ds] = {"movie_count": 0, "ratings": [], "total_revenue": 0}
+                decade_buckets[ds] = {
+                    "movie_count": 0,
+                    "ratings": [],
+                    "total_revenue": 0,
+                }
             decade_buckets[ds]["movie_count"] += row.movie_count
             if row.avg_rating:
                 decade_buckets[ds]["ratings"].append((float(row.avg_rating), row.movie_count))
@@ -2523,7 +2660,7 @@ def companies():
     session_db = get_db_session()
     try:
         user = get_current_user(session_db)
-        page = request.args.get("page", 1, type=int)
+        page = _html_page_arg()
         per_page = 24
 
         companies_query = (
@@ -2575,7 +2712,7 @@ def companies():
                             "id": m.id,
                             "title": m.title,
                             "year": m.release_date.year if m.release_date else None,
-                            "vote_average": float(m.vote_average) if m.vote_average else 0,
+                            "vote_average": (float(m.vote_average) if m.vote_average else 0),
                         }
                         for m in top_movies
                     ],
@@ -2716,7 +2853,7 @@ def collections():
         user = get_current_user(session_db)
         if not user:
             flash("Please log in to view your collections", "warning")
-            return redirect(url_for("login", next=request.url))
+            return redirect(url_for("login", next=_current_relative_url()))
 
         user_collections = (
             session_db.query(Collection)
@@ -2777,7 +2914,7 @@ def collection_detail(collection_id):
         user = get_current_user(session_db)
         if not user:
             flash("Please log in to view collections", "warning")
-            return redirect(url_for("login", next=request.url))
+            return redirect(url_for("login", next=_current_relative_url()))
 
         collection = (
             session_db.query(Collection).filter_by(id=collection_id, user_id=user.id).first()
@@ -2787,7 +2924,7 @@ def collection_detail(collection_id):
             return redirect(url_for("collections"))
 
         # Paginate the movies in this collection
-        page = request.args.get("page", 1, type=int)
+        page = _html_page_arg()
         per_page = 24
         all_movies = collection.movies
         total = len(all_movies)
@@ -2921,7 +3058,7 @@ def api_get_collections():
                         "name": c.name,
                         "description": c.description,
                         "movie_count": len(c.movies),
-                        "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+                        "updated_at": (c.updated_at.isoformat() if c.updated_at else None),
                     }
                     for c in user_collections
                 ]
@@ -2944,7 +3081,7 @@ def profile():
         user = get_current_user(session_db)
         if not user:
             flash("Please log in to view your profile", "warning")
-            return redirect(url_for("login", next=request.url))
+            return redirect(url_for("login", next=_current_relative_url()))
 
         # Favorites and watchlist
         favorites = user.favorites.all()
@@ -3302,7 +3439,7 @@ def advanced_search():
         runtime_max = request.args.get("runtime_max", type=int)
         min_votes = request.args.get("min_votes", type=int)
         sort_by = request.args.get("sort", default="relevance")
-        page = request.args.get("page", default=1, type=int)
+        page = _html_page_arg()
         per_page = 24
 
         # Only run the query when at least one filter is present

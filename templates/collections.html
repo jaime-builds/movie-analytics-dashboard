@@ -55,6 +55,7 @@
                     </a>
                     <form action="/collection/{{ collection.id }}/delete" method="post"
                           onsubmit="return confirm('Delete \'{{ collection.name }}\'?')">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-outline-danger btn-sm">
                             <i class="bi bi-trash"></i>
                         </button>
@@ -87,6 +88,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form action="/collections/create" method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="collectionName" class="form-label">Name <span class="text-danger">*</span></label>

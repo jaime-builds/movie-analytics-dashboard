@@ -26,7 +26,7 @@ echo "TMDB_API_KEY=your_key_here" > config/.env
 echo "SECRET_KEY=your_secret_here" >> config/.env
 
 # Initialize and run
-python -m src.models  # Create database
+alembic upgrade head  # Create or upgrade database schema
 python scripts/sync_tmdb_data.py --limit 1000  # Quick initial data (5 min)
 python -m src.app  # Start server at http://127.0.0.1:5000
 ```
@@ -42,6 +42,7 @@ This isn't just another movie app. It's a **portfolio-grade full-stack applicati
 | Feature | Description |
 |---------|-------------|
 | 🔐 **Authentication** | Secure login/registration with password hashing |
+| 🔒 **CSRF Protection** | Flask-WTF token validation on all state-changing routes and JavaScript fetch requests |
 | 💖 **Personalization** | Favorites & watchlist collections per user |
 | ⭐ **Ratings & Reviews** | 1-5 star ratings and text reviews for movies |
 | 🎯 **Recommendations** | Personalized suggestions based on your favorites |
@@ -221,6 +222,7 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 - SQLAlchemy ORM
 - Flask-Caching (RedisCache in production, SimpleCache in dev)
 - Flask-Limiter for API rate limiting
+- Flask-WTF (CSRF protection)
 - Structured JSON logging with daily rotation (logs/app.log)
 - Werkzeug password hashing
 - Schedule for automation
@@ -362,8 +364,11 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 5. **Initialize database**
 
    ```bash
-   python -m src.models
+   alembic upgrade head
    ```
+
+   Alembic is the supported schema initialization path for local and deployed
+   databases. `python -m src.models` no longer creates tables.
 
 6. **Import movie data**
 

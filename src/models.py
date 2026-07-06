@@ -325,10 +325,9 @@ class ProductionCompany(Base):
 
 
 def init_db():
-    """Initialize the database"""
-    Base.metadata.create_all(engine)
-    print("Database initialized successfully!")
+    """Deprecated: initialize or upgrade schema with Alembic instead."""
+    raise RuntimeError("Database schema is managed by Alembic. Run: alembic upgrade head")
 
 
 if __name__ == "__main__":
-    init_db()
+    raise SystemExit("Database schema is managed by Alembic. Run: alembic upgrade head")

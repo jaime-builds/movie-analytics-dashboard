@@ -10,4 +10,5 @@ pre-commit==3.5.0
 Flask-Caching[redis]>=2.1.0
 redis>=5.0.0
 Flask-Limiter>=3.5.0
+Flask-WTF==1.2.1
 alembic==1.13.1

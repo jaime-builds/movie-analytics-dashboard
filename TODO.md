@@ -57,6 +57,10 @@
 
 ---
 
+## ✅ Recently Completed (July 5, 2026)
+
+- [x] **Security audit + fixes (Round 1 & 2)** - CSRF protection (Flask-WTF), POST-only logout, Alembic as sole schema init path, analytics cache-leak fix, collection-name XSS fix, API pagination validation, rate limit on /api/v1/movies. Full findings and status: docs/audits/app-audit-2026-07-05.md
+
 ## ✅ Recently Completed (April 25, 2026)
 
 - [x] **Redis add-on** - Railway Redis provisioned; redis>=5.0.0 added to requirements.txt; app auto-switches to RedisCache + Redis rate limiter storage when REDIS_URL is set

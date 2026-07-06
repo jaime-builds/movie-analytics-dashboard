@@ -64,7 +64,12 @@ class FastTMDBSyncer:
         self.update_existing = update_existing
         self.workers = workers
         self.batch_size = 50
-        self.stats = {"movies_added": 0, "movies_updated": 0, "movies_skipped": 0, "errors": 0}
+        self.stats = {
+            "movies_added": 0,
+            "movies_updated": 0,
+            "movies_skipped": 0,
+            "errors": 0,
+        }
 
     def sync_genres(self):
         """Sync all genres from TMDB."""
@@ -75,6 +80,7 @@ class FastTMDBSyncer:
             response = requests.get(
                 f"{self.client.base_url}/genre/movie/list",
                 params={"api_key": self.client.api_key},
+                timeout=self.client.timeout,
             )
             response.raise_for_status()
             genre_list = response.json().get("genres", [])
@@ -190,7 +196,9 @@ class FastTMDBSyncer:
                     self.session.delete(cm)
                 for cast_data in credits.get("cast", [])[:10]:
                     person = self.get_person_or_create(
-                        cast_data["id"], cast_data["name"], cast_data.get("profile_path")
+                        cast_data["id"],
+                        cast_data["name"],
+                        cast_data.get("profile_path"),
                     )
                     self.session.add(
                         Cast(
@@ -207,7 +215,9 @@ class FastTMDBSyncer:
                 for crew_data in credits.get("crew", []):
                     if crew_data["job"] == "Director":
                         person = self.get_person_or_create(
-                            crew_data["id"], crew_data["name"], crew_data.get("profile_path")
+                            crew_data["id"],
+                            crew_data["name"],
+                            crew_data.get("profile_path"),
                         )
                         self.session.add(
                             Crew(

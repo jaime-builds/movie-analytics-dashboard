@@ -230,7 +230,7 @@
                 {% endif %}
                 <p class="text-muted small mb-0 mt-3">
                     <i class="bi bi-info-circle me-1"></i>Data provided by
-                    <a href="https://www.justwatch.com" target="_blank" rel="noopener" class="text-muted">JustWatch</a>
+                    <a href="https://www.justwatch.com" target="_blank" rel="noopener noreferrer" class="text-muted">JustWatch</a>
                     via TMDB &middot; US only
                 </p>
             </div>
@@ -318,6 +318,7 @@
             <div class="card-body">
                 <h5 class="card-title">Write a Review</h5>
                 <form method="POST" action="{{ url_for('submit_review', movie_id=movie.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <textarea class="form-control" name="review_content" rows="4"
                                   placeholder="Share your thoughts about this movie..."
@@ -340,7 +341,7 @@
     <div class="col-12">
         <h5 class="mb-3">
             <i class="bi bi-chat-left-quote me-2"></i>
-            User Reviews ({{ num_ratings }})
+            User Reviews ({{ total_reviews }})
         </h5>
 
         {% for review in reviews %}
@@ -658,7 +659,7 @@ async function submitRating(event, movieId) {
     formData.append('rating', rating);
 
     try {
-        const response = await fetch(`/movie/${movieId}/rate`, {
+        const response = await csrfFetch(`/movie/${movieId}/rate`, {
             method: 'POST',
             body: formData
         });
@@ -684,7 +685,7 @@ async function deleteReview(movieId, reviewId) {
     }
 
     try {
-        const response = await fetch(`/movie/${movieId}/review/${reviewId}/delete`, {
+        const response = await csrfFetch(`/movie/${movieId}/review/${reviewId}/delete`, {
             method: 'POST'
         });
 
@@ -706,7 +707,7 @@ async function toggleFavorite(movieId) {
 
     setButtonLoading(btn, true);
     try {
-        const res = await fetch(url, { method: 'POST' });
+        const res = await csrfFetch(url, { method: 'POST' });
         if (res.ok) {
             if (isFavorited) {
                 btn.innerHTML = '<i class="bi bi-heart-fill me-1"></i>Favorite';
@@ -730,7 +731,7 @@ async function toggleWatchlist(movieId) {
 
     setButtonLoading(btn, true);
     try {
-        const res = await fetch(url, { method: 'POST' });
+        const res = await csrfFetch(url, { method: 'POST' });
         if (res.ok) {
             if (inWatchlist) {
                 btn.innerHTML = '<i class="bi bi-bookmark-fill me-1"></i>Add to Watchlist';
@@ -751,6 +752,50 @@ async function toggleWatchlist(movieId) {
 const collectionDropdown = document.getElementById('collectionDropdown');
 const collectionMenu = document.getElementById('collectionMenu');
 
+function createDropdownIcon(className) {
+    const icon = document.createElement('i');
+    icon.className = className;
+    return icon;
+}
+
+function appendCollectionDivider(menu) {
+    const dividerItem = document.createElement('li');
+    const divider = document.createElement('hr');
+    divider.className = 'dropdown-divider';
+    dividerItem.appendChild(divider);
+    menu.appendChild(dividerItem);
+}
+
+function appendCollectionsLink(menu, label) {
+    const item = document.createElement('li');
+    const link = document.createElement('a');
+    link.className = 'dropdown-item';
+    link.href = '/collections';
+    link.appendChild(createDropdownIcon('bi bi-plus-circle me-1'));
+    link.appendChild(document.createTextNode(label));
+    item.appendChild(link);
+    menu.appendChild(item);
+}
+
+function updateCollectionButtonState(button, status, count) {
+    const countLabel = document.createElement('span');
+    countLabel.className = 'text-muted small';
+    countLabel.textContent = `(${count})`;
+
+    if (status === 'added') {
+        button.replaceChildren(
+            createDropdownIcon('bi bi-check-circle-fill text-success me-1'),
+            document.createTextNode(`${button.dataset.collectionName} `),
+            countLabel
+        );
+    } else if (status === 'already_added') {
+        button.replaceChildren(
+            createDropdownIcon('bi bi-check-circle text-muted me-1'),
+            document.createTextNode('Already in collection')
+        );
+    }
+}
+
 if (collectionDropdown) {
     collectionDropdown.addEventListener('show.bs.dropdown', async function () {
         const movieId = this.dataset.movieId;
@@ -764,19 +809,32 @@ if (collectionDropdown) {
             if (cols.length === 0) {
                 collectionMenu.innerHTML =
                     '<li><span class="dropdown-item text-muted small">No collections yet</span></li>' +
-                    '<li><hr class="dropdown-divider"></li>' +
-                    '<li><a class="dropdown-item" href="/collections"><i class="bi bi-plus-circle me-1"></i>Create a collection</a></li>';
+                    '<li><hr class="dropdown-divider"></li>';
+                appendCollectionsLink(collectionMenu, 'Create a collection');
             } else {
-                collectionMenu.innerHTML = cols.map(c =>
-                    `<li><a class="dropdown-item collection-add-btn" href="#"
-                        data-collection-id="${c.id}"
-                        data-movie-id="${movieId}">
-                        <i class="bi bi-collection me-1"></i>${c.name}
-                        <span class="text-muted small ms-1">(${c.movie_count})</span>
-                    </a></li>`
-                ).join('') +
-                '<li><hr class="dropdown-divider"></li>' +
-                '<li><a class="dropdown-item" href="/collections"><i class="bi bi-plus-circle me-1"></i>Manage collections</a></li>';
+                collectionMenu.replaceChildren();
+                cols.forEach(c => {
+                    const item = document.createElement('li');
+                    const link = document.createElement('a');
+                    const count = document.createElement('span');
+
+                    link.className = 'dropdown-item collection-add-btn';
+                    link.href = '#';
+                    link.dataset.collectionId = c.id;
+                    link.dataset.movieId = movieId;
+                    link.dataset.collectionName = c.name;
+                    link.appendChild(createDropdownIcon('bi bi-collection me-1'));
+                    link.appendChild(document.createTextNode(c.name));
+
+                    count.className = 'text-muted small ms-1';
+                    count.textContent = `(${c.movie_count})`;
+                    link.appendChild(count);
+
+                    item.appendChild(link);
+                    collectionMenu.appendChild(item);
+                });
+                appendCollectionDivider(collectionMenu);
+                appendCollectionsLink(collectionMenu, 'Manage collections');
 
                 collectionMenu.querySelectorAll('.collection-add-btn').forEach(btn => {
                     btn.addEventListener('click', async function (e) {
@@ -784,12 +842,10 @@ if (collectionDropdown) {
                         const cid = this.dataset.collectionId;
                         const mid = this.dataset.movieId;
                         try {
-                            const r = await fetch(`/collection/${cid}/add/${mid}`, { method: 'POST' });
+                            const r = await csrfFetch(`/collection/${cid}/add/${mid}`, { method: 'POST' });
                             const d = await r.json();
-                            if (d.status === 'added') {
-                                this.innerHTML = `<i class="bi bi-check-circle-fill text-success me-1"></i>${this.textContent.trim().split('(')[0].trim()} <span class="text-muted small">(${d.count})</span>`;
-                            } else if (d.status === 'already_added') {
-                                this.innerHTML = `<i class="bi bi-check-circle text-muted me-1"></i>Already in collection`;
+                            if (d.status === 'added' || d.status === 'already_added') {
+                                updateCollectionButtonState(this, d.status, d.count);
                             }
                         } catch (err) {
                             console.error(err);

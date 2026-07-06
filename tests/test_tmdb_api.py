@@ -5,6 +5,7 @@ Tests for TMDB API client
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+import requests
 
 from src.tmdb_api import TMDBClient
 
@@ -43,8 +44,18 @@ class TestGetPopularMovies:
         mock_response.json.return_value = {
             "page": 1,
             "results": [
-                {"id": 550, "title": "Fight Club", "vote_average": 8.4, "popularity": 50.5},
-                {"id": 680, "title": "Pulp Fiction", "vote_average": 8.5, "popularity": 60.0},
+                {
+                    "id": 550,
+                    "title": "Fight Club",
+                    "vote_average": 8.4,
+                    "popularity": 50.5,
+                },
+                {
+                    "id": 680,
+                    "title": "Pulp Fiction",
+                    "vote_average": 8.5,
+                    "popularity": 60.0,
+                },
             ],
             "total_pages": 10,
             "total_results": 200,
@@ -74,6 +85,7 @@ class TestGetPopularMovies:
         mock_get.assert_called_once()
         call_args = mock_get.call_args
         assert "page=2" in str(call_args) or call_args[1].get("params", {}).get("page") == 2
+        assert call_args[1]["timeout"] == client.timeout
 
     @patch("src.tmdb_api.requests.get")
     def test_get_popular_movies_api_error(self, mock_get):
@@ -143,9 +155,21 @@ class TestGetMovieCredits:
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "id": 550,
-            "cast": [{"id": 287, "name": "Brad Pitt", "character": "Tyler Durden", "order": 0}],
+            "cast": [
+                {
+                    "id": 287,
+                    "name": "Brad Pitt",
+                    "character": "Tyler Durden",
+                    "order": 0,
+                }
+            ],
             "crew": [
-                {"id": 7467, "name": "David Fincher", "job": "Director", "department": "Directing"}
+                {
+                    "id": 7467,
+                    "name": "David Fincher",
+                    "job": "Director",
+                    "department": "Directing",
+                }
             ],
         }
         mock_get.return_value = mock_response
@@ -292,13 +316,13 @@ class TestRateLimiting:
     @patch("src.tmdb_api.requests.get")
     def test_network_timeout(self, mock_get):
         """Test handling of network timeouts"""
-        mock_get.side_effect = TimeoutError("Connection timed out")
+        mock_get.side_effect = requests.exceptions.Timeout("Connection timed out")
 
         client = TMDBClient()
         result = client.get_popular_movies(page=1)
 
         # Should handle timeout gracefully
-        assert result is not None or result == {} or result == []
+        assert result == {}
 
 
 class TestAPIConfiguration:

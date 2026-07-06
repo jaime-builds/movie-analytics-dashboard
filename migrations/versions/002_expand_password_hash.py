@@ -22,20 +22,20 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.alter_column(
-        "users",
-        "password_hash",
-        existing_type=sa.String(length=128),
-        type_=sa.String(length=256),
-        existing_nullable=False,
-    )
+    with op.batch_alter_table("users") as batch_op:
+        batch_op.alter_column(
+            "password_hash",
+            existing_type=sa.String(length=128),
+            type_=sa.String(length=256),
+            existing_nullable=False,
+        )
 
 
 def downgrade() -> None:
-    op.alter_column(
-        "users",
-        "password_hash",
-        existing_type=sa.String(length=256),
-        type_=sa.String(length=128),
-        existing_nullable=False,
-    )
+    with op.batch_alter_table("users") as batch_op:
+        batch_op.alter_column(
+            "password_hash",
+            existing_type=sa.String(length=256),
+            type_=sa.String(length=128),
+            existing_nullable=False,
+        )

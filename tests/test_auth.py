@@ -2,10 +2,24 @@
 Tests for User Authentication and Favorites/Watchlist features
 """
 
+import re
+
 import pytest
 from werkzeug.security import check_password_hash
 
 from src.models import Movie, User
+
+
+def _csrf_token_from_response(response):
+    match = re.search(rb'name="csrf_token" value="([^"]+)"', response.data)
+    assert match is not None
+    return match.group(1).decode()
+
+
+def _csrf_meta_token_from_response(response):
+    match = re.search(rb'<meta name="csrf-token" content="([^"]+)">', response.data)
+    assert match is not None
+    return match.group(1).decode()
 
 
 class TestUserModel:
@@ -129,7 +143,11 @@ class TestAuthenticationRoutes:
         """Test registration with username too short"""
         response = client.post(
             "/register",
-            data={"username": "ab", "password": "password123", "password_confirm": "password123"},
+            data={
+                "username": "ab",
+                "password": "password123",
+                "password_confirm": "password123",
+            },
             follow_redirects=True,
         )
 
@@ -193,10 +211,13 @@ class TestAuthenticationRoutes:
     def test_logout(self, client, sample_user):
         """Test logout functionality"""
         # First login
-        client.post("/login", data={"username": sample_user.username, "password": "testpassword"})
+        client.post(
+            "/login",
+            data={"username": sample_user.username, "password": "testpassword"},
+        )
 
         # Then logout
-        response = client.get("/logout", follow_redirects=True)
+        response = client.post("/logout", follow_redirects=True)
 
         assert response.status_code == 200
         assert b"logged out" in response.data.lower()
@@ -211,6 +232,53 @@ class TestAuthenticationRoutes:
 
         assert response.status_code == 200
         # Should redirect to analytics page
+
+    def test_login_preserves_safe_next_from_get_form_flow(self, client, sample_user):
+        """Test GET /login?next=... carries a safe next value through POST."""
+        username = sample_user.username
+
+        response = client.get("/login?next=/favorites")
+        assert response.status_code == 200
+        assert b'name="next"' in response.data
+        assert b'value="/favorites"' in response.data
+
+        response = client.post(
+            "/login",
+            data={
+                "username": username,
+                "password": "testpassword",
+                "next": "/favorites",
+            },
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location.endswith("/favorites")
+
+    @pytest.mark.parametrize(
+        "unsafe_next",
+        [
+            "https://example.com",
+            "//example.com",
+            "/%5C%5Cexample.com",
+            "/safe%0d%0aLocation:%20https://example.com",
+        ],
+    )
+    def test_login_ignores_external_or_malformed_next(self, client, sample_user, unsafe_next):
+        """Unsafe next targets should fall back to the homepage."""
+        response = client.post(
+            "/login",
+            data={
+                "username": sample_user.username,
+                "password": "testpassword",
+                "next": unsafe_next,
+            },
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert not response.location.startswith("https://example.com")
+        assert response.location.endswith("/")
 
 
 class TestFavoritesFeature:
@@ -513,7 +581,10 @@ class TestSessionManagement:
     def test_session_persists_across_requests(self, client, sample_user):
         """Test that login session persists"""
         # Login
-        client.post("/login", data={"username": sample_user.username, "password": "testpassword"})
+        client.post(
+            "/login",
+            data={"username": sample_user.username, "password": "testpassword"},
+        )
 
         # Make another request
         response = client.get("/")
@@ -525,15 +596,110 @@ class TestSessionManagement:
     def test_logout_clears_session(self, client, sample_user):
         """Test that logout clears session"""
         # Login
-        client.post("/login", data={"username": sample_user.username, "password": "testpassword"})
+        client.post(
+            "/login",
+            data={"username": sample_user.username, "password": "testpassword"},
+        )
 
         # Logout
-        client.get("/logout")
+        client.post("/logout")
 
         # Try to access protected page
         response = client.get("/favorites", follow_redirects=True)
 
         assert b"log in" in response.data.lower()
+
+    def test_get_logout_does_not_clear_session(self, client, sample_user):
+        """Logout is POST-only and GET should not change session state."""
+        with client.session_transaction() as sess:
+            sess["user_id"] = sample_user.id
+
+        response = client.get("/logout")
+
+        assert response.status_code == 405
+        with client.session_transaction() as sess:
+            assert sess.get("user_id") == sample_user.id
+
+
+class TestCSRFProtection:
+    """Focused tests for CSRF enforcement when enabled."""
+
+    def test_login_post_without_csrf_token_is_rejected(self, app, client, sample_user):
+        app.config["WTF_CSRF_ENABLED"] = True
+        try:
+            response = client.post(
+                "/login",
+                data={"username": sample_user.username, "password": "testpassword"},
+            )
+        finally:
+            app.config["WTF_CSRF_ENABLED"] = False
+
+        assert response.status_code == 400
+
+    def test_login_post_with_csrf_token_succeeds(self, app, client, sample_user):
+        username = sample_user.username
+        app.config["WTF_CSRF_ENABLED"] = True
+        try:
+            login_page = client.get("/login")
+            token = _csrf_token_from_response(login_page)
+            response = client.post(
+                "/login",
+                data={
+                    "username": username,
+                    "password": "testpassword",
+                    "csrf_token": token,
+                },
+                follow_redirects=False,
+            )
+        finally:
+            app.config["WTF_CSRF_ENABLED"] = False
+
+        assert response.status_code == 302
+
+    def test_fetch_post_without_csrf_token_is_rejected(
+        self, app, client, logged_in_user, sample_movie
+    ):
+        app.config["WTF_CSRF_ENABLED"] = True
+        try:
+            response = client.post(f"/movie/{sample_movie.id}/favorite")
+        finally:
+            app.config["WTF_CSRF_ENABLED"] = False
+
+        assert response.status_code == 400
+
+    def test_fetch_post_with_csrf_header_succeeds(self, app, client, logged_in_user, sample_movie):
+        app.config["WTF_CSRF_ENABLED"] = True
+        try:
+            detail_page = client.get(f"/movie/{sample_movie.id}")
+            token = _csrf_meta_token_from_response(detail_page)
+            response = client.post(
+                f"/movie/{sample_movie.id}/favorite",
+                headers={"X-CSRFToken": token},
+            )
+        finally:
+            app.config["WTF_CSRF_ENABLED"] = False
+
+        assert response.status_code == 200
+        assert response.get_json()["status"] in ("added", "already_added")
+
+    def test_logout_post_with_csrf_token_clears_session(self, app, client, sample_user):
+        app.config["WTF_CSRF_ENABLED"] = True
+        try:
+            with client.session_transaction() as sess:
+                sess["user_id"] = sample_user.id
+            home_page = client.get("/")
+            token = _csrf_meta_token_from_response(home_page)
+            response = client.post(
+                "/logout",
+                data={"csrf_token": token},
+                follow_redirects=True,
+            )
+        finally:
+            app.config["WTF_CSRF_ENABLED"] = False
+
+        assert response.status_code == 200
+        with client.session_transaction() as sess:
+            assert "user_id" not in sess
 
 
 class TestSecurityFeatures:
