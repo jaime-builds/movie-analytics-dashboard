@@ -14,6 +14,7 @@ Usage:
 
 import argparse
 import logging
+import os
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -36,6 +37,8 @@ from src.models import (
     movie_genres_table,
 )
 from src.tmdb_api import TMDBClient
+
+os.makedirs("logs", exist_ok=True)
 
 logging.basicConfig(
     level=logging.INFO,

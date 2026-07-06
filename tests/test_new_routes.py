@@ -9,9 +9,20 @@ Tests for routes not previously covered:
 - /profile
 """
 
+from datetime import date
+
 import pytest
 
-from src.models import Cast, Crew, Movie, Person, Rating, Review, User
+from src.models import (
+    Cast,
+    Crew,
+    Movie,
+    Person,
+    ProductionCompany,
+    Rating,
+    Review,
+    User,
+)
 
 # ============================================
 # Additional fixtures needed for these tests
@@ -280,6 +291,73 @@ class TestDirectorDetailRoute:
     def test_director_detail_404_for_invalid_id(self, client):
         response = client.get("/director/999999")
         assert response.status_code == 404
+
+    def test_director_detail_average_rating_ignores_unrated_movies(self, client, db_session):
+        director = Person(tmdb_id=919191, name="Mixed Rating Director")
+        rated = Movie(
+            tmdb_id=919192,
+            title="Rated Director Movie",
+            release_date=date(2020, 1, 1),
+            vote_average=8.0,
+            vote_count=20,
+            popularity=10.0,
+        )
+        unrated = Movie(
+            tmdb_id=919193,
+            title="Unrated Director Movie",
+            release_date=date(2021, 1, 1),
+            vote_average=None,
+            vote_count=20,
+            popularity=10.0,
+        )
+        db_session.add_all([director, rated, unrated])
+        db_session.flush()
+        db_session.add_all(
+            [
+                Crew(movie_id=rated.id, person_id=director.id, job="Director"),
+                Crew(movie_id=unrated.id, person_id=director.id, job="Director"),
+            ]
+        )
+        db_session.commit()
+
+        response = client.get(f"/director/{director.id}")
+
+        assert response.status_code == 200
+        assert b"8.00" in response.data
+        assert b"4.00" not in response.data
+
+
+class TestCompanyDetailRoute:
+    """Tests for /company/<id>"""
+
+    def test_company_detail_average_rating_ignores_unrated_movies(self, client, db_session):
+        company = ProductionCompany(tmdb_id=818181, name="Mixed Rating Studio")
+        rated = Movie(
+            tmdb_id=818182,
+            title="Rated Studio Movie",
+            release_date=date(2020, 1, 1),
+            vote_average=8.0,
+            vote_count=20,
+            popularity=10.0,
+        )
+        unrated = Movie(
+            tmdb_id=818183,
+            title="Unrated Studio Movie",
+            release_date=date(2021, 1, 1),
+            vote_average=None,
+            vote_count=20,
+            popularity=10.0,
+        )
+        rated.companies.append(company)
+        unrated.companies.append(company)
+        db_session.add_all([company, rated, unrated])
+        db_session.commit()
+
+        response = client.get(f"/company/{company.id}")
+
+        assert response.status_code == 200
+        assert b"8.00" in response.data
+        assert b"4.00" not in response.data
 
 
 # ============================================

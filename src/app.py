@@ -880,9 +880,8 @@ def director_detail(director_id):
 
         # Calculate statistics
         total_movies = len(movies)
-        avg_rating = (
-            sum(m.vote_average or 0 for m in movies) / total_movies if total_movies > 0 else 0
-        )
+        rated_values = [float(m.vote_average) for m in movies if m.vote_average is not None]
+        avg_rating = sum(rated_values) / len(rated_values) if rated_values else None
         total_revenue = sum(m.revenue or 0 for m in movies)
 
         years = [m.release_date.year for m in movies if m.release_date]
@@ -908,12 +907,18 @@ def director_detail(director_id):
                 year = movie.release_date.year
                 if year not in year_data:
                     year_data[year] = {"ratings": [], "revenues": []}
-                year_data[year]["ratings"].append(movie.vote_average or 0)
+                if movie.vote_average is not None:
+                    year_data[year]["ratings"].append(float(movie.vote_average))
                 year_data[year]["revenues"].append((movie.revenue or 0) / 1000000)
 
         chart_years = sorted(year_data.keys())
         chart_ratings = [
-            sum(year_data[y]["ratings"]) / len(year_data[y]["ratings"]) for y in chart_years
+            (
+                sum(year_data[y]["ratings"]) / len(year_data[y]["ratings"])
+                if year_data[y]["ratings"]
+                else 0
+            )
+            for y in chart_years
         ]
         chart_revenues = [sum(year_data[y]["revenues"]) for y in chart_years]
 
@@ -2398,9 +2403,22 @@ def api_docs():
             },
             "actors": {
                 "GET /api/v1/actors": {"description": "Get list of actors with pagination"},
+                "GET /api/v1/actors/search": {
+                    "description": "Search actors by name",
+                    "parameters": {
+                        "q": "Search query (required)",
+                        "page": "Page number",
+                        "per_page": "Results per page",
+                    },
+                },
                 "GET /api/v1/actors/<id>": {
                     "description": "Get detailed information about an actor"
                 },
+            },
+            "collections": {
+                "GET /api/v1/collections": {
+                    "description": "Get the authenticated user's collections"
+                }
             },
             "system": {
                 "GET /api/v1/health": {"description": "Health check endpoint"},
@@ -2753,11 +2771,8 @@ def company_detail(company_id):
         )
 
         total_movies = len(movies)
-        avg_rating = (
-            sum(float(m.vote_average) for m in movies if m.vote_average) / total_movies
-            if total_movies > 0
-            else 0
-        )
+        rated_values = [float(m.vote_average) for m in movies if m.vote_average is not None]
+        avg_rating = sum(rated_values) / len(rated_values) if rated_values else None
         total_revenue = sum(m.revenue or 0 for m in movies)
 
         years = [m.release_date.year for m in movies if m.release_date]

@@ -78,6 +78,24 @@ class TestDocsEndpoint:
         assert "genres" in data["endpoints"]
         assert "analytics" in data["endpoints"]
         assert "actors" in data["endpoints"]
+        assert "collections" in data["endpoints"]
+
+    def test_docs_include_all_implemented_get_api_routes(self, app, client):
+        response = client.get("/api/v1/docs")
+        data = response.get_json()
+
+        documented_routes = {route for group in data["endpoints"].values() for route in group}
+
+        actual_routes = set()
+        for rule in app.url_map.iter_rules():
+            if not rule.rule.startswith("/api/v1") or "GET" not in rule.methods:
+                continue
+            route = rule.rule
+            route = route.replace("<int:movie_id>", "<id>")
+            route = route.replace("<int:actor_id>", "<id>")
+            actual_routes.add(f"GET {route}")
+
+        assert documented_routes == actual_routes
 
 
 class TestMoviesApiEndpoint:

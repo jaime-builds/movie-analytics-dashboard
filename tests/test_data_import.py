@@ -55,6 +55,12 @@ def make_movie_data(**overrides):
     return data
 
 
+def created_movie(result):
+    assert result.status == "created"
+    assert result.movie is not None
+    return result.movie
+
+
 # ============================================
 # Date parsing
 # ============================================
@@ -67,7 +73,7 @@ class TestDateParsing:
         importer.client.get_movie_details.return_value = make_movie_data(release_date="1999-10-15")
         importer.client.get_movie_credits.return_value = {"cast": [], "crew": []}
 
-        movie = importer.import_movie(12345)
+        movie = created_movie(importer.import_movie(12345))
 
         assert movie is not None
         assert movie.release_date == date(1999, 10, 15)
@@ -76,7 +82,7 @@ class TestDateParsing:
         importer.client.get_movie_details.return_value = make_movie_data(release_date="")
         importer.client.get_movie_credits.return_value = {"cast": [], "crew": []}
 
-        movie = importer.import_movie(12345)
+        movie = created_movie(importer.import_movie(12345))
 
         assert movie is not None
         assert movie.release_date is None
@@ -85,7 +91,7 @@ class TestDateParsing:
         importer.client.get_movie_details.return_value = make_movie_data(release_date="not-a-date")
         importer.client.get_movie_credits.return_value = {"cast": [], "crew": []}
 
-        movie = importer.import_movie(12345)
+        movie = created_movie(importer.import_movie(12345))
 
         assert movie is not None
         assert movie.release_date is None
@@ -96,7 +102,7 @@ class TestDateParsing:
         importer.client.get_movie_details.return_value = data
         importer.client.get_movie_credits.return_value = {"cast": [], "crew": []}
 
-        movie = importer.import_movie(12345)
+        movie = created_movie(importer.import_movie(12345))
 
         assert movie is not None
         assert movie.release_date is None
@@ -124,8 +130,9 @@ class TestDuplicateHandling:
 
         result = importer.import_movie(12345)
 
-        assert result is not None
-        assert result.title == "Already Imported"
+        assert result.status == "skipped"
+        assert result.movie is not None
+        assert result.movie.title == "Already Imported"
         # TMDB API should not have been called
         importer.client.get_movie_details.assert_not_called()
 
@@ -134,14 +141,41 @@ class TestDuplicateHandling:
 
         result = importer.import_movie(99999)
 
-        assert result is None
+        assert result.status == "failed"
+        assert result.movie is None
 
     def test_returns_none_when_api_returns_none(self, importer):
         importer.client.get_movie_details.return_value = None
 
         result = importer.import_movie(99999)
 
-        assert result is None
+        assert result.status == "failed"
+        assert result.movie is None
+
+    def test_import_popular_movies_counts_existing_as_skipped(self, importer, db_session):
+        existing = Movie(
+            tmdb_id=11111,
+            title="Already Imported",
+            overview="Exists",
+            vote_average=7.0,
+            vote_count=100,
+            popularity=10.0,
+        )
+        db_session.add(existing)
+        db_session.commit()
+
+        importer.client.get_popular_movies.return_value = {
+            "results": [{"id": 11111}, {"id": 22222}]
+        }
+        importer.client.get_movie_details.return_value = make_movie_data(
+            id=22222,
+            title="New Import Film",
+        )
+        importer.client.get_movie_credits.return_value = {"cast": [], "crew": []}
+
+        stats = importer.import_popular_movies(num_pages=1)
+
+        assert stats == {"created": 1, "skipped": 1, "failed": 0}
 
 
 # ============================================
@@ -156,7 +190,7 @@ class TestMovieFieldMapping:
         importer.client.get_movie_details.return_value = make_movie_data()
         importer.client.get_movie_credits.return_value = {"cast": [], "crew": []}
 
-        movie = importer.import_movie(12345)
+        movie = created_movie(importer.import_movie(12345))
 
         assert movie.tmdb_id == 12345
         assert movie.title == "Test Import Film"
@@ -173,7 +207,7 @@ class TestMovieFieldMapping:
         importer.client.get_movie_details.return_value = data
         importer.client.get_movie_credits.return_value = {"cast": [], "crew": []}
 
-        movie = importer.import_movie(12345)
+        movie = created_movie(importer.import_movie(12345))
 
         assert movie is not None
         assert movie.tagline is None
@@ -203,7 +237,7 @@ class TestCastImport:
         importer.client.get_movie_details.return_value = make_movie_data()
         importer.client.get_movie_credits.return_value = {"cast": cast_data, "crew": []}
 
-        movie = importer.import_movie(12345)
+        movie = created_movie(importer.import_movie(12345))
 
         cast_count = db_session.query(Cast).filter_by(movie_id=movie.id).count()
         assert cast_count == 10
@@ -290,7 +324,7 @@ class TestCrewImport:
         importer.client.get_movie_details.return_value = make_movie_data()
         importer.client.get_movie_credits.return_value = {"cast": [], "crew": crew_data}
 
-        movie = importer.import_movie(12345)
+        movie = created_movie(importer.import_movie(12345))
 
         crew_entries = db_session.query(Crew).filter_by(movie_id=movie.id).all()
         jobs = {c.job for c in crew_entries}

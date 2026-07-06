@@ -260,11 +260,11 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 - **8,000+** movies with complete metadata (local) | **5,000+** on live Railway instance
 - **300+** directors with filmographies
 - **1,000+** actors with profiles
-- **87%** test coverage with 339 tests passing
+- **87%** test coverage with 372 tests passing
 - **15** database tables with optimized indexes
 - **37+** Flask routes
-- **14** RESTful API endpoints
-- **29+** Jinja2 templates
+- **13** RESTful API endpoints
+- **28** Jinja2 templates
 
 ## 🎓 Skills Demonstrated
 
@@ -467,7 +467,7 @@ pytest tests/test_auth.py -v
 - ✅ Database relationships
 - ✅ Security (password hashing)
 
-**Current Coverage**: 87% (339 tests passing)
+**Current Coverage**: 87% (372 tests passing)
 
 ### Run Tests
 
@@ -499,8 +499,8 @@ python scripts/sync_tmdb_data.py --limit 5000
 # Update existing movies
 python scripts/sync_tmdb_data.py --limit 5000 --update-existing
 
-# Update only recent changes (last 7 days)
-python scripts/sync_tmdb_data.py --recent-only --days 7
+# Tune parallel workers for local syncs
+python scripts/sync_tmdb_data.py --limit 1000 --workers 20
 ```
 
 ### Automated Sync
@@ -645,7 +645,7 @@ See [TODO.md](TODO.md) for the complete roadmap.
 - [x] **PostgreSQL** - Migrated from SQLite; dual-database compatible
 - [x] **Alembic migrations** - Full schema versioning with baseline migration
 - [x] **CI/CD auto-deploy** - Push to main triggers Railway deployment
-- [x] **Test suite unified** - All tests run in single pytest pass; 339 passing
+- [x] **Test suite unified** - Main test suite runs in a single pytest pass; 372 passing
 
 ### Up Next
 

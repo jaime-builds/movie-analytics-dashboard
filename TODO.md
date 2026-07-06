@@ -59,13 +59,13 @@
 
 ## ✅ Recently Completed (July 5, 2026)
 
-- [x] **Security audit + fixes (Round 1 & 2)** - CSRF protection (Flask-WTF), POST-only logout, Alembic as sole schema init path, analytics cache-leak fix, collection-name XSS fix, API pagination validation, rate limit on /api/v1/movies. Full findings and status: docs/audits/app-audit-2026-07-05.md
+- [x] **Security audit + fixes (Rounds 1-4)** - CSRF protection (Flask-WTF), POST-only logout, Alembic as sole schema init path, analytics cache-leak fix, collection-name XSS fix, API pagination validation, rate limit on /api/v1/movies, query indexes, review uniqueness, deployment/doc drift cleanup, and low-risk correctness fixes. Full findings and status: docs/audits/app-audit-2026-07-05.md
 
 ## ✅ Recently Completed (April 25, 2026)
 
 - [x] **Redis add-on** - Railway Redis provisioned; redis>=5.0.0 added to requirements.txt; app auto-switches to RedisCache + Redis rate limiter storage when REDIS_URL is set
 - [x] **Common Films page** - /common-films; actor search with smart autocomplete (filters to actors who share films with already-selected actors); up to 5 actors; movie grid narrows on each addition; added to Discover dropdown
-- [x] **Image optimization** (3h) - Responsive srcset on all poster grids (w185/w342/w500); Jinja2 macro for reuse
+- [x] **Image optimization** (3h) - Responsive poster macro for primary movie grids (w185/w342/w500); some legacy direct TMDB image tags remain for future cleanup
 - [x] **Advanced multi-filter search** (4h) - Dedicated /advanced-search page; sticky sidebar with genre, decade/year, rating range, runtime range, min votes, sort; active filter pills; quick-search presets; responsive grid results
 - [x] **Actor collaboration network** (6h) - D3.js force-directed graph at /actor/<id>/network; nodes are actor photos, edges weighted by shared films, hover reveals movie titles, click navigates to actor profile
 - [x] **Streaming availability** (4h) - Where to Watch card on movie detail page; streams/rent/buy sections with provider logos; US region via TMDB/JustWatch; hidden when no data
@@ -77,7 +77,7 @@
 <details>
 <summary>Earlier completions (click to expand)</summary>
 
-- [x] **Test suite unified** - Refactored test_favorites_ratings.py from unittest to standard pytest; removed --ignore from pytest.ini; CI workflow simplified to single pytest run (Apr 24)
+- [x] **Test suite unified** - Main pytest suite unified; legacy `tests/test_favorites_ratings.py` remains ignored pending cleanup (Apr 24)
 - [x] **Alembic migrations** - Added alembic==1.13.1; alembic.ini + migrations/env.py wired to project Config and Base; 001_initial_schema baseline captures full 15-table schema (Apr 24)
 - [x] **Railway deployment** - App live at https://movie-analytics-dashboard-production.up.railway.app with PostgreSQL; Docker multi-stage build; gunicorn on dynamic $PORT (Apr 24)
 - [x] **PostgreSQL migration** - Replaced all SQLite-specific func.strftime() with extract() for dual SQLite/PostgreSQL compatibility; config.py auto-fixes Railway's postgresql:// scheme to postgresql+psycopg2:// (Apr 24)
@@ -97,7 +97,7 @@
 - [x] **Infinite scroll** - Replaced pagination on /movies with IntersectionObserver (Feb 24)
 - [x] **Toast notifications** - Replaced flash alerts with auto-dismissing toasts (Feb 24)
 - [x] **User profile pages** - Stats row, tabbed interface for ratings, reviews, favorites, watchlist (Feb 24)
-- [x] **RESTful API endpoints** - JSON API for movies, analytics, actors, genres (Feb 11)
+- [x] **RESTful API endpoints** - JSON API for movies, analytics, actors, genres, and collections (Feb 11)
 - [x] Movie ratings and reviews system (Feb 11)
 - [x] Recommendations engine (Feb 11)
 - [x] Director Spotlight with filmographies (Feb 9)
@@ -120,9 +120,9 @@
 - **Total Movies**: 5,000+ (Railway/PostgreSQL) | 8,000+ (local SQLite)
 - **Features Completed**: 62
 - **Test Coverage**: 87% ✅
-- **Tests Passing**: 339 ✅
-- **API Endpoints**: 14 ✅
-- **Jinja2 Templates**: 29 ✅
+- **Tests Passing**: 372 ✅
+- **API Endpoints**: 13 ✅
+- **Jinja2 Templates**: 28 ✅
 - **Live URL**: https://movie-analytics-dashboard-production.up.railway.app
 
 ## 🎓 Learning Goals
@@ -146,4 +146,4 @@ This project showcases:
 
 ---
 
-**Last Updated**: April 25, 2026
+**Last Updated**: July 5, 2026

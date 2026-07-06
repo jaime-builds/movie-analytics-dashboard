@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
@@ -5,6 +6,19 @@ from sqlalchemy.exc import IntegrityError
 
 from src.models import Cast, Crew, Genre, Movie, Person, ProductionCompany, Session
 from src.tmdb_api import TMDBClient
+
+
+@dataclass
+class MovieImportResult:
+    """Explicit result for a single movie import attempt."""
+
+    status: str
+    movie: Optional[Movie] = None
+    error: Optional[Exception] = None
+
+    @property
+    def succeeded(self) -> bool:
+        return self.status in {"created", "updated", "skipped"}
 
 
 class DataImporter:
@@ -32,19 +46,19 @@ class DataImporter:
 
         print(f"Genres import complete!")
 
-    def import_movie(self, tmdb_movie_id: int) -> Optional[Movie]:
+    def import_movie(self, tmdb_movie_id: int) -> MovieImportResult:
         """Import a single movie with all its details"""
         # Check if movie already exists
         existing = self.session.query(Movie).filter_by(tmdb_id=tmdb_movie_id).first()
         if existing:
             print(f"  - Movie already exists: {existing.title}")
-            return existing
+            return MovieImportResult(status="skipped", movie=existing)
 
         # Get movie details
         movie_data = self.client.get_movie_details(tmdb_movie_id)
         if not movie_data or "id" not in movie_data:
             print(f"  ✗ Failed to get details for movie ID {tmdb_movie_id}")
-            return None
+            return MovieImportResult(status="failed")
 
         # Parse release date
         release_date = None
@@ -107,11 +121,11 @@ class DataImporter:
             # Import cast and crew
             self.import_movie_credits(movie)
 
-            return movie
+            return MovieImportResult(status="created", movie=movie)
         except IntegrityError as e:
             self.session.rollback()
             print(f"  ✗ Error adding movie: {e}")
-            return None
+            return MovieImportResult(status="failed", error=e)
 
     def import_movie_credits(self, movie: Movie):
         """Import cast and crew for a movie"""
@@ -184,7 +198,7 @@ class DataImporter:
         print(f"\n🎬 Importing {total_movies} popular movies ({num_pages} pages)...")
         print(f"{'='*60}")
 
-        movies_imported = 0
+        movies_created = 0
         movies_skipped = 0
         movies_failed = 0
 
@@ -202,12 +216,11 @@ class DataImporter:
                 continue
 
             for idx, movie_data in enumerate(popular["results"], 1):
-                movie = self.import_movie(movie_data["id"])
-                if movie:
-                    if "already exists" in str(movie):
-                        movies_skipped += 1
-                    else:
-                        movies_imported += 1
+                result = self.import_movie(movie_data["id"])
+                if result.status == "created":
+                    movies_created += 1
+                elif result.status == "skipped":
+                    movies_skipped += 1
                 else:
                     movies_failed += 1
 
@@ -218,11 +231,16 @@ class DataImporter:
         print(f"\n{'='*60}")
         print(f"✅ Import complete!")
         print(f"{'='*60}")
-        print(f"  ✓ New movies imported:  {movies_imported}")
+        print(f"  ✓ New movies imported:  {movies_created}")
         print(f"  - Movies skipped:       {movies_skipped}")
         print(f"  ✗ Movies failed:        {movies_failed}")
-        print(f"  📊 Total processed:     {movies_imported + movies_skipped + movies_failed}")
+        print(f"  📊 Total processed:     {movies_created + movies_skipped + movies_failed}")
         print(f"{'='*60}\n")
+        return {
+            "created": movies_created,
+            "skipped": movies_skipped,
+            "failed": movies_failed,
+        }
 
     def close(self):
         """Close database session"""

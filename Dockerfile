@@ -50,4 +50,4 @@ EXPOSE 8080
 
 # Railway injects $PORT at runtime. Use shell form so variable expansion works.
 # Alembic runs migrations first, then gunicorn starts on the assigned port.
-CMD /app/.venv/bin/alembic upgrade head && /app/.venv/bin/python -m gunicorn --bind "0.0.0.0:$PORT" --workers 2 --timeout 120 src.app:app
+CMD /app/.venv/bin/alembic upgrade head && /app/.venv/bin/python -m gunicorn --bind "0.0.0.0:${PORT:-8080}" --workers 2 --timeout 120 src.app:app
