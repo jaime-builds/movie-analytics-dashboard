@@ -14,6 +14,7 @@ from sqlalchemy import (
     String,
     Table,
     Text,
+    UniqueConstraint,
     create_engine,
 )
 from sqlalchemy.ext.declarative import declarative_base
@@ -40,6 +41,7 @@ movie_companies_table = Table(
     Base.metadata,
     Column("movie_id", Integer, ForeignKey("movies.id"), primary_key=True),
     Column("company_id", Integer, ForeignKey("production_companies.id"), primary_key=True),
+    Index("idx_movie_companies_company_id", "company_id"),
 )
 
 collection_movies_table = Table(
@@ -128,6 +130,9 @@ class Movie(Base):
     __table_args__ = (
         Index("idx_movies_vote_count", "vote_count"),
         Index("idx_movies_title", "title"),
+        Index("idx_movies_release_date", "release_date"),
+        Index("idx_movies_vote_average", "vote_average"),
+        Index("idx_movies_popularity", "popularity"),
     )
 
     # Relationships
@@ -208,6 +213,7 @@ class Review(Base):
 
     # Index for efficient queries
     __table_args__ = (
+        UniqueConstraint("user_id", "movie_id", name="uq_reviews_user_movie"),
         Index("idx_movie_reviews", "movie_id"),
         Index("idx_user_reviews", "user_id"),
     )
@@ -276,6 +282,11 @@ class Cast(Base):
     character_name = Column(String(255))
     cast_order = Column(Integer, default=0)
 
+    __table_args__ = (
+        Index("idx_cast_movie_id", "movie_id"),
+        Index("idx_cast_person_id", "person_id"),
+    )
+
     # Relationships
     movie = relationship("Movie", back_populates="cast_members")
     person = relationship("Person", back_populates="cast_roles")
@@ -294,6 +305,7 @@ class Crew(Base):
     department = Column(String(100))
 
     __table_args__ = (
+        Index("idx_crew_movie_id", "movie_id"),
         Index("idx_crew_person_id", "person_id"),
         Index("idx_crew_person_job", "person_id", "job"),  # Covers director lookups
     )
