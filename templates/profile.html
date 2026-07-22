@@ -1,8 +1,10 @@
 {% extends "base.html" %}
+{% from "macros.html" import breadcrumbs %}
 
 {% block title %}{{ current_user.username }}'s Profile - Movie Analytics Dashboard{% endblock %}
 
 {% block content %}
+{{ breadcrumbs([("Home", url_for('index')), ("Profile", none)]) }}
 <div class="container-fluid py-4">
 
     <!-- Profile Header -->

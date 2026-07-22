@@ -1,8 +1,10 @@
 {% extends "base.html" %}
+{% from "macros.html" import breadcrumbs %}
 
 {% block title %}Compare Movies - Movie Analytics Dashboard{% endblock %}
 
 {% block content %}
+{{ breadcrumbs([("Home", url_for('index')), ("Compare", none)]) }}
 <div class="d-flex align-items-center mb-4 gap-3">
     <h1 class="mb-0">Movie Comparison</h1>
     <a href="{{ url_for('movies') }}" class="btn btn-outline-secondary btn-sm ms-auto">

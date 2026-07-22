@@ -1,9 +1,10 @@
 {% extends "base.html" %}
-{% from "macros.html" import poster_img %}
+{% from "macros.html" import breadcrumbs, poster_img %}
 
 {% block title %}Common Films - Movie Analytics Dashboard{% endblock %}
 
 {% block content %}
+{{ breadcrumbs([("Home", url_for('index')), ("Common Films", none)]) }}
 
 <!-- ===================== HEADER ===================== -->
 <div class="cf-header mb-4">

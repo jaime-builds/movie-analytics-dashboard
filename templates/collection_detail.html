@@ -1,18 +1,11 @@
 {% extends "base.html" %}
+{% from "macros.html" import breadcrumbs %}
 
 {% block title %}{{ collection.name }} - Movie Analytics Dashboard{% endblock %}
 
 {% block content %}
+{{ breadcrumbs([("Home", url_for('index')), ("Collections", url_for('collections')), (collection.name, none)]) }}
 <div class="container-fluid py-4">
-
-    <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="/">Home</a></li>
-            <li class="breadcrumb-item"><a href="/collections">My Collections</a></li>
-            <li class="breadcrumb-item active">{{ collection.name }}</li>
-        </ol>
-    </nav>
 
     <!-- Header -->
     <div class="row mb-4 align-items-center">

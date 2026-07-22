@@ -1,8 +1,10 @@
 {% extends "base.html" %}
+{% from "macros.html" import breadcrumbs %}
 
 {% block title %}Search Results - Movie Analytics Dashboard{% endblock %}
 
 {% block content %}
+{{ breadcrumbs([("Home", url_for('index')), ("Search", none)]) }}
 
 <h1 class="mb-3">Search Results for "{{ query }}"</h1>
 

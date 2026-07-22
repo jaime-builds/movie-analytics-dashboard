@@ -3,7 +3,7 @@
 > A full-stack movie discovery platform with user authentication, personalized collections, and comprehensive analytics — built to showcase modern web development skills.
 
 ![Tests](https://github.com/jaime-builds/movie-analytics-dashboard/actions/workflows/tests.yml/badge.svg)
-![Python](https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)
+![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)
 ![Flask](https://img.shields.io/badge/flask-3.0-green)
 ![SQLAlchemy](https://img.shields.io/badge/sqlalchemy-2.0-orange)
 
@@ -68,6 +68,8 @@ This isn't just another movie app. It's a **portfolio-grade full-stack applicati
 | 🚀 **Query Caching** | Redis-backed Flask-Caching on analytics and genre routes |
 | 🎛️ **Advanced Filters** | Min vote count and status filters with collapsible panel |
 | 🏠 **Home Page Hero** | Two-column hero with live stats bar, jaime-builds branding, and feature shortcut cards |
+| 🎬 **Movie of the Day** | Featured pick on the homepage from the Hidden Gems pool, deterministic per day with a 30-day anti-repeat window |
+| 🍞 **Breadcrumb Navigation** | Bootstrap 5 breadcrumb trail on every page except home |
 | 📤 **CSV Export** | Download full analytics data as a CSV file |
 | 🚦 **Rate Limiting** | Flask-Limiter protecting all API and analytics endpoints |
 | 📋 **Structured Logging** | JSON request logging with daily rotation, failed login tracking, and error alerting |
@@ -97,7 +99,7 @@ flowchart TB
 
     subgraph GH["⚙️ GitHub"]
         direction LR
-        CI["Actions: CI\nTests · Lint · Security\n(4 Python versions)"]
+        CI["Actions: CI\nTests · Lint · Security\n(3 Python versions)"]
         SYNC["Actions: TMDB Sync\nWeekly cron · Manual trigger"]
     end
 
@@ -218,7 +220,7 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 
 **Backend**
 
-- Python 3.11+ with Flask
+- Python 3.13+ with Flask
 - SQLAlchemy ORM
 - Flask-Caching (RedisCache in production, SimpleCache in dev)
 - Flask-Limiter for API rate limiting
@@ -251,7 +253,7 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 - Redis (Railway add-on — caching + rate limiter storage)
 - Weekly TMDB sync via GitHub Actions cron
 - Structured JSON logging
-- GitHub Actions CI/CD (tests, lint, security — 4 Python versions)
+- GitHub Actions CI/CD (tests, lint, security — 3 Python versions)
 - Environment-based config
 
 ## 📊 Project Stats
@@ -259,7 +261,7 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 - **8,000+** movies with complete metadata (local) | **5,000+** on live Railway instance
 - **300+** directors with filmographies
 - **1,000+** actors with profiles
-- **87%** test coverage with 407 tests passing
+- **86.2%** test coverage with 418 tests passing
 - **15** database tables with optimized indexes
 - **37+** Flask routes
 - **13** RESTful API endpoints
@@ -318,7 +320,7 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 
 ### Prerequisites
 
-- Python 3.8+
+- Python 3.13+
 - pip package manager
 - Git
 - TMDB API key ([get free key](https://www.themoviedb.org/settings/api))
@@ -460,7 +462,7 @@ pytest tests/test_auth.py -v
 - ✅ Database relationships
 - ✅ Security (password hashing)
 
-**Current Coverage**: 87% (407 tests passing)
+**Current Coverage**: 86.2% (418 tests passing)
 
 ### Run Tests
 
@@ -608,6 +610,9 @@ See [TODO.md](TODO.md) for the complete roadmap.
 
 ### Recently Shipped
 
+- [x] **Python 3.13** - Dockerfile, CI workflows, and dependencies upgraded; test matrix trimmed to 3.11/3.12/3.13
+- [x] **Movie of the Day** - Homepage feature drawn from the Hidden Gems pool, deterministic per day with a 30-day anti-repeat window
+- [x] **Breadcrumb navigation** - Bootstrap 5 breadcrumb trail on every page except home, via a shared Jinja2 macro
 - [x] **Collection ordering fix** - collections now track when each movie was added (added_at) and display in that order instead of by internal ID
 - [x] **Redis** - Railway Redis add-on; production app now uses RedisCache + Redis rate limiter storage
 - [x] **Common Films** - `/common-films`; find movies shared by up to 5 actors with smart autocomplete
@@ -633,7 +638,7 @@ See [TODO.md](TODO.md) for the complete roadmap.
 - [x] **PostgreSQL** - Migrated from SQLite; dual-database compatible
 - [x] **Alembic migrations** - Full schema versioning with baseline migration
 - [x] **CI/CD auto-deploy** - Push to main triggers Railway deployment
-- [x] **Test suite unified** - Main test suite runs in a single pytest pass; 407 passing
+- [x] **Test suite unified** - Main test suite runs in a single pytest pass; 418 passing
 
 ### Up Next
 

@@ -1,4 +1,5 @@
 import csv
+import hashlib
 import io
 import logging
 import time
@@ -14,6 +15,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFError, CSRFProtect
 from sqlalchemy import Integer, and_, desc, exists, extract, func, select
+from sqlalchemy.exc import IntegrityError
 from werkzeug.exceptions import HTTPException
 
 from config.config import Config
@@ -24,6 +26,7 @@ from src.models import (
     Crew,
     Genre,
     Movie,
+    MovieOfTheDay,
     Person,
     ProductionCompany,
     Rating,
@@ -397,6 +400,65 @@ def get_personalized_recommendations(session_db, user, limit=6):
     )
 
     return recommendations
+
+
+def get_movie_of_the_day(session_db):
+    """Return today's featured movie, selecting and recording one if needed.
+
+    Candidates come from the Hidden Gems pool (same criteria as /hidden-gems
+    defaults), excluding the last 30 daily picks. The pick is deterministic
+    per calendar day: a sha256 hash of the ISO date indexes into the candidate
+    list sorted by movie id, so concurrent workers agree on the same movie
+    without locking. (Python's built-in hash() is per-process randomized, so
+    it can't be used here.)
+    """
+    today = datetime.now().date()
+
+    existing = (
+        session_db.query(MovieOfTheDay).filter(MovieOfTheDay.shown_date == today).one_or_none()
+    )
+    if existing:
+        return session_db.query(Movie).filter(Movie.id == existing.movie_id).one_or_none()
+
+    pool_query = session_db.query(Movie).filter(
+        Movie.vote_average >= 7.0,
+        Movie.popularity <= 20.0,
+        Movie.vote_count >= 50,
+    )
+
+    recent_ids = [
+        row.movie_id
+        for row in session_db.query(MovieOfTheDay)
+        .order_by(desc(MovieOfTheDay.shown_date))
+        .limit(30)
+        .all()
+    ]
+
+    candidates = pool_query.filter(Movie.id.notin_(recent_ids)).order_by(Movie.id).all()
+    if not candidates:
+        # Anti-repeat window exhausted the pool — fall back to the full pool
+        candidates = pool_query.order_by(Movie.id).all()
+    if not candidates:
+        return None
+
+    digest = hashlib.sha256(today.isoformat().encode("utf-8")).hexdigest()
+    pick = candidates[int(digest, 16) % len(candidates)]
+
+    try:
+        # Savepoint so a losing race only discards this insert, not the session
+        with session_db.begin_nested():
+            session_db.add(MovieOfTheDay(movie_id=pick.id, shown_date=today))
+        session_db.commit()
+    except IntegrityError:
+        # Another worker inserted today's row first — use its pick instead
+        existing = (
+            session_db.query(MovieOfTheDay).filter(MovieOfTheDay.shown_date == today).one_or_none()
+        )
+        if existing is None:
+            return None
+        return session_db.query(Movie).filter(Movie.id == existing.movie_id).one_or_none()
+
+    return pick
 
 
 # ==========================================
@@ -1054,6 +1116,9 @@ def index():
         # Get popular movies
         popular_movies = session.query(Movie).order_by(desc(Movie.popularity)).limit(12).all()
 
+        # Featured movie of the day (from the Hidden Gems pool)
+        movie_of_the_day = get_movie_of_the_day(session)
+
         # Stats for homepage hero
         total_movies = session.query(func.count(Movie.id)).scalar()
         total_genres = session.query(func.count(Genre.id)).scalar()
@@ -1068,6 +1133,7 @@ def index():
             top_movies=top_movies,
             recent_movies=recent_movies,
             popular_movies=popular_movies,
+            movie_of_the_day=movie_of_the_day,
             total_movies=total_movies,
             total_genres=total_genres,
             total_directors=total_directors,

@@ -243,6 +243,23 @@ class Collection(Base):
         return f"<Collection(name='{self.name}', user_id={self.user_id})>"
 
 
+class MovieOfTheDay(Base):
+    __tablename__ = "movie_of_the_day"
+
+    id = Column(Integer, primary_key=True)
+    movie_id = Column(Integer, ForeignKey("movies.id"), nullable=False)
+    shown_date = Column(Date, nullable=False)
+
+    # Relationships
+    movie = relationship("Movie")
+
+    # One featured movie per calendar day
+    __table_args__ = (UniqueConstraint("shown_date", name="uq_movie_of_the_day_shown_date"),)
+
+    def __repr__(self):
+        return f"<MovieOfTheDay(movie_id={self.movie_id}, shown_date={self.shown_date})>"
+
+
 class Genre(Base):
     __tablename__ = "genres"
 

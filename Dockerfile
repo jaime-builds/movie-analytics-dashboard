@@ -4,7 +4,7 @@
 #   - Requirements layer is cached separately from app code so
 #     code-only changes don't re-install packages
 # ──────────────────────────────────────────────────────────────
-FROM python:3.11-slim AS build
+FROM python:3.13-slim AS build
 
 RUN pip install --upgrade pip setuptools wheel
 
@@ -28,7 +28,7 @@ COPY . .
 #   - Copies only the venv and app from the build stage
 #   - Runs as a non-root user for security
 # ──────────────────────────────────────────────────────────────
-FROM python:3.11-slim AS runtime
+FROM python:3.13-slim AS runtime
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \

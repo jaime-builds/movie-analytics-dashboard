@@ -1,8 +1,10 @@
 {% extends "base.html" %}
+{% from "macros.html" import breadcrumbs %}
 
 {% block title %}{{ movie.title }} - Movie Analytics Dashboard{% endblock %}
 
 {% block content %}
+{{ breadcrumbs([("Home", url_for('index')), ("Movies", url_for('movies')), (movie.title, none)]) }}
 
 <!-- Backdrop Banner -->
 {% if movie.backdrop_path %}

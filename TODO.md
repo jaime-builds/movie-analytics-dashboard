@@ -7,10 +7,8 @@
 - [ ] **Year in review** (4h) - Personal stats page for movies watched, ratings given, genres explored
 - [ ] **User activity feed** (3h) - Public feed of recent ratings and reviews across all users
 - [ ] **Public collections** (3h) - Toggle to make user collections public; browseable by other users
-- [ ] **Movie of the day** (1h) - Featured movie on the homepage, refreshes daily
 - [ ] **Box office by genre** (2h) - Aggregation chart on analytics page showing total revenue per genre
 - [ ] **TMDB data dump sync** (2h) - Replace popular movies pagination with daily TMDB export file; removes 10,000 movie ceiling, faster ID collection, better movie selection by popularity
-- [ ] **Breadcrumb navigation** (1h) - Breadcrumbs on detail pages (movie, actor, director, studio, decade, collection)
 - [ ] **Smoke test timeouts** (15m) - Add HTTP timeouts to scripts/smoke_test.py requests; flagged by Bandit (B113) during lint/security scope expansion, low priority since it's a manual dev-only script
 
 ## 🚀 Next Up (This Month)
@@ -28,7 +26,6 @@
 - [ ] Migrate from Railway to Render + Supabase (after active dev month)
 - [ ] UptimeRobot pinger for Render free tier keep-alive
 - [ ] Keyboard shortcuts
-- [ ] Breadcrumb navigation
 - [ ] Dark mode improvements
 - [ ] Progressive Web App (PWA)
 - [ ] Social sharing features
@@ -43,7 +40,6 @@
 - [ ] Mobile app (React Native/Flutter)
 - [ ] Achievement badges - Gamified milestones for user activity
 - [ ] Shareable movie lists - Public URL for collections
-- [ ] Movie of the day - Featured movie on the homepage
 - [ ] Export profile data - Download ratings, reviews, collections as JSON or CSV
 - [ ] "Not interested" dismissal on recommendations
 - [ ] Runtime and content filters - Family-friendly toggle, language filter
@@ -57,6 +53,12 @@
 - [ ] Friends' ratings overlay
 
 ---
+
+## ✅ Recently Completed (July 21, 2026)
+
+- [x] **Python 3.13 upgrade** - Dockerfile, CI workflows, and requirements.txt moved to 3.13; test matrix trimmed to 3.11/3.12/3.13 (dropped EOL 3.9/3.10)
+- [x] **Movie of the day** (1h) - Featured movie on the homepage, drawn from the Hidden Gems pool with a 30-day anti-repeat window; deterministic per calendar day
+- [x] **Breadcrumb navigation** (1h) - Bootstrap 5 breadcrumb trail on all pages except home, via a shared Jinja2 macro
 
 ## ✅ Recently Completed (July 6, 2026)
 
@@ -124,9 +126,9 @@
 ## 📊 Project Stats
 
 - **Total Movies**: 5,000+ (Railway/PostgreSQL) | 8,000+ (local SQLite)
-- **Features Completed**: 62
-- **Test Coverage**: 87% ✅
-- **Tests Passing**: 407 ✅
+- **Features Completed**: 64
+- **Test Coverage**: 86.2% ✅
+- **Tests Passing**: 418 ✅
 - **API Endpoints**: 13 ✅
 - **Jinja2 Templates**: 28 ✅
 - **Live URL**: https://movie-analytics-dashboard-production.up.railway.app
@@ -152,4 +154,4 @@ This project showcases:
 
 ---
 
-**Last Updated**: July 6, 2026
+**Last Updated**: July 21, 2026

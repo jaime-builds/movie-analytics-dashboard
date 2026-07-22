@@ -42,6 +42,46 @@
     </div>
 </div>
 
+<!-- ===================== MOVIE OF THE DAY ===================== -->
+{% if movie_of_the_day %}
+<div class="home-section-header">
+    <h2 class="mb-0"><i class="bi bi-calendar-star me-2"></i>Movie of the Day</h2>
+</div>
+<div class="row mb-5">
+    <div class="col-md-8 col-lg-6">
+        <a href="{{ url_for('movie_detail', movie_id=movie_of_the_day.id) }}" class="text-decoration-none">
+            <div class="card movie-card h-100">
+                <div class="row g-0">
+                    <div class="col-4 col-sm-3">
+                        {{ poster_img(movie_of_the_day, config, css_class="img-fluid rounded-start h-100 object-fit-cover", placeholder_height="100%") }}
+                    </div>
+                    <div class="col-8 col-sm-9">
+                        <div class="card-body">
+                            <h5 class="card-title mb-1">{{ movie_of_the_day.title }}</h5>
+                            <p class="card-text small text-muted mb-2">
+                                {% if movie_of_the_day.release_date %}
+                                {{ movie_of_the_day.release_date.year }}
+                                {% endif %}
+                            </p>
+                            <p class="card-text small mb-2">
+                                <span class="badge bg-warning text-dark">
+                                    <i class="bi bi-star-fill"></i> {{ movie_of_the_day.vote_average }}
+                                </span>
+                            </p>
+                            {% if movie_of_the_day.overview %}
+                            <p class="card-text small d-none d-sm-block">
+                                {{ movie_of_the_day.overview|truncate(180) }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+{% endif %}
+
 <!-- ===================== FEATURE CARDS ===================== -->
 <div class="row g-3 mb-5">
     <div class="col-6 col-md-3">

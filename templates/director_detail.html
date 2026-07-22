@@ -1,8 +1,10 @@
 {% extends "base.html" %}
+{% from "macros.html" import breadcrumbs %}
 
 {% block title %}{{ director.name }} - Director - Movie Analytics Dashboard{% endblock %}
 
 {% block content %}
+{{ breadcrumbs([("Home", url_for('index')), ("Directors", url_for('directors')), (director.name, none)]) }}
 <div class="container-fluid py-4">
     <!-- Director Header -->
     <div class="row mb-4">

@@ -1,8 +1,10 @@
 {% extends "base.html" %}
+{% from "macros.html" import breadcrumbs %}
 
 {% block title %}{{ actor.name }} — Collaboration Network{% endblock %}
 
 {% block content %}
+{{ breadcrumbs([("Home", url_for('index')), ("Top Actors", url_for('top_actors')), (actor.name, url_for('actor_detail', actor_id=actor.id)), ("Network", none)]) }}
 
 <!-- ===================== HEADER ===================== -->
 <div class="an-header mb-4">

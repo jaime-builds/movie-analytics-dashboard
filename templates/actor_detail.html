@@ -1,8 +1,10 @@
 {% extends "base.html" %}
+{% from "macros.html" import breadcrumbs %}
 
 {% block title %}{{ actor.name }} - Actor Detail{% endblock %}
 
 {% block content %}
+{{ breadcrumbs([("Home", url_for('index')), ("Top Actors", url_for('top_actors')), (actor.name, none)]) }}
 <div class="container-fluid py-4">
     <!-- Actor Header -->
     <div class="row mb-4">

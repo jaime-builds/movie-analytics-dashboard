@@ -1,7 +1,8 @@
 {% extends "base.html" %}
-{% from "macros.html" import poster_img %}
+{% from "macros.html" import breadcrumbs, poster_img %}
 
 {% block content %}
+{{ breadcrumbs([("Home", url_for('index')), ("Hidden Gems", none)]) }}
 <div class="mb-4">
     <h1><i class="bi bi-gem"></i> Hidden Gems</h1>
     <p class="lead text-muted">Discover highly-rated movies that flew under the radar</p>

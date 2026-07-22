@@ -24,3 +24,25 @@
     </div>
 {% endif %}
 {% endmacro %}
+
+{% macro breadcrumbs(crumbs) %}
+{#
+    Renders a Bootstrap 5 breadcrumb trail.
+
+    Args:
+        crumbs: List of (label, url) tuples in trail order. The final crumb
+                is rendered as the active page (non-linked); its url is
+                ignored and may be none.
+#}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        {% for label, url in crumbs %}
+        {% if loop.last %}
+        <li class="breadcrumb-item active" aria-current="page">{{ label }}</li>
+        {% else %}
+        <li class="breadcrumb-item"><a href="{{ url }}">{{ label }}</a></li>
+        {% endif %}
+        {% endfor %}
+    </ol>
+</nav>
+{% endmacro %}

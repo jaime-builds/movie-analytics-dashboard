@@ -1,9 +1,10 @@
 {% extends "base.html" %}
-{% from "macros.html" import poster_img %}
+{% from "macros.html" import breadcrumbs, poster_img %}
 
 {% block title %}My Favorites - Movie Analytics Dashboard{% endblock %}
 
 {% block content %}
+{{ breadcrumbs([("Home", url_for('index')), ("Favorites", none)]) }}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>
         <i class="bi bi-heart-fill text-danger me-2"></i>My Favorite Movies
