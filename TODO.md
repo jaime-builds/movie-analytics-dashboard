@@ -19,12 +19,9 @@
 - [ ] **Dark mode improvements** - Audit and polish dark mode across all templates
 - [ ] **Social features** (8h) - Follow users, see friend activity, share favorites
 - [ ] **Movie trivia/quiz** (4h) - Interactive quiz based on the movie database; engaging demo feature
-- [ ] **Public collections** (3h) - Toggle to make user collections public; browseable by other users
 
 ## 🔮 Future
 
-- [ ] Migrate from Railway to Render + Supabase (after active dev month)
-- [ ] UptimeRobot pinger for Render free tier keep-alive
 - [ ] Keyboard shortcuts
 - [ ] Dark mode improvements
 - [ ] Progressive Web App (PWA)
@@ -53,6 +50,11 @@
 - [ ] Friends' ratings overlay
 
 ---
+
+## ✅ Recently Completed (July 29, 2026)
+
+- [x] **Unraid migration prep** - Documentation and config cleanup ahead of the move off Railway. README architecture diagram now shows the `dashboard` Compose stack (`dashboard-app` + `dashboard-db`, Postgres, no Redis) behind a Cloudflare Tunnel; Tech Stack/DevOps bullets updated for self-hosted Postgres and the SimpleCache + in-memory limiter fallback; `.github/workflows/sync_tmdb.yml` schedule disabled in favor of the `Sync-TMDB-Dashboard` Unraid User Script (Sundays 3am), since GitHub runners can't reach LAN-only Postgres. Infra deployment itself is a separate, not-yet-executed task; Live Demo URL still points at Railway pending verification.
+- [x] **Doc fact reconciliation** - Route count corrected to 52 (was "37+"), table count to 16 (was 15), API deep-dive endpoint count to 13 (was 11); added `movie_of_the_day` to the schema doc and `/api/v1/actors/search` to the endpoint list
 
 ## ✅ Recently Completed (July 21, 2026)
 
@@ -125,12 +127,16 @@
 
 ## 📊 Project Stats
 
-- **Total Movies**: 5,000+ (Railway/PostgreSQL) | 8,000+ (local SQLite)
+- **Total Movies**: 5,000+ (production PostgreSQL) | 8,000+ (local SQLite)
 - **Features Completed**: 64
 - **Test Coverage**: 86.2% ✅
 - **Tests Passing**: 418 ✅
+- **Flask Routes**: 52 (27 page · 12 action · 13 API) ✅
 - **API Endpoints**: 13 ✅
+- **Database Tables**: 16 ✅
 - **Jinja2 Templates**: 28 ✅
+- **Latest Migration**: 005_add_movie_of_the_day ✅
+<!-- TODO: update to https://dashboard.jaime.build once Unraid deployment is verified -->
 - **Live URL**: https://movie-analytics-dashboard-production.up.railway.app
 
 ## 🎓 Learning Goals
@@ -145,13 +151,13 @@ This project showcases:
 - ✅ RESTful API design
 - ✅ Testing (pytest/unittest)
 - ✅ DevOps (Docker)
-- ✅ Production deployment (Railway + PostgreSQL)
+- ✅ Self-hosted production deployment (Unraid + Docker Compose + PostgreSQL)
 - ✅ Database migrations (Alembic)
 - ✅ CI/CD pipeline (GitHub Actions)
-- ✅ Redis caching + rate limiting in production
+- ✅ Cloudflare Tunnel ingress
 - ✅ D3.js data visualization
-- ✅ GitHub Actions automation (cron jobs)
+- ✅ Scheduled data-sync automation
 
 ---
 
-**Last Updated**: July 21, 2026
+**Last Updated**: July 29, 2026

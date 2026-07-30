@@ -1,9 +1,26 @@
+# ============================================================================
+# DISABLED — retained for reference only.
+#
+# The weekly TMDB sync now runs on the Unraid host as a User Script:
+#   Sync-TMDB-Dashboard — Sundays at 3:00 AM local time
+#
+# Reason: the production database is the `dashboard-db` Postgres container in
+# the `dashboard` Compose stack, reachable only on the LAN. GitHub's hosted
+# runners have no route to it, so a cloud-triggered sync cannot connect.
+#
+# The `schedule:` trigger below is commented out. `workflow_dispatch` is kept
+# so the job can still be run by hand against a publicly reachable database
+# (set DATABASE_URL accordingly) — note the RAILWAY_DATABASE_URL secret it
+# references is dead once the Railway project is torn down.
+# ============================================================================
+
 name: Sync TMDB Data
 
 on:
-  schedule:
-    # Every Sunday at 2:00 AM UTC
-    - cron: '0 2 * * 0'
+  # schedule:
+  #   # Every Sunday at 2:00 AM UTC — superseded by the Sync-TMDB-Dashboard
+  #   # Unraid User Script (Sundays 3am local).
+  #   - cron: '0 2 * * 0'
   workflow_dispatch:
     inputs:
       limit:

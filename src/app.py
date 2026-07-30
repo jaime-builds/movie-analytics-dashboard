@@ -81,7 +81,7 @@ limiter = Limiter(
     storage_uri=_redis_url if _redis_url else "memory://",
 )
 
-if _redis_url:
+if Config.IS_PRODUCTION:
     from werkzeug.middleware.proxy_fix import ProxyFix
 
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)

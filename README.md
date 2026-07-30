@@ -7,7 +7,7 @@
 ![Flask](https://img.shields.io/badge/flask-3.0-green)
 ![SQLAlchemy](https://img.shields.io/badge/sqlalchemy-2.0-orange)
 
-<!-- Add this once deployed -->
+<!-- TODO: update to https://dashboard.jaime.build once Unraid deployment is verified -->
 📺 **[Live Demo](https://movie-analytics-dashboard-production.up.railway.app)**
 
 ![Movie Analytics Dashboard](docs/screenshot.png)
@@ -51,7 +51,7 @@ This isn't just another movie app. It's a **portfolio-grade full-stack applicati
 | 🗓️ **Decade Overview** | Curated pages per decade with defining films, top rated, genre breakdown |
 | 🗂️ **Movie Collections** | Create and manage named lists of your favorite movies |
 | 📊 **Analytics Dashboard** | Interactive Chart.js visualizations including budget/revenue scatter and profitability charts |
-| 🔄 **Auto-Sync** | Weekly GitHub Actions cron job syncing 5,000 movies from TMDB |
+| 🔄 **Auto-Sync** | Weekly scheduled job syncing 5,000 movies from TMDB |
 | 🎭 **Actor Profiles** | Top actors with photos, filmography, and collaboration network |
 | 🕸️ **Collaboration Network** | D3.js force graph showing actor connections weighted by shared films |
 | 🎞️ **Common Films** | Find movies shared by any combination of up to 5 actors |
@@ -65,7 +65,7 @@ This isn't just another movie app. It's a **portfolio-grade full-stack applicati
 | 🔎 **Advanced Search** | Combine title, genre, era, rating, and runtime filters in one unified UI |
 | ⚖️ **Movie Comparison** | Select up to 4 movies for side-by-side stats and visual charts |
 | 📺 **Streaming Availability** | Where to Watch card showing stream/rent/buy options via TMDB/JustWatch |
-| 🚀 **Query Caching** | Redis-backed Flask-Caching on analytics and genre routes |
+| 🚀 **Query Caching** | Flask-Caching on analytics and genre routes (1-hour TTL) |
 | 🎛️ **Advanced Filters** | Min vote count and status filters with collapsible panel |
 | 🏠 **Home Page Hero** | Two-column hero with live stats bar, jaime-builds branding, and feature shortcut cards |
 | 🎬 **Movie of the Day** | Featured pick on the homepage from the Hidden Gems pool, deterministic per day with a 30-day anti-repeat window |
@@ -100,16 +100,20 @@ flowchart TB
     subgraph GH["⚙️ GitHub"]
         direction LR
         CI["Actions: CI\nTests · Lint · Security\n(3 Python versions)"]
-        SYNC["Actions: TMDB Sync\nWeekly cron · Manual trigger"]
     end
 
-    subgraph Railway["🚂 Railway (Production)"]
+    subgraph Unraid["🖥️ Unraid (Production)"]
         direction TB
-        APP["Flask App\ngunicorn · 2 workers"]
-        PG[("PostgreSQL\n5,000+ movies")]
-        REDIS[("Redis\nCache · Rate limiting")]
-        APP -- SQLAlchemy ORM --> PG
-        APP -- Flask-Caching\nFlask-Limiter --> REDIS
+        CF["Cloudflare Tunnel\nTLS · Public ingress"]
+        subgraph Stackd["📦 Compose stack: dashboard"]
+            direction TB
+            APP["dashboard-app\nFlask · gunicorn · 2 workers\nSimpleCache · in-memory limiter"]
+            PG[("dashboard-db\nPostgreSQL · 5,000+ movies")]
+            APP -- SQLAlchemy ORM --> PG
+        end
+        SYNC["User Script: Sync-TMDB-Dashboard\nSundays 3am"]
+        CF --> APP
+        SYNC -- sync_tmdb_data.py --> PG
     end
 
     subgraph Local["💻 Local Dev"]
@@ -123,13 +127,11 @@ flowchart TB
         TMDB["TMDB API\nMovies · Cast · Trailers\nWatch Providers"]
     end
 
-    UI -- HTTP --> APP
+    UI -- HTTPS --> CF
     UI -- HTTP --> FLASK
     APP -- get_movie_videos\nget_watch_providers --> TMDB
     FLASK -- sync_tmdb_data.py --> TMDB
-    GH -- push to main\nauto-deploy --> Railway
-    SYNC -- DATABASE_URL secret --> PG
-    CI -- pytest · flake8 · bandit --> GH
+    SYNC -- TMDB API --> TMDB
 
     subgraph Stack["🛠️ Key Libraries"]
         direction LR
@@ -157,6 +159,7 @@ GET  /api/v1/analytics/top-movies # Top by rating/revenue/popularity
 # Actors
 GET  /api/v1/actors              # List actors with pagination
 GET  /api/v1/actors/<id>         # Actor details with filmography
+GET  /api/v1/actors/search       # Search actors by name (autocomplete)
 
 # System
 GET  /api/v1/genres              # All genres
@@ -222,7 +225,7 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 
 - Python 3.13+ with Flask
 - SQLAlchemy ORM
-- Flask-Caching (RedisCache in production, SimpleCache in dev)
+- Flask-Caching (SimpleCache by default; RedisCache when `REDIS_URL` is set)
 - Flask-Limiter for API rate limiting
 - Flask-WTF (CSRF protection)
 - Structured JSON logging with daily rotation (logs/app.log)
@@ -241,8 +244,8 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 **Database**
 
 - SQLite (development)
-- PostgreSQL (production via Railway)
-- Normalized schema with 15 tables
+- PostgreSQL (production, self-hosted on Unraid)
+- Normalized schema with 16 tables
 - Many-to-many relationships
 - Compound indexes
 - Alembic migrations
@@ -250,20 +253,22 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 **DevOps**
 
 - Docker (Dockerfile + docker-compose with volume mounts and health check)
-- Redis (Railway add-on — caching + rate limiter storage)
-- Weekly TMDB sync via GitHub Actions cron
+- Self-hosted on Unraid: `dashboard` Compose stack (`dashboard-app` + `dashboard-db`)
+- Cloudflare Tunnel for public ingress (no ports forwarded)
+- No Redis — app falls back to SimpleCache + in-memory rate limiter when `REDIS_URL` is unset
+- Weekly TMDB sync via Unraid User Script (`Sync-TMDB-Dashboard`, Sundays 3am)
 - Structured JSON logging
-- GitHub Actions CI/CD (tests, lint, security — 3 Python versions)
+- GitHub Actions CI (tests, lint, security — 3 Python versions)
 - Environment-based config
 
 ## 📊 Project Stats
 
-- **8,000+** movies with complete metadata (local) | **5,000+** on live Railway instance
+- **8,000+** movies with complete metadata (local) | **5,000+** on the live instance
 - **300+** directors with filmographies
 - **1,000+** actors with profiles
 - **86.2%** test coverage with 418 tests passing
-- **15** database tables with optimized indexes
-- **37+** Flask routes
+- **16** database tables with optimized indexes
+- **52** Flask routes (27 page · 12 action · 13 API)
 - **13** RESTful API endpoints
 - **28** Jinja2 templates
 
@@ -306,12 +311,12 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 ✅ CI/CD with GitHub Actions
 ✅ Structured logging
 ✅ Comprehensive documentation
-✅ Production deployment (Railway)
+✅ Self-hosted production deployment (Unraid + Docker Compose)
 ✅ PostgreSQL in production
 ✅ Database migrations (Alembic)
-✅ Redis caching + rate limiting in production
+✅ Cloudflare Tunnel ingress
 ✅ D3.js interactive data visualization
-✅ GitHub Actions cron job automation
+✅ Scheduled data-sync automation
 
 ## 📚 Detailed Documentation
 
@@ -418,7 +423,11 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 - `ratings` - User ratings (1-5 stars) for movies
 - `reviews` - User text reviews for movies
 - `collections` - User-created named movie lists
-- `collection_movies` - Many-to-many (collections ↔ movies)
+- `collection_movies` - Many-to-many (collections ↔ movies, with `added_at`)
+
+**Featured Content**
+
+- `movie_of_the_day` - Daily featured pick with 30-day anti-repeat history
 
 ### ER Diagram
 
@@ -500,10 +509,13 @@ python scripts/sync_tmdb_data.py --limit 1000 --workers 20
 
 ### Automated Sync
 
-Automated TMDB sync is handled by `.github/workflows/sync_tmdb.yml`:
+Automated TMDB sync runs on the Unraid host as a User Script (`Sync-TMDB-Dashboard`):
 
-- **Weekly sync** every Sunday at 2:00 AM UTC
-- **Manual trigger** with configurable movie limit and update mode
+- **Weekly sync** every Sunday at 3:00 AM local time
+- Runs against the `dashboard-db` Postgres container on the LAN
+
+The old GitHub Actions workflow (`.github/workflows/sync_tmdb.yml`) is retained but
+disabled — GitHub's cloud runners can't reach a LAN-only database.
 
 For local or ad hoc updates, run `python scripts/sync_tmdb_data.py` manually.
 
@@ -594,7 +606,7 @@ A dedicated activity hub showing:
 
 ### RESTful API
 
-11 endpoints providing:
+13 endpoints providing:
 
 - Movie search and filtering
 - Analytics and statistics
@@ -610,6 +622,7 @@ See [TODO.md](TODO.md) for the complete roadmap.
 
 ### Recently Shipped
 
+- [x] **Unraid migration prep** - Docs and config moved off Railway: architecture diagram now shows the `dashboard` Compose stack (Postgres, no Redis) behind a Cloudflare Tunnel; GitHub Actions TMDB sync disabled in favor of an Unraid User Script
 - [x] **Python 3.13** - Dockerfile, CI workflows, and dependencies upgraded; test matrix trimmed to 3.11/3.12/3.13
 - [x] **Movie of the Day** - Homepage feature drawn from the Hidden Gems pool, deterministic per day with a 30-day anti-repeat window
 - [x] **Breadcrumb navigation** - Bootstrap 5 breadcrumb trail on every page except home, via a shared Jinja2 macro
