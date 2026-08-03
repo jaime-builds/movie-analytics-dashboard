@@ -1,0 +1,149 @@
+{% extends "admin_layout.html" %}
+{% set admin_page = 'dashboard' %}
+{% set admin_title = 'Admin Dashboard' %}
+
+{% block admin_content %}
+<!-- Top-line stats -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card text-center shadow-sm h-100">
+            <div class="card-body">
+                <div class="display-6 fw-bold text-primary">{{ stats.total_users }}</div>
+                <p class="text-muted mb-0 small"><i class="bi bi-people-fill me-1"></i>Users</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card text-center shadow-sm h-100">
+            <div class="card-body">
+                <div class="display-6 fw-bold text-success">{{ stats.total_movies }}</div>
+                <p class="text-muted mb-0 small"><i class="bi bi-film me-1"></i>Movies</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card text-center shadow-sm h-100">
+            <div class="card-body">
+                <div class="display-6 fw-bold text-warning">{{ stats.total_ratings }}</div>
+                <p class="text-muted mb-0 small"><i class="bi bi-star-fill me-1"></i>Ratings</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card text-center shadow-sm h-100">
+            <div class="card-body">
+                <div class="display-6 fw-bold text-info">{{ stats.total_reviews }}</div>
+                <p class="text-muted mb-0 small"><i class="bi bi-chat-quote-fill me-1"></i>Reviews</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card text-center shadow-sm h-100">
+            <div class="card-body">
+                <div class="display-6 fw-bold">{{ '{:,}'.format(stats.total_page_views) }}</div>
+                <p class="text-muted mb-0 small"><i class="bi bi-eye-fill me-1"></i>Page Views</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card text-center shadow-sm h-100">
+            <div class="card-body">
+                <div class="display-6 fw-bold">{{ '{:,}'.format(stats.page_views_this_month) }}</div>
+                <p class="text-muted mb-0 small"><i class="bi bi-calendar-month me-1"></i>Views This Month</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Site settings -->
+    <div class="col-lg-5">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title mb-3"><i class="bi bi-toggles me-2"></i>Site Settings</h5>
+
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <div class="fw-semibold">New account registration</div>
+                        <small class="text-muted">
+                            {% if registration_enabled %}
+                            Anyone can create an account.
+                            {% else %}
+                            The register page is closed to new sign-ups.
+                            {% endif %}
+                        </small>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        {% if registration_enabled %}
+                        <span class="badge bg-success">Enabled</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Disabled</span>
+                        {% endif %}
+                        <form method="POST" action="{{ url_for('admin_toggle_registration') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="next" value="{{ request.full_path }}">
+                            <button type="submit" class="btn btn-sm {{ 'btn-outline-danger' if registration_enabled else 'btn-outline-success' }}">
+                                {{ 'Disable' if registration_enabled else 'Enable' }}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="fw-semibold">Banned accounts</div>
+                        <small class="text-muted">Their ratings and reviews are hidden site-wide.</small>
+                    </div>
+                    <a href="{{ url_for('admin_users') }}" class="btn btn-sm btn-outline-secondary">
+                        <span class="badge bg-danger me-1">{{ stats.banned_users }}</span> Manage
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Log snippet -->
+    <div class="col-lg-7">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title mb-3">
+                    <i class="bi bi-journal-text me-2"></i>Recent Warnings &amp; Errors
+                </h5>
+                {% if log_entries %}
+                <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th scope="col">Time</th>
+                                <th scope="col">Level</th>
+                                <th scope="col">Message</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in log_entries %}
+                            <tr>
+                                <td class="text-nowrap small text-muted">{{ entry.timestamp }}</td>
+                                <td>
+                                    <span class="badge {{ 'bg-danger' if entry.level == 'ERROR' else 'bg-warning text-dark' }}">
+                                        {{ entry.level }}
+                                    </span>
+                                </td>
+                                <td class="small font-monospace">{{ entry.message }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-check-circle display-6 d-block mb-2"></i>
+                    <p class="mb-0">No warnings or errors in the recent log.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

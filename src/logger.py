@@ -106,6 +106,11 @@ def _build_logger(name: str = "app") -> logging.Logger:
     return logger
 
 
+def get_log_file_path() -> str:
+    """Return the absolute path of the file the app logger writes to."""
+    return _LOG_FILE
+
+
 def get_logger(name: str = "app") -> logging.Logger:
     """
     Return a named child logger that writes to the same handlers.

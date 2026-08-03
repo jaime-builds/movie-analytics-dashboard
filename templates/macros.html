@@ -25,6 +25,49 @@
 {% endif %}
 {% endmacro %}
 
+{% macro pagination(page, total_pages, label="Pagination", query_params={}) %}
+{#
+    Renders a Bootstrap 5 pagination bar with a windowed page range.
+
+    Args:
+        page:         Current page number (1-based)
+        total_pages:  Total number of pages
+        label:        aria-label for the surrounding <nav>
+        query_params: Extra query-string values to carry across pages,
+                      e.g. {'q': search}. Falsy values are dropped.
+#}
+{% if total_pages > 1 %}
+{% set extra = [] %}
+{% for key, value in query_params.items() %}
+    {% if value %}{% set _ = extra.append(key ~ '=' ~ value|urlencode) %}{% endif %}
+{% endfor %}
+{% set suffix = ('&' ~ extra|join('&')) if extra else '' %}
+<nav aria-label="{{ label }}" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if page > 1 %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page - 1 }}{{ suffix }}">Previous</a>
+        </li>
+        {% endif %}
+        {% for p in range(1, total_pages + 1) %}
+            {% if p == page %}
+            <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+            {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+            <li class="page-item"><a class="page-link" href="?page={{ p }}{{ suffix }}">{{ p }}</a></li>
+            {% elif p == page - 3 or p == page + 3 %}
+            <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% endif %}
+        {% endfor %}
+        {% if page < total_pages %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page + 1 }}{{ suffix }}">Next</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endmacro %}
+
 {% macro breadcrumbs(crumbs) %}
 {#
     Renders a Bootstrap 5 breadcrumb trail.

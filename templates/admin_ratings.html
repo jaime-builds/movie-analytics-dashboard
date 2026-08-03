@@ -1,0 +1,100 @@
+{% extends "admin_layout.html" %}
+{% from "macros.html" import pagination %}
+{% set admin_page = 'ratings' %}
+{% set admin_title = 'Ratings' %}
+
+{% block admin_content %}
+<p class="text-muted">
+    {{ total }} rating{{ 's' if total != 1 }} in total, including moderated ones. Soft-deleted
+    ratings no longer count towards a movie's average but can be restored here.
+</p>
+
+{% if ratings %}
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col">User</th>
+                    <th scope="col">Movie</th>
+                    <th scope="col">Rating</th>
+                    <th scope="col">Rated</th>
+                    <th scope="col">Status</th>
+                    <th scope="col" class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rating, author, movie in ratings %}
+                <tr class="{{ 'table-secondary text-decoration-line-through opacity-75' if rating.is_deleted }}">
+                    <td class="text-nowrap">
+                        {{ author.username }}
+                        {% if author.is_banned %}
+                        <span class="badge bg-danger ms-1">Banned</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+                            {{ movie.title }}
+                        </a>
+                    </td>
+                    <td class="text-nowrap">
+                        {% for i in range(1, 6) %}
+                        <i class="bi bi-star{{ '-fill' if i <= rating.rating else '' }} text-warning"></i>
+                        {% endfor %}
+                        <span class="text-muted small ms-1">{{ rating.rating }}/5</span>
+                    </td>
+                    <td class="text-nowrap small text-muted">
+                        {{ rating.created_at.strftime('%b %d, %Y') if rating.created_at else '' }}
+                    </td>
+                    <td>
+                        {% if rating.is_deleted %}
+                        <span class="badge bg-secondary">Deleted</span>
+                        {% if rating.deleted_at %}
+                        <small class="text-muted d-block">{{ rating.deleted_at.strftime('%b %d, %Y') }}</small>
+                        {% endif %}
+                        {% else %}
+                        <span class="badge bg-success">Visible</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end text-nowrap">
+                        {% if rating.is_deleted %}
+                        <form method="POST" action="{{ url_for('admin_restore_rating', rating_id=rating.id) }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="next" value="{{ request.full_path }}">
+                            <button type="submit" class="btn btn-sm btn-outline-success">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i>Restore
+                            </button>
+                        </form>
+                        {% else %}
+                        <form method="POST" action="{{ url_for('admin_soft_delete_rating', rating_id=rating.id) }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="next" value="{{ request.full_path }}">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-eye-slash me-1"></i>Soft Delete
+                            </button>
+                        </form>
+                        {% endif %}
+                        <form method="POST" action="{{ url_for('admin_hard_delete_rating', rating_id=rating.id) }}" class="d-inline"
+                              onsubmit="return confirm('Permanently delete this rating? This cannot be undone.');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="next" value="{{ request.full_path }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-trash me-1"></i>Hard Delete
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{{ pagination(page, total_pages, "Ratings pagination") }}
+{% else %}
+<div class="text-center py-5 text-muted">
+    <i class="bi bi-star display-4 d-block mb-3"></i>
+    <p class="mb-0">No ratings have been submitted yet.</p>
+</div>
+{% endif %}
+{% endblock %}

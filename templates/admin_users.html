@@ -1,0 +1,104 @@
+{% extends "admin_layout.html" %}
+{% from "macros.html" import pagination %}
+{% set admin_page = 'users' %}
+{% set admin_title = 'Users' %}
+
+{% block admin_content %}
+<div class="row mb-3">
+    <div class="col-md-6">
+        <form method="get" action="{{ url_for('admin_users') }}" class="d-flex" autocomplete="off">
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" class="form-control" name="q" value="{{ search }}"
+                       placeholder="Search by username...">
+                <button class="btn btn-primary" type="submit">Search</button>
+                {% if search %}
+                <a class="btn btn-outline-secondary" href="{{ url_for('admin_users') }}">Clear</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+    <div class="col-md-6 d-flex align-items-center justify-content-md-end">
+        <span class="text-muted small">
+            {{ total }} user{{ 's' if total != 1 }}{% if search %} matching "{{ search }}"{% endif %}
+        </span>
+    </div>
+</div>
+
+{% if users %}
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col">Username</th>
+                    <th scope="col">Joined</th>
+                    <th scope="col" class="text-center">Ratings</th>
+                    <th scope="col" class="text-center">Reviews</th>
+                    <th scope="col" class="text-center">Favorites</th>
+                    <th scope="col">Status</th>
+                    <th scope="col" class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user, ratings_count, reviews_count, favorites_count in users %}
+                <tr {% if user.is_banned %}class="table-danger"{% endif %}>
+                    <td>
+                        <i class="bi bi-person-circle me-1 text-secondary"></i>{{ user.username }}
+                        {% if user.is_admin %}
+                        <span class="badge bg-primary ms-1"><i class="bi bi-shield-lock me-1"></i>Admin</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-nowrap small text-muted">
+                        {{ user.created_at.strftime('%b %d, %Y') if user.created_at else 'Unknown' }}
+                    </td>
+                    <td class="text-center">{{ ratings_count }}</td>
+                    <td class="text-center">{{ reviews_count }}</td>
+                    <td class="text-center">{{ favorites_count }}</td>
+                    <td>
+                        {% if user.is_banned %}
+                        <span class="badge bg-danger">Banned</span>
+                        {% if user.banned_at %}
+                        <small class="text-muted d-block">{{ user.banned_at.strftime('%b %d, %Y') }}</small>
+                        {% endif %}
+                        {% else %}
+                        <span class="badge bg-success">Active</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        {% if user.is_banned %}
+                        <form method="POST" action="{{ url_for('admin_unban_user', user_id=user.id) }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="next" value="{{ request.full_path }}">
+                            <button type="submit" class="btn btn-sm btn-outline-success">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i>Unban
+                            </button>
+                        </form>
+                        {% elif current_user and user.id == current_user.id %}
+                        <span class="text-muted small">You</span>
+                        {% else %}
+                        <form method="POST" action="{{ url_for('admin_ban_user', user_id=user.id) }}" class="d-inline"
+                              onsubmit="return confirm('Ban {{ user.username }}? Their ratings and reviews will be hidden site-wide.');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="next" value="{{ request.full_path }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-slash-circle me-1"></i>Ban
+                            </button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{{ pagination(page, total_pages, "Users pagination", {'q': search}) }}
+{% else %}
+<div class="text-center py-5 text-muted">
+    <i class="bi bi-people display-4 d-block mb-3"></i>
+    <p class="mb-0">No users found{% if search %} for "{{ search }}"{% endif %}.</p>
+</div>
+{% endif %}
+{% endblock %}

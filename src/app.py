@@ -1,9 +1,12 @@
 import csv
 import hashlib
 import io
+import json
 import logging
+import os
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
+from functools import wraps
 from typing import Dict, Optional
 from urllib.parse import unquote, urlsplit
 
@@ -15,11 +18,13 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFError, CSRFProtect
 from sqlalchemy import Integer, and_, desc, exists, extract, func, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.dialects.postgresql import insert as postgresql_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from werkzeug.exceptions import HTTPException
 
 from config.config import Config
-from src.logger import get_logger
+from src.logger import get_log_file_path, get_logger
 from src.models import (
     Cast,
     Collection,
@@ -27,11 +32,13 @@ from src.models import (
     Genre,
     Movie,
     MovieOfTheDay,
+    PageView,
     Person,
     ProductionCompany,
     Rating,
     Review,
     Session,
+    SiteSetting,
     User,
     collection_movies_table,
     movie_genres_table,
@@ -135,6 +142,78 @@ def _log_request_start():
     request._start_time = time.monotonic()
 
 
+# ==========================================
+# PAGE VIEW TRACKING
+# ==========================================
+
+# Only real page routes are counted -- API calls and static assets are noise.
+_UNTRACKED_PATH_PREFIXES = ("/api/", "/static/")
+
+# Backends whose INSERT supports a native ON CONFLICT DO UPDATE upsert.
+_PAGE_VIEW_UPSERTS = {
+    "sqlite": sqlite_insert,
+    "postgresql": postgresql_insert,
+}
+
+
+def _record_page_view(session_db, path, view_date):
+    """Increment the view counter for (path, view_date), inserting it if new."""
+    page_views = PageView.__table__
+    upsert_insert = _PAGE_VIEW_UPSERTS.get(session_db.get_bind().dialect.name)
+
+    if upsert_insert is not None:
+        # One statement on the common path: insert, or bump the existing row.
+        statement = upsert_insert(page_views).values(path=path, view_date=view_date, count=1)
+        session_db.execute(
+            statement.on_conflict_do_update(
+                index_elements=["path", "view_date"],
+                set_={"count": page_views.c.count + 1},
+            )
+        )
+        session_db.commit()
+        return
+
+    # Other backends: try the insert, and fall back to an update on collision.
+    try:
+        # Savepoint so a losing race only discards this insert, not the session
+        with session_db.begin_nested():
+            session_db.execute(page_views.insert().values(path=path, view_date=view_date, count=1))
+        session_db.commit()
+    except IntegrityError:
+        session_db.execute(
+            page_views.update()
+            .where(page_views.c.path == path, page_views.c.view_date == view_date)
+            .values(count=page_views.c.count + 1)
+        )
+        session_db.commit()
+
+
+@app.before_request
+def _track_page_view():
+    """Count GET requests to page routes for the admin analytics dashboard."""
+    if request.method != "GET" or request.path.startswith(_UNTRACKED_PATH_PREFIXES):
+        return
+
+    # This session only bumps a counter, so it deliberately leaves the rest of
+    # the request alone: expire_on_commit is off and it is not closed. The
+    # commit already returns the connection to the pool, while close() would
+    # expunge instances from a session the request may still be using.
+    session_db = get_db_session()
+    expire_on_commit = session_db.expire_on_commit
+    session_db.expire_on_commit = False
+    try:
+        _record_page_view(session_db, request.path[:255], datetime.now().date())
+    except SQLAlchemyError as exc:
+        # Analytics must never break the page it is counting
+        session_db.rollback()
+        logger.warning(
+            f"Unable to record page view for {request.path}: {exc}",
+            extra={"path": request.path},
+        )
+    finally:
+        session_db.expire_on_commit = expire_on_commit
+
+
 @app.after_request
 def _log_request_end(response):
     """Log every completed request with method, path, status, and duration."""
@@ -182,11 +261,114 @@ def _handle_csrf_error(exc):
 
 
 def get_current_user(session_db):
-    """Get the currently logged-in user from session"""
+    """Get the currently logged-in user from session.
+
+    Banned accounts are logged out here rather than in a dedicated
+    before_request hook: this app opens a fresh DB session per route, so a
+    separate hook would repeat the user lookup on every authenticated
+    request. Every auth-aware route already funnels through this function,
+    so enforcing the ban here costs nothing extra. Returning None lets the
+    request continue and redirect/render as it would for a logged-out user.
+    """
     user_id = flask_session.get("user_id")
     if not user_id:
         return None
-    return session_db.query(User).filter_by(id=user_id).first()
+
+    user = session_db.query(User).filter_by(id=user_id).first()
+
+    if user is not None and user.is_banned:
+        flask_session.clear()
+        logger.warning(
+            f"Banned user blocked: {user.username}",
+            extra={
+                "user_id": user.id,
+                "username": user.username,
+                "ip": request.remote_addr,
+            },
+        )
+        flash("Your account has been suspended.", "danger")
+        return None
+
+    return user
+
+
+def admin_required(view_func):
+    """Restrict a route to logged-in administrators, returning 403 otherwise."""
+
+    @wraps(view_func)
+    def wrapped_view(*args, **kwargs):
+        session_db = get_db_session()
+        try:
+            user = get_current_user(session_db)
+            if not user or not user.is_admin:
+                logger.warning(
+                    f"Denied admin access to {request.path}",
+                    extra={
+                        "user_id": user.id if user else None,
+                        "path": request.path,
+                        "ip": request.remote_addr,
+                    },
+                )
+                return "Forbidden", 403
+        finally:
+            session_db.close()
+
+        return view_func(*args, **kwargs)
+
+    return wrapped_view
+
+
+def _visible_content_filters(model):
+    """Filters hiding soft-deleted rows and rows authored by banned users.
+
+    The query must already join `User` on the author. Banned users' content is
+    excluded everywhere -- including rating aggregates -- so a ban hides an
+    account's contributions consistently across the site.
+    """
+    return (model.is_deleted.is_(False), User.is_banned.is_(False))
+
+
+def _visible_reviews_query(session_db, movie_id):
+    """Reviews for a movie that are safe to show to other users."""
+    return (
+        session_db.query(Review)
+        .join(User, Review.user_id == User.id)
+        .filter(Review.movie_id == movie_id, *_visible_content_filters(Review))
+    )
+
+
+def _public_rating_stats(session_db, movie_id):
+    """Return (average, count) of a movie's publicly visible user ratings."""
+    avg_rating, num_ratings = (
+        session_db.query(func.avg(Rating.rating), func.count(Rating.id))
+        .join(User, Rating.user_id == User.id)
+        .filter(Rating.movie_id == movie_id, *_visible_content_filters(Rating))
+        .one()
+    )
+    return avg_rating, num_ratings or 0
+
+
+def _get_site_setting(session_db, key, default=None):
+    """Read a site_settings value, falling back to `default` when unset."""
+    setting = session_db.query(SiteSetting).filter_by(key=key).first()
+    if setting is None or setting.value is None:
+        return default
+    return setting.value
+
+
+def _set_site_setting(session_db, key, value):
+    """Insert or update a site_settings row."""
+    setting = session_db.query(SiteSetting).filter_by(key=key).first()
+    if setting is None:
+        session_db.add(SiteSetting(key=key, value=value))
+    else:
+        setting.value = value
+    session_db.commit()
+
+
+def _registration_enabled(session_db) -> bool:
+    """Whether new account registration is currently allowed."""
+    return _get_site_setting(session_db, "registration_enabled", "true") == "true"
 
 
 def _is_safe_relative_redirect(target: Optional[str]) -> bool:
@@ -470,6 +652,11 @@ def get_movie_of_the_day(session_db):
 def register():
     session_db = get_db_session()
     try:
+        # Registration can be switched off site-wide from the admin dashboard
+        registration_enabled = _registration_enabled(session_db)
+        if not registration_enabled:
+            return render_template("register.html", registration_enabled=False)
+
         if request.method == "POST":
             username = request.form.get("username", "").strip()
             password = request.form.get("password", "")
@@ -478,24 +665,24 @@ def register():
             # Validation
             if not username or not password:
                 flash("Username and password are required", "danger")
-                return render_template("register.html")
+                return render_template("register.html", registration_enabled=True)
 
             if len(username) < 3:
                 flash("Username must be at least 3 characters", "danger")
-                return render_template("register.html")
+                return render_template("register.html", registration_enabled=True)
 
             if len(password) < 6:
                 flash("Password must be at least 6 characters", "danger")
-                return render_template("register.html")
+                return render_template("register.html", registration_enabled=True)
 
             if password != password_confirm:
                 flash("Passwords do not match", "danger")
-                return render_template("register.html")
+                return render_template("register.html", registration_enabled=True)
 
             # Check if username exists
             if session_db.query(User).filter_by(username=username).first():
                 flash("Username already exists. Please choose another.", "danger")
-                return render_template("register.html")
+                return render_template("register.html", registration_enabled=True)
 
             # Create new user
             user = User(username=username)
@@ -516,7 +703,7 @@ def register():
             flash(f"Welcome, {username}! Your account has been created.", "success")
             return redirect(url_for("index"))
 
-        return render_template("register.html")
+        return render_template("register.html", registration_enabled=True)
     finally:
         session_db.close()
 
@@ -746,10 +933,15 @@ def rate_movie(movie_id):
         if not movie:
             return jsonify({"error": "Movie not found"}), 404
 
-        # Check if user already rated this movie
+        # Check if user already rated this movie. Soft-deleted rows are
+        # included: the unique (user, movie) index means a moderated rating
+        # would otherwise be silently overwritten and stay hidden.
         existing_rating = (
             session_db.query(Rating).filter_by(user_id=user.id, movie_id=movie_id).first()
         )
+
+        if existing_rating and existing_rating.is_deleted:
+            return jsonify({"error": "This rating was removed by a moderator"}), 403
 
         if existing_rating:
             # Update existing rating
@@ -764,13 +956,8 @@ def rate_movie(movie_id):
 
         session_db.commit()
 
-        # Calculate new average rating
-        avg_rating = (
-            session_db.query(func.avg(Rating.rating)).filter(Rating.movie_id == movie_id).scalar()
-        )
-        num_ratings = (
-            session_db.query(func.count(Rating.id)).filter(Rating.movie_id == movie_id).scalar()
-        )
+        # Calculate new average rating (publicly visible ratings only)
+        avg_rating, num_ratings = _public_rating_stats(session_db, movie_id)
 
         return jsonify(
             {
@@ -810,10 +997,16 @@ def submit_review(movie_id):
             flash("Movie not found", "danger")
             return redirect(url_for("index"))
 
-        # Check if user already reviewed this movie
+        # Check if user already reviewed this movie. Soft-deleted rows are
+        # included: the unique (user, movie) constraint means a moderated
+        # review would otherwise be silently overwritten and stay hidden.
         existing_review = (
             session_db.query(Review).filter_by(user_id=user.id, movie_id=movie_id).first()
         )
+
+        if existing_review and existing_review.is_deleted:
+            flash("This review was removed by a moderator and cannot be edited.", "danger")
+            return redirect(url_for("movie_detail", movie_id=movie_id))
 
         if existing_review:
             # Update existing review
@@ -1554,26 +1747,19 @@ def movie_detail(movie_id):
         user_rating = None
         if user:
             user_rating = (
-                session.query(Rating).filter_by(user_id=user.id, movie_id=movie_id).first()
+                session.query(Rating)
+                .filter_by(user_id=user.id, movie_id=movie_id, is_deleted=False)
+                .first()
             )
 
-        # NEW: Get average rating and count
-        avg_rating = (
-            session.query(func.avg(Rating.rating)).filter(Rating.movie_id == movie_id).scalar()
-        )
-        num_ratings = (
-            session.query(func.count(Rating.id)).filter(Rating.movie_id == movie_id).scalar()
-        )
+        # NEW: Get average rating and count (publicly visible ratings only)
+        avg_rating, num_ratings = _public_rating_stats(session, movie_id)
 
         # NEW: Get reviews (paginated)
         review_page = _html_page_arg()
         per_page = 10
 
-        reviews_query = (
-            session.query(Review)
-            .filter(Review.movie_id == movie_id)
-            .order_by(desc(Review.created_at))
-        )
+        reviews_query = _visible_reviews_query(session, movie_id).order_by(desc(Review.created_at))
 
         total_reviews = reviews_query.count()
         reviews = reviews_query.limit(per_page).offset((review_page - 1) * per_page).all()
@@ -2031,14 +2217,8 @@ def api_get_movie(movie_id):
         # Get crew
         crew_data = session.query(Crew, Person).join(Person).filter(Crew.movie_id == movie_id).all()
 
-        # Get average rating
-        avg_rating = (
-            session.query(func.avg(Rating.rating)).filter(Rating.movie_id == movie_id).scalar()
-        )
-
-        num_ratings = (
-            session.query(func.count(Rating.id)).filter(Rating.movie_id == movie_id).scalar()
-        )
+        # Get average rating (publicly visible ratings only)
+        avg_rating, num_ratings = _public_rating_stats(session, movie_id)
 
         # Serialize movie data
         movie_data = {
@@ -3258,27 +3438,29 @@ def profile():
         favorites = user.favorites.all()
         watchlist = user.watchlist.all()
 
-        # Ratings with associated movie
+        # Ratings with associated movie (moderated rows stay hidden)
         ratings = (
             session_db.query(Rating, Movie)
             .join(Movie, Rating.movie_id == Movie.id)
-            .filter(Rating.user_id == user.id)
+            .filter(Rating.user_id == user.id, Rating.is_deleted.is_(False))
             .order_by(desc(Rating.updated_at))
             .all()
         )
 
-        # Reviews with associated movie
+        # Reviews with associated movie (moderated rows stay hidden)
         reviews = (
             session_db.query(Review, Movie)
             .join(Movie, Review.movie_id == Movie.id)
-            .filter(Review.user_id == user.id)
+            .filter(Review.user_id == user.id, Review.is_deleted.is_(False))
             .order_by(desc(Review.created_at))
             .all()
         )
 
         # Summary stats
         avg_user_rating = (
-            session_db.query(func.avg(Rating.rating)).filter(Rating.user_id == user.id).scalar()
+            session_db.query(func.avg(Rating.rating))
+            .filter(Rating.user_id == user.id, Rating.is_deleted.is_(False))
+            .scalar()
         )
 
         stats = {
@@ -3719,6 +3901,445 @@ def advanced_search():
         )
     finally:
         session.close()
+
+
+# ==========================================
+# ADMIN DASHBOARD ROUTES
+# ==========================================
+
+# Only these levels are surfaced in the dashboard log snippet
+_LOG_SNIPPET_LEVELS = ("WARNING", "ERROR")
+
+
+def _recent_log_entries(limit: int = 20, tail_bytes: int = 256_000):
+    """Return the most recent WARNING/ERROR entries from the app log file.
+
+    Only the tail of the file is read, so the dashboard stays fast no matter
+    how large the log has grown.
+    """
+    log_path = get_log_file_path()
+
+    try:
+        with open(log_path, "rb") as log_file:
+            log_file.seek(0, os.SEEK_END)
+            file_size = log_file.tell()
+            log_file.seek(max(0, file_size - tail_bytes))
+            raw_tail = log_file.read()
+    except OSError as exc:
+        logger.warning(f"Unable to read log file {log_path}: {exc}")
+        return []
+
+    lines = raw_tail.decode("utf-8", errors="replace").splitlines()
+    if file_size > tail_bytes and lines:
+        # The first line is probably cut in half by the tail seek
+        lines = lines[1:]
+
+    entries = []
+    for line in reversed(lines):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            entry = json.loads(line)
+        except ValueError:
+            continue
+        if entry.get("level") not in _LOG_SNIPPET_LEVELS:
+            continue
+        entries.append(entry)
+        if len(entries) >= limit:
+            break
+
+    return entries
+
+
+def _last_twelve_months(today):
+    """Return the (year, month) pairs for the last 12 months, oldest first."""
+    year, month = today.year, today.month
+    months = []
+    for _ in range(12):
+        months.append((year, month))
+        month -= 1
+        if month == 0:
+            month = 12
+            year -= 1
+    months.reverse()
+    return months
+
+
+def _admin_page(session_db, query, page, per_page):
+    """Paginate an admin listing query, returning (rows, page, total, pages)."""
+    total = query.order_by(None).count()
+    total_pages = (total + per_page - 1) // per_page if total else 1
+    page = max(1, min(page, total_pages))
+    rows = query.limit(per_page).offset((page - 1) * per_page).all()
+    return rows, page, total, total_pages
+
+
+def _apply_moderation(model, item_id, action, list_endpoint, label):
+    """Soft-delete, restore, or hard-delete a rating or review as an admin."""
+    session_db = get_db_session()
+    try:
+        item = session_db.query(model).filter_by(id=item_id).first()
+        if not item:
+            flash(f"{label} not found", "danger")
+            return redirect(_safe_next_url() or url_for(list_endpoint))
+
+        if action == "soft-delete":
+            item.is_deleted = True
+            item.deleted_at = datetime.utcnow()
+            message = f"{label} hidden from public view."
+        elif action == "restore":
+            item.is_deleted = False
+            item.deleted_at = None
+            message = f"{label} restored."
+        else:  # hard-delete
+            session_db.delete(item)
+            message = f"{label} permanently deleted."
+
+        session_db.commit()
+        logger.info(
+            f"Admin moderation: {action} on {label.lower()} id={item_id}",
+            extra={"path": request.path, "ip": request.remote_addr},
+        )
+        flash(message, "success")
+        return redirect(_safe_next_url() or url_for(list_endpoint))
+    finally:
+        session_db.close()
+
+
+@app.route("/admin")
+@admin_required
+def admin_dashboard():
+    """Admin home -- top-line site stats plus a recent warning/error log snippet"""
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+        month_start = datetime.now().date().replace(day=1)
+
+        stats = {
+            "total_users": session_db.query(func.count(User.id)).scalar() or 0,
+            "total_movies": session_db.query(func.count(Movie.id)).scalar() or 0,
+            "total_ratings": session_db.query(func.count(Rating.id)).scalar() or 0,
+            "total_reviews": session_db.query(func.count(Review.id)).scalar() or 0,
+            "total_page_views": session_db.query(func.sum(PageView.count)).scalar() or 0,
+            "page_views_this_month": session_db.query(func.sum(PageView.count))
+            .filter(PageView.view_date >= month_start)
+            .scalar()
+            or 0,
+            "banned_users": session_db.query(func.count(User.id))
+            .filter(User.is_banned.is_(True))
+            .scalar()
+            or 0,
+        }
+
+        return render_template(
+            "admin_dashboard.html",
+            stats=stats,
+            log_entries=_recent_log_entries(),
+            registration_enabled=_registration_enabled(session_db),
+            current_user=user,
+            config=Config,
+        )
+    finally:
+        session_db.close()
+
+
+@app.route("/admin/analytics")
+@admin_required
+def admin_analytics():
+    """Site analytics -- daily page views and monthly account growth"""
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+        today = datetime.now().date()
+
+        # --- Page views per day, last 30 days ---
+        window_start = today - timedelta(days=29)
+        daily_totals = dict(
+            session_db.query(PageView.view_date, func.sum(PageView.count))
+            .filter(PageView.view_date >= window_start)
+            .group_by(PageView.view_date)
+            .all()
+        )
+        page_view_labels = []
+        page_view_counts = []
+        for offset in range(30):
+            day = window_start + timedelta(days=offset)
+            page_view_labels.append(day.isoformat())
+            page_view_counts.append(int(daily_totals.get(day, 0) or 0))
+
+        # --- New accounts per month, last 12 months ---
+        months = _last_twelve_months(today)
+        signups_start = datetime(months[0][0], months[0][1], 1)
+        signup_totals = {
+            (int(row.year), int(row.month)): int(row.signups)
+            for row in session_db.query(
+                extract("year", User.created_at).label("year"),
+                extract("month", User.created_at).label("month"),
+                func.count(User.id).label("signups"),
+            )
+            .filter(User.created_at >= signups_start)
+            .group_by("year", "month")
+            .all()
+        }
+        signup_labels = [f"{year:04d}-{month:02d}" for year, month in months]
+        signup_counts = [signup_totals.get(key, 0) for key in months]
+
+        return render_template(
+            "admin_analytics.html",
+            page_view_labels=page_view_labels,
+            page_view_counts=page_view_counts,
+            signup_labels=signup_labels,
+            signup_counts=signup_counts,
+            total_page_views=sum(page_view_counts),
+            total_signups=sum(signup_counts),
+            current_user=user,
+            config=Config,
+        )
+    finally:
+        session_db.close()
+
+
+@app.route("/admin/users")
+@admin_required
+def admin_users():
+    """Paginated, searchable user list with ban controls"""
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+        search = request.args.get("q", "").strip()
+        page = _html_page_arg()
+        per_page = 25
+
+        ratings_count = (
+            select(func.count(Rating.id))
+            .where(Rating.user_id == User.id)
+            .scalar_subquery()
+            .label("ratings_count")
+        )
+        reviews_count = (
+            select(func.count(Review.id))
+            .where(Review.user_id == User.id)
+            .scalar_subquery()
+            .label("reviews_count")
+        )
+        favorites_count = (
+            select(func.count())
+            .select_from(user_favorites_table)
+            .where(user_favorites_table.c.user_id == User.id)
+            .scalar_subquery()
+            .label("favorites_count")
+        )
+
+        query = session_db.query(User, ratings_count, reviews_count, favorites_count)
+        if search:
+            query = query.filter(User.username.ilike(f"%{search}%"))
+
+        rows, page, total, total_pages = _admin_page(
+            session_db, query.order_by(desc(User.created_at), User.id), page, per_page
+        )
+
+        return render_template(
+            "admin_users.html",
+            users=rows,
+            search=search,
+            page=page,
+            total=total,
+            total_pages=total_pages,
+            current_user=user,
+            config=Config,
+        )
+    finally:
+        session_db.close()
+
+
+@app.route("/admin/users/<int:user_id>/ban", methods=["POST"])
+@admin_required
+def admin_ban_user(user_id):
+    """Ban a user, hiding their content and locking them out"""
+    session_db = get_db_session()
+    try:
+        admin_user = get_current_user(session_db)
+        target = session_db.query(User).filter_by(id=user_id).first()
+
+        if not target:
+            flash("User not found", "danger")
+        elif admin_user and target.id == admin_user.id:
+            # Guard against an admin locking themselves out of the dashboard
+            flash("You cannot ban your own account.", "warning")
+        else:
+            target.is_banned = True
+            target.banned_at = datetime.utcnow()
+            session_db.commit()
+            logger.warning(
+                f"User banned: {target.username}",
+                extra={
+                    "user_id": target.id,
+                    "username": target.username,
+                    "ip": request.remote_addr,
+                },
+            )
+            flash(f"{target.username} has been banned.", "success")
+
+        return redirect(_safe_next_url() or url_for("admin_users"))
+    finally:
+        session_db.close()
+
+
+@app.route("/admin/users/<int:user_id>/unban", methods=["POST"])
+@admin_required
+def admin_unban_user(user_id):
+    """Lift a ban, restoring the account and its content"""
+    session_db = get_db_session()
+    try:
+        target = session_db.query(User).filter_by(id=user_id).first()
+
+        if not target:
+            flash("User not found", "danger")
+        else:
+            target.is_banned = False
+            target.banned_at = None
+            session_db.commit()
+            logger.info(
+                f"User unbanned: {target.username}",
+                extra={
+                    "user_id": target.id,
+                    "username": target.username,
+                    "ip": request.remote_addr,
+                },
+            )
+            flash(f"{target.username} has been unbanned.", "success")
+
+        return redirect(_safe_next_url() or url_for("admin_users"))
+    finally:
+        session_db.close()
+
+
+@app.route("/admin/reviews")
+@admin_required
+def admin_reviews():
+    """All reviews, including soft-deleted ones, with moderation controls"""
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+        page = _html_page_arg()
+        per_page = 25
+
+        query = (
+            session_db.query(Review, User, Movie)
+            .join(User, Review.user_id == User.id)
+            .join(Movie, Review.movie_id == Movie.id)
+            .order_by(desc(Review.created_at), Review.id)
+        )
+        rows, page, total, total_pages = _admin_page(session_db, query, page, per_page)
+
+        return render_template(
+            "admin_reviews.html",
+            reviews=rows,
+            page=page,
+            total=total,
+            total_pages=total_pages,
+            current_user=user,
+            config=Config,
+        )
+    finally:
+        session_db.close()
+
+
+@app.route("/admin/reviews/<int:review_id>/soft-delete", methods=["POST"])
+@admin_required
+def admin_soft_delete_review(review_id):
+    """Hide a review from public view without deleting it"""
+    return _apply_moderation(Review, review_id, "soft-delete", "admin_reviews", "Review")
+
+
+@app.route("/admin/reviews/<int:review_id>/restore", methods=["POST"])
+@admin_required
+def admin_restore_review(review_id):
+    """Make a soft-deleted review public again"""
+    return _apply_moderation(Review, review_id, "restore", "admin_reviews", "Review")
+
+
+@app.route("/admin/reviews/<int:review_id>/hard-delete", methods=["POST"])
+@admin_required
+def admin_hard_delete_review(review_id):
+    """Permanently remove a review row"""
+    return _apply_moderation(Review, review_id, "hard-delete", "admin_reviews", "Review")
+
+
+@app.route("/admin/ratings")
+@admin_required
+def admin_ratings():
+    """All ratings, including soft-deleted ones, with moderation controls"""
+    session_db = get_db_session()
+    try:
+        user = get_current_user(session_db)
+        page = _html_page_arg()
+        per_page = 25
+
+        query = (
+            session_db.query(Rating, User, Movie)
+            .join(User, Rating.user_id == User.id)
+            .join(Movie, Rating.movie_id == Movie.id)
+            .order_by(desc(Rating.created_at), Rating.id)
+        )
+        rows, page, total, total_pages = _admin_page(session_db, query, page, per_page)
+
+        return render_template(
+            "admin_ratings.html",
+            ratings=rows,
+            page=page,
+            total=total,
+            total_pages=total_pages,
+            current_user=user,
+            config=Config,
+        )
+    finally:
+        session_db.close()
+
+
+@app.route("/admin/ratings/<int:rating_id>/soft-delete", methods=["POST"])
+@admin_required
+def admin_soft_delete_rating(rating_id):
+    """Hide a rating from public view and from rating averages"""
+    return _apply_moderation(Rating, rating_id, "soft-delete", "admin_ratings", "Rating")
+
+
+@app.route("/admin/ratings/<int:rating_id>/restore", methods=["POST"])
+@admin_required
+def admin_restore_rating(rating_id):
+    """Make a soft-deleted rating count again"""
+    return _apply_moderation(Rating, rating_id, "restore", "admin_ratings", "Rating")
+
+
+@app.route("/admin/ratings/<int:rating_id>/hard-delete", methods=["POST"])
+@admin_required
+def admin_hard_delete_rating(rating_id):
+    """Permanently remove a rating row"""
+    return _apply_moderation(Rating, rating_id, "hard-delete", "admin_ratings", "Rating")
+
+
+@app.route("/admin/settings/registration", methods=["POST"])
+@admin_required
+def admin_toggle_registration():
+    """Turn new account registration on or off site-wide"""
+    session_db = get_db_session()
+    try:
+        currently_enabled = _registration_enabled(session_db)
+        _set_site_setting(
+            session_db, "registration_enabled", "false" if currently_enabled else "true"
+        )
+        logger.info(
+            f"Registration {'disabled' if currently_enabled else 'enabled'} by admin",
+            extra={"ip": request.remote_addr},
+        )
+        flash(
+            f"Registration is now {'disabled' if currently_enabled else 'enabled'}.",
+            "success",
+        )
+        return redirect(_safe_next_url() or url_for("admin_dashboard"))
+    finally:
+        session_db.close()
 
 
 if __name__ == "__main__":

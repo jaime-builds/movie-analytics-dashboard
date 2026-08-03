@@ -1,0 +1,121 @@
+{% extends "admin_layout.html" %}
+{% set admin_page = 'analytics' %}
+{% set admin_title = 'Site Analytics' %}
+
+{% block admin_content %}
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card text-center shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">Page Views (last 30 days)</h5>
+                <p class="display-6 mb-0">{{ '{:,}'.format(total_page_views) }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card text-center shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">New Accounts (last 12 months)</h5>
+                <p class="display-6 mb-0">{{ '{:,}'.format(total_signups) }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title text-center">Page Views per Day</h5>
+                <canvas id="pageViewsChart" style="max-height:360px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4 mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title text-center">New Accounts per Month</h5>
+                <canvas id="signupsChart" style="max-height:360px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // --- Page Views per Day Line Chart ---
+    const pageViewLabels = {{ page_view_labels | tojson }};
+    const pageViewCounts = {{ page_view_counts | tojson }};
+
+    new Chart(document.getElementById('pageViewsChart'), {
+        type: 'line',
+        data: {
+            labels: pageViewLabels,
+            datasets: [{
+                label: 'Page Views',
+                data: pageViewCounts,
+                backgroundColor: 'rgba(52, 152, 219, 0.3)',
+                borderColor: '#3498db',
+                borderWidth: 2,
+                pointRadius: 3,
+                tension: 0.25,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Views' }
+                },
+                x: {
+                    title: { display: true, text: 'Date' },
+                    ticks: { maxRotation: 45, minRotation: 45 }
+                }
+            },
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+
+    // --- New Accounts per Month Bar Chart ---
+    const signupLabels = {{ signup_labels | tojson }};
+    const signupCounts = {{ signup_counts | tojson }};
+
+    new Chart(document.getElementById('signupsChart'), {
+        type: 'bar',
+        data: {
+            labels: signupLabels,
+            datasets: [{
+                label: 'New Accounts',
+                data: signupCounts,
+                backgroundColor: '#2ecc71',
+                borderColor: '#27ae60',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Accounts' },
+                    ticks: { precision: 0 }
+                },
+                x: {
+                    title: { display: true, text: 'Month' }
+                }
+            },
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+</script>
+{% endblock %}

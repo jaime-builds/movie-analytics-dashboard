@@ -4,6 +4,7 @@ from typing import List
 from sqlalchemy import (
     DECIMAL,
     BigInteger,
+    Boolean,
     CheckConstraint,
     Column,
     Date,
@@ -75,6 +76,11 @@ class User(Base):
     username = Column(String(50), unique=True, nullable=False)
     password_hash = Column(String(256), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Admin dashboard: access control
+    is_admin = Column(Boolean, nullable=False, default=False)
+    is_banned = Column(Boolean, nullable=False, default=False)
+    banned_at = Column(DateTime)
 
     # Relationships
     favorites = relationship(
@@ -180,6 +186,10 @@ class Rating(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # Admin dashboard: soft-delete moderation
+    is_deleted = Column(Boolean, nullable=False, default=False)
+    deleted_at = Column(DateTime)
+
     # Relationships
     user = relationship("User", back_populates="ratings")
     movie = relationship("Movie", back_populates="ratings")
@@ -207,6 +217,10 @@ class Review(Base):
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Admin dashboard: soft-delete moderation
+    is_deleted = Column(Boolean, nullable=False, default=False)
+    deleted_at = Column(DateTime)
 
     # Relationships
     user = relationship("User", back_populates="reviews")
@@ -258,6 +272,34 @@ class MovieOfTheDay(Base):
 
     def __repr__(self):
         return f"<MovieOfTheDay(movie_id={self.movie_id}, shown_date={self.shown_date})>"
+
+
+class PageView(Base):
+    __tablename__ = "page_views"
+
+    id = Column(Integer, primary_key=True)
+    path = Column(String(255), nullable=False)
+    view_date = Column(Date, nullable=False)
+    count = Column(Integer, nullable=False, default=1)
+
+    # One counter row per path per calendar day
+    __table_args__ = (
+        UniqueConstraint("path", "view_date", name="uq_page_views_path_date"),
+        Index("idx_page_views_view_date", "view_date"),
+    )
+
+    def __repr__(self):
+        return f"<PageView(path='{self.path}', view_date={self.view_date}, count={self.count})>"
+
+
+class SiteSetting(Base):
+    __tablename__ = "site_settings"
+
+    key = Column(String(100), primary_key=True)
+    value = Column(String(255))
+
+    def __repr__(self):
+        return f"<SiteSetting(key='{self.key}', value='{self.value}')>"
 
 
 class Genre(Base):

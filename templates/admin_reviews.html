@@ -1,0 +1,95 @@
+{% extends "admin_layout.html" %}
+{% from "macros.html" import pagination %}
+{% set admin_page = 'reviews' %}
+{% set admin_title = 'Reviews' %}
+
+{% block admin_content %}
+<p class="text-muted">
+    {{ total }} review{{ 's' if total != 1 }} in total, including moderated ones. Soft-deleted
+    reviews are hidden from every public page but can be restored here.
+</p>
+
+{% if reviews %}
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col">Author</th>
+                    <th scope="col">Movie</th>
+                    <th scope="col">Review</th>
+                    <th scope="col">Posted</th>
+                    <th scope="col">Status</th>
+                    <th scope="col" class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for review, author, movie in reviews %}
+                <tr class="{{ 'table-secondary text-decoration-line-through opacity-75' if review.is_deleted }}">
+                    <td class="text-nowrap">
+                        {{ author.username }}
+                        {% if author.is_banned %}
+                        <span class="badge bg-danger ms-1">Banned</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+                            {{ movie.title }}
+                        </a>
+                    </td>
+                    <td class="small" style="max-width: 420px;">{{ review.content }}</td>
+                    <td class="text-nowrap small text-muted">
+                        {{ review.created_at.strftime('%b %d, %Y') if review.created_at else '' }}
+                    </td>
+                    <td>
+                        {% if review.is_deleted %}
+                        <span class="badge bg-secondary">Deleted</span>
+                        {% if review.deleted_at %}
+                        <small class="text-muted d-block">{{ review.deleted_at.strftime('%b %d, %Y') }}</small>
+                        {% endif %}
+                        {% else %}
+                        <span class="badge bg-success">Visible</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end text-nowrap">
+                        {% if review.is_deleted %}
+                        <form method="POST" action="{{ url_for('admin_restore_review', review_id=review.id) }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="next" value="{{ request.full_path }}">
+                            <button type="submit" class="btn btn-sm btn-outline-success">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i>Restore
+                            </button>
+                        </form>
+                        {% else %}
+                        <form method="POST" action="{{ url_for('admin_soft_delete_review', review_id=review.id) }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="next" value="{{ request.full_path }}">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-eye-slash me-1"></i>Soft Delete
+                            </button>
+                        </form>
+                        {% endif %}
+                        <form method="POST" action="{{ url_for('admin_hard_delete_review', review_id=review.id) }}" class="d-inline"
+                              onsubmit="return confirm('Permanently delete this review? This cannot be undone.');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="next" value="{{ request.full_path }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-trash me-1"></i>Hard Delete
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{{ pagination(page, total_pages, "Reviews pagination") }}
+{% else %}
+<div class="text-center py-5 text-muted">
+    <i class="bi bi-chat-quote display-4 d-block mb-3"></i>
+    <p class="mb-0">No reviews have been posted yet.</p>
+</div>
+{% endif %}
+{% endblock %}

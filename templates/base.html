@@ -114,6 +114,12 @@
                                 <li><a class="dropdown-item" href="{{ url_for('collections') }}">
                                     <i class="bi bi-collection-play-fill text-success"></i> My Collections
                                 </a></li>
+                                {% if current_user.is_admin %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{{ url_for('admin_dashboard') }}">
+                                    <i class="bi bi-shield-lock text-warning"></i> Admin Dashboard
+                                </a></li>
+                                {% endif %}
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
                                     <form action="{{ url_for('logout') }}" method="post">

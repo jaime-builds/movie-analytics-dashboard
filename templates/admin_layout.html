@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "macros.html" import breadcrumbs %}
+
+{#
+    Shared chrome for every /admin page: breadcrumbs, page heading and the
+    admin sub-nav. Child templates set `admin_page` and `admin_title` at the
+    top level and fill in the `admin_content` block.
+#}
+
+{% block title %}{{ admin_title }} - Admin - Movie Analytics Dashboard{% endblock %}
+
+{% block content %}
+{% if admin_page == 'dashboard' %}
+{{ breadcrumbs([("Home", url_for('index')), ("Admin", none)]) }}
+{% else %}
+{{ breadcrumbs([("Home", url_for('index')), ("Admin", url_for('admin_dashboard')), (admin_title, none)]) }}
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h1 class="mb-0">
+        <i class="bi bi-shield-lock me-2"></i>{{ admin_title }}
+    </h1>
+</div>
+
+<ul class="nav nav-pills mb-4 flex-wrap gap-1">
+    <li class="nav-item">
+        <a class="nav-link {{ 'active' if admin_page == 'dashboard' }}" href="{{ url_for('admin_dashboard') }}">
+            <i class="bi bi-speedometer2 me-1"></i>Dashboard
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ 'active' if admin_page == 'analytics' }}" href="{{ url_for('admin_analytics') }}">
+            <i class="bi bi-graph-up me-1"></i>Analytics
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ 'active' if admin_page == 'users' }}" href="{{ url_for('admin_users') }}">
+            <i class="bi bi-people-fill me-1"></i>Users
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ 'active' if admin_page == 'reviews' }}" href="{{ url_for('admin_reviews') }}">
+            <i class="bi bi-chat-quote-fill me-1"></i>Reviews
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ 'active' if admin_page == 'ratings' }}" href="{{ url_for('admin_ratings') }}">
+            <i class="bi bi-star-fill me-1"></i>Ratings
+        </a>
+    </li>
+</ul>
+
+{% block admin_content %}{% endblock %}
+{% endblock %}
