@@ -43,13 +43,16 @@
 - [ ] Watchlist streaming alert
 - [ ] "Seen it" quick-log
 - [ ] API key management page
-- [ ] Admin dashboard
 - [ ] Full-text search with SQLite FTS5 / PostgreSQL full-text
 - [ ] Blind pick - Random movie from your watchlist
 - [ ] Movie mood matcher
 - [ ] Friends' ratings overlay
 
 ---
+
+## ✅ Recently Completed (August 3, 2026)
+
+- [x] **Admin dashboard** - Full `/admin` panel: site analytics (page views by day, account growth by month, Chart.js), user access control (ban/unban with content hidden site-wide, self-ban blocked, registration on/off toggle), and content moderation (soft-delete + restore + hard-delete on ratings/reviews, only visible to admins). New `page_views` and `site_settings` tables, `is_admin`/`is_banned` on users, `is_deleted` on ratings/reviews (migration 006). Built via Claude Code (high effort), planned and reviewed with Claude beforehand, deployed to NinjaUnraid same day.
 
 ## ✅ Recently Completed (July 29, 2026)
 
@@ -128,14 +131,14 @@
 ## 📊 Project Stats
 
 - **Total Movies**: 5,000+ (production PostgreSQL) | 8,000+ (local SQLite)
-- **Features Completed**: 64
-- **Test Coverage**: 86.2% ✅
-- **Tests Passing**: 418 ✅
-- **Flask Routes**: 52 (27 page · 12 action · 13 API) ✅
+- **Features Completed**: 65
+- **Test Coverage**: 86.2% (last measured 2026-07-21, not re-measured after Aug 3 admin batch)
+- **Tests Passing**: 463 ✅
+- **Flask Routes**: 66 (32 page · 21 action · 13 API) ✅
 - **API Endpoints**: 13 ✅
-- **Database Tables**: 16 ✅
-- **Jinja2 Templates**: 28 ✅
-- **Latest Migration**: 005_add_movie_of_the_day ✅
+- **Database Tables**: 18 ✅
+- **Jinja2 Templates**: 34 ✅
+- **Latest Migration**: 006_admin_dashboard ✅
 <!-- TODO: update to https://dashboard.jaime.build once Unraid deployment is verified -->
 - **Live URL**: https://movie-analytics-dashboard-production.up.railway.app
 
@@ -160,4 +163,4 @@ This project showcases:
 
 ---
 
-**Last Updated**: July 29, 2026
+**Last Updated**: August 3, 2026

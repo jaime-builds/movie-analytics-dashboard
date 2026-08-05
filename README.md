@@ -74,6 +74,7 @@ This isn't just another movie app. It's a **portfolio-grade full-stack applicati
 | 🚦 **Rate Limiting** | Flask-Limiter protecting all API and analytics endpoints |
 | 📋 **Structured Logging** | JSON request logging with daily rotation, failed login tracking, and error alerting |
 | 🐳 **Docker** | Dockerfile + docker-compose with volume mounts and health check |
+| 🛡️ **Admin Dashboard** | Site analytics, user ban/unban with content hidden site-wide, registration toggle, soft/hard-delete moderation for ratings and reviews |
 
 ### 🎨 User Experience
 
@@ -245,7 +246,7 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 
 - SQLite (development)
 - PostgreSQL (production, self-hosted on Unraid)
-- Normalized schema with 16 tables
+- Normalized schema with 18 tables
 - Many-to-many relationships
 - Compound indexes
 - Alembic migrations
@@ -263,14 +264,14 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 
 ## 📊 Project Stats
 
-- **8,000+** movies with complete metadata (local) | **5,000+** on the live instance
+- **8,000+** movies with complete metadata (local) | **10,000+** on the live instance
 - **300+** directors with filmographies
 - **1,000+** actors with profiles
-- **86.2%** test coverage with 418 tests passing
-- **16** database tables with optimized indexes
-- **52** Flask routes (27 page · 12 action · 13 API)
+- **86.2%** test coverage (last measured 2026-07-21) with 463 tests passing
+- **18** database tables with optimized indexes
+- **66** Flask routes (32 page · 21 action · 13 API)
 - **13** RESTful API endpoints
-- **28** Jinja2 templates
+- **34** Jinja2 templates
 
 ## 🎓 Skills Demonstrated
 
@@ -429,6 +430,13 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 
 - `movie_of_the_day` - Daily featured pick with 30-day anti-repeat history
 
+**Admin Dashboard**
+
+- `page_views` - Per-path daily view counters for site analytics
+- `site_settings` - Key/value store for site-wide toggles (e.g. registration on/off)
+- `users.is_admin` / `is_banned` / `banned_at` - Admin access and ban state
+- `ratings.is_deleted` / `deleted_at`, `reviews.is_deleted` / `deleted_at` - Soft-delete moderation flags
+
 ### ER Diagram
 
 ```text
@@ -471,7 +479,7 @@ pytest tests/test_auth.py -v
 - ✅ Database relationships
 - ✅ Security (password hashing)
 
-**Current Coverage**: 86.2% (418 tests passing)
+**Current Coverage**: 86.2% (463 tests passing; coverage % last measured 2026-07-21)
 
 ### Run Tests
 
@@ -622,6 +630,7 @@ See [TODO.md](TODO.md) for the complete roadmap.
 
 ### Recently Shipped
 
+- [x] **Admin dashboard** - `/admin` panel: site analytics (page views, account growth), user access control (ban/unban, content hidden site-wide, registration toggle), and moderation (soft/hard-delete on ratings and reviews)
 - [x] **Unraid migration prep** - Docs and config moved off Railway: architecture diagram now shows the `dashboard` Compose stack (Postgres, no Redis) behind a Cloudflare Tunnel; GitHub Actions TMDB sync disabled in favor of an Unraid User Script
 - [x] **Python 3.13** - Dockerfile, CI workflows, and dependencies upgraded; test matrix trimmed to 3.11/3.12/3.13
 - [x] **Movie of the Day** - Homepage feature drawn from the Hidden Gems pool, deterministic per day with a 30-day anti-repeat window
