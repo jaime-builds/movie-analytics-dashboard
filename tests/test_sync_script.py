@@ -80,6 +80,28 @@ class FakeClient:
             raise TMDBError(f"movie/{tmdb_id}/keywords: HTTP 500")
         return [{"name": k} for k in self.keywords.get(tmdb_id, [])]
 
+    # Keyword mode: search/keyword and discover/movie, built from self.keywords
+    def search_keywords(self, query, page=1):
+        names = sorted({k for kws in self.keywords.values() for k in kws})
+        matches = [n for n in names if query in n.lower()]
+        return {
+            "results": [{"id": 1000 + names.index(n), "name": n} for n in matches],
+            "total_pages": 1,
+        }
+
+    def discover_movies(self, **kwargs):
+        if "discover" in self.failing:
+            raise TMDBError("discover/movie: HTTP 503")
+        names = sorted({k for kws in self.keywords.values() for k in kws})
+        wanted = names[kwargs["with_keywords"] - 1000]
+        ids = sorted(tid for tid, kws in self.keywords.items() if wanted in kws)
+        # Two results per page, to exercise paging
+        page = kwargs.get("page", 1)
+        return {
+            "results": [{"id": tid} for tid in ids[(page - 1) * 2 : page * 2]],
+            "total_pages": max(1, (len(ids) + 1) // 2),
+        }
+
 
 @pytest.fixture
 def action_genre(db_session):
@@ -255,6 +277,57 @@ class TestMatureFlag:
 
         assert stats["changed"] == 1
         assert db_session.query(Movie).filter_by(tmdb_id=63).one().is_mature is False
+
+    def test_keyword_mode_flags_listed_movies_and_unflags_others(self, db_session):
+        db_session.add_all(
+            [
+                Movie(tmdb_id=70, title="Softcore One"),
+                Movie(tmdb_id=71, title="Softcore Two"),
+                Movie(tmdb_id=72, title="Softcore Three"),
+                Movie(tmdb_id=73, title="Erotic Comedy"),
+                Movie(tmdb_id=74, title="Was Wrongly Flagged", is_mature=True),
+                Movie(tmdb_id=75, title="Nudity Only"),
+            ]
+        )
+        db_session.commit()
+        client = FakeClient(
+            keywords={
+                70: ["softcore"],
+                71: ["softcore"],
+                72: ["softcore"],
+                73: ["Erotic Comedy"],
+                75: ["nudity"],
+                99: ["softcore"],  # on TMDB but not in this database
+            }
+        )
+
+        stats = backfill.backfill_by_keyword(db_session, client)
+
+        flags = {m.tmdb_id: m.is_mature for m in db_session.query(Movie).all()}
+        assert flags == {70: True, 71: True, 72: True, 73: True, 74: False, 75: False}
+        assert stats["flagged"] == 4
+        assert stats["changed"] == 5
+
+    def test_keyword_mode_changes_nothing_if_tmdb_fails(self, db_session):
+        db_session.add(Movie(tmdb_id=80, title="Already Flagged", is_mature=True))
+        db_session.commit()
+        client = FakeClient(keywords={81: ["softcore"]}, failing={"discover"})
+
+        stats = backfill.backfill_by_keyword(db_session, client)
+
+        assert stats["failed"] == 1
+        assert db_session.query(Movie).filter_by(tmdb_id=80).one().is_mature is True
+
+    def test_keyword_mode_dry_run_writes_nothing(self, db_session):
+        db_session.add(Movie(tmdb_id=82, title="Softcore Film"))
+        db_session.commit()
+
+        stats = backfill.backfill_by_keyword(
+            db_session, FakeClient(keywords={82: ["softcore"]}), dry_run=True
+        )
+
+        assert stats["changed"] == 1
+        assert db_session.query(Movie).filter_by(tmdb_id=82).one().is_mature is False
 
 
 # ============================================

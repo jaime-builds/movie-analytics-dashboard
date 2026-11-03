@@ -118,6 +118,10 @@ class TMDBClient:
         """Get the keyword list for a movie"""
         return self._make_request(f"movie/{movie_id}/keywords").get("keywords", [])
 
+    def search_keywords(self, query: str, page: int = 1) -> Dict:
+        """Search TMDB keywords by name"""
+        return self._make_request("search/keyword", {"query": query, "page": page})
+
     def get_movie_videos(self, movie_id: int) -> Dict:
         """Get videos (trailers, teasers, etc.) for a movie"""
         return self._make_request(f"movie/{movie_id}/videos")
