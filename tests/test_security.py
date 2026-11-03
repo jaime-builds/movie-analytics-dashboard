@@ -17,7 +17,9 @@ import pytest
 import requests
 
 import src.app as app_module
-from src.app import limiter
+import src.extensions as extensions
+import src.helpers as helpers
+from src.extensions import limiter
 from src.models import Review, User
 from src.tmdb_api import TMDBClient, TMDBError
 
@@ -186,9 +188,9 @@ class TestRateLimits:
 
     def test_admin_pages_skip_the_default_limit(self, app):
         with app.test_request_context("/admin/users"):
-            assert app_module._is_admin_endpoint() is True
+            assert extensions._is_admin_endpoint() is True
         with app.test_request_context("/movies"):
-            assert app_module._is_admin_endpoint() is False
+            assert extensions._is_admin_endpoint() is False
 
 
 # ============================================
@@ -295,7 +297,7 @@ class TestDeleteReview:
     def test_overlong_review_is_rejected(self, client, db_session, logged_in_user, sample_movie):
         client.post(
             f"/movie/{sample_movie.id}/review",
-            data={"review_content": "x" * (app_module.MAX_REVIEW_LENGTH + 1)},
+            data={"review_content": "x" * (helpers.MAX_REVIEW_LENGTH + 1)},
         )
 
         assert db_session.query(Review).count() == 0
@@ -412,10 +414,10 @@ class TestDoubleSubmit:
     ):
         from src.models import user_favorites_table
 
-        first = app_module._insert_association(
+        first = helpers._insert_association(
             db_session, user_favorites_table, user_id=sample_user.id, movie_id=sample_movie.id
         )
-        second = app_module._insert_association(
+        second = helpers._insert_association(
             db_session, user_favorites_table, user_id=sample_user.id, movie_id=sample_movie.id
         )
 

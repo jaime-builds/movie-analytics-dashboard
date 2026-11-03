@@ -69,7 +69,8 @@ Never point either variable at the production database.
 
 - `app`, `client`: the Flask app and a test client. App config changes made in
   a test are rolled back afterwards.
-- `db_session`: the test database session; routes use it too.
+- `db_session`: the test database session. It replaces `src.helpers.session_factory`,
+  so every route and request hook uses it too.
 - `capture_sql`: records SQL statements, for query-shape tests.
 - Data: `sample_genre`, `sample_person`, `sample_movie`, `sample_movies` (25),
   `sample_cast`, `sample_crew`, `sample_production_company`, `sample_user`,
@@ -89,8 +90,11 @@ Two habits keep tests reliable:
 - Assert the behavior, not just the status code: check the database row, the
   redirect target, or the exact element on the page.
 - Never loosen an assertion to make a test pass.
-- Mock TMDB by patching `src.tmdb_api.requests.get` (or `src.app.TMDBClient` for
-  route-level tests).
+- Mock TMDB by patching `src.tmdb_api.requests.get` (or `src.tmdb_api.TMDBClient`
+  methods for route-level tests).
+- Patch a helper in the module that calls it, not where it is defined. For
+  example, the home page calls `get_movie_of_the_day` through
+  `src.routes.main`, so patch `src.routes.main.get_movie_of_the_day`.
 
 ```python
 def test_search_finds_movies(client, sample_movie):

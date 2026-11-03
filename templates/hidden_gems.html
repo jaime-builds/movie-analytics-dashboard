@@ -4,7 +4,7 @@
 {% block title %}Hidden Gems - Movie Analytics Dashboard{% endblock %}
 
 {% block content %}
-{{ breadcrumbs([("Home", url_for('index')), ("Hidden Gems", none)]) }}
+{{ breadcrumbs([("Home", url_for('main.index')), ("Hidden Gems", none)]) }}
 <div class="mb-4">
     <h1><i class="bi bi-gem"></i> Hidden Gems</h1>
     <p class="lead text-muted">Discover highly-rated movies that flew under the radar</p>
@@ -22,7 +22,7 @@
     </div>
     <div class="collapse show" id="filterCollapse">
         <div class="card-body">
-            <form method="get" action="{{ url_for('hidden_gems') }}" id="filterForm">
+            <form method="get" action="{{ url_for('main.hidden_gems') }}" id="filterForm">
                 <div class="row g-3">
                     <!-- Genre Filter -->
                     <div class="col-md-3">
@@ -85,7 +85,7 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-search"></i> Find Gems
                         </button>
-                        <a href="{{ url_for('hidden_gems') }}" class="btn btn-secondary">
+                        <a href="{{ url_for('main.hidden_gems') }}" class="btn btn-secondary">
                             <i class="bi bi-x-circle"></i> Reset
                         </a>
                     </div>
@@ -110,7 +110,7 @@
     {% if gems %}
         {% for movie in gems %}
         <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-4">
-            <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+            <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
                 <div class="card movie-card h-100 position-relative">
                     <!-- Gem Badge -->
                     <div class="position-absolute top-0 start-0 m-2" style="z-index: 10;">

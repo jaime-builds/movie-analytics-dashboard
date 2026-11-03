@@ -4,7 +4,7 @@
 {% block title %}{{ current_user.username }}'s Profile - Movie Analytics Dashboard{% endblock %}
 
 {% block content %}
-{{ breadcrumbs([("Home", url_for('index')), ("Profile", none)]) }}
+{{ breadcrumbs([("Home", url_for('main.index')), ("Profile", none)]) }}
 <div class="container-fluid py-4">
 
     <!-- Profile Header -->
@@ -27,23 +27,23 @@
 
                         <!-- Quick Actions -->
                         <div class="ms-auto d-flex gap-2 flex-wrap">
-                            <a href="{{ url_for('favorites') }}" class="btn btn-outline-danger btn-sm">
+                            <a href="{{ url_for('account.favorites') }}" class="btn btn-outline-danger btn-sm">
                                 <i class="bi bi-heart-fill me-1"></i>Favorites
                             </a>
-                            <a href="{{ url_for('watchlist') }}" class="btn btn-outline-primary btn-sm">
+                            <a href="{{ url_for('account.watchlist') }}" class="btn btn-outline-primary btn-sm">
                                 <i class="bi bi-bookmark-fill me-1"></i>Watchlist
                             </a>
-                            <a href="{{ url_for('recommendations') }}" class="btn btn-outline-success btn-sm">
+                            <a href="{{ url_for('account.recommendations') }}" class="btn btn-outline-success btn-sm">
                                 <i class="bi bi-lightbulb me-1" aria-hidden="true"></i>Recommendations
                             </a>
-                            <a href="{{ url_for('year_in_review') }}" class="btn btn-outline-info btn-sm">
+                            <a href="{{ url_for('account.year_in_review') }}" class="btn btn-outline-info btn-sm">
                                 <i class="bi bi-calendar3 me-1" aria-hidden="true"></i>Year in Review
                             </a>
                         </div>
                     </div>
 
                     <!-- Activity feed visibility -->
-                    <form method="post" action="{{ url_for('set_activity_visibility') }}"
+                    <form method="post" action="{{ url_for('account.set_activity_visibility') }}"
                           class="mt-3 pt-3 border-top d-flex align-items-center gap-3 flex-wrap" id="activity-visibility">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="hidden" value="{{ 'false' if current_user.hide_activity else 'true' }}">
@@ -51,10 +51,10 @@
                             <i class="bi bi-activity me-1" aria-hidden="true"></i>
                             {% if current_user.hide_activity %}
                             Your ratings and reviews are <strong>hidden</strong> from the public
-                            <a href="{{ url_for('activity_feed') }}">activity feed</a>.
+                            <a href="{{ url_for('account.activity_feed') }}">activity feed</a>.
                             {% else %}
                             Your ratings and reviews <strong>appear</strong> in the public
-                            <a href="{{ url_for('activity_feed') }}">activity feed</a>.
+                            <a href="{{ url_for('account.activity_feed') }}">activity feed</a>.
                             {% endif %}
                         </span>
                         <button type="submit" class="btn btn-sm btn-outline-secondary">
@@ -152,7 +152,7 @@
                     <div class="card shadow-sm h-100">
                         <div class="row g-0">
                             <div class="col-4">
-                                <a href="{{ url_for('movie_detail', movie_id=movie.id) }}">
+                                <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}">
                                     {% if movie.poster_path %}
                                     <img src="{{ config.get_poster_url(movie.poster_path, 'w185') }}"
                                          class="img-fluid rounded-start"
@@ -168,7 +168,7 @@
                             <div class="col-8">
                                 <div class="card-body py-2 px-3">
                                     <h6 class="card-title mb-1">
-                                        <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+                                        <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
                                             {{ movie.title }}
                                         </a>
                                     </h6>
@@ -194,7 +194,7 @@
             <div class="text-center py-5 text-muted">
                 <i class="bi bi-star display-4 d-block mb-3"></i>
                 <p>You haven't rated any movies yet.</p>
-                <a href="{{ url_for('movies') }}" class="btn btn-primary">Browse Movies</a>
+                <a href="{{ url_for('main.movies') }}" class="btn btn-primary">Browse Movies</a>
             </div>
             {% endif %}
         </div>
@@ -208,7 +208,7 @@
                     <div class="card-body">
                         <div class="d-flex align-items-start gap-3">
                             {% if movie.poster_path %}
-                            <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="flex-shrink-0">
+                            <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}" class="flex-shrink-0">
                                 <img src="{{ config.get_poster_url(movie.poster_path, 'w92') }}"
                                      class="rounded"
                                      alt="{{ movie.title }}"
@@ -218,7 +218,7 @@
                             <div class="flex-grow-1">
                                 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
                                     <h6 class="mb-1">
-                                        <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+                                        <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
                                             {{ movie.title }}
                                         </a>
                                         <span class="text-muted small ms-1">
@@ -238,7 +238,7 @@
             <div class="text-center py-5 text-muted">
                 <i class="bi bi-chat-quote display-4 d-block mb-3"></i>
                 <p>You haven't written any reviews yet.</p>
-                <a href="{{ url_for('movies') }}" class="btn btn-primary">Browse Movies</a>
+                <a href="{{ url_for('main.movies') }}" class="btn btn-primary">Browse Movies</a>
             </div>
             {% endif %}
         </div>
@@ -249,7 +249,7 @@
             <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-3">
                 {% for movie in favorites %}
                 <div class="col">
-                    <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+                    <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
                         <div class="card h-100 movie-card shadow-sm">
                             {% if movie.poster_path %}
                             <img src="{{ config.get_poster_url(movie.poster_path) }}"
@@ -275,7 +275,7 @@
             <div class="text-center py-5 text-muted">
                 <i class="bi bi-heart display-4 d-block mb-3"></i>
                 <p>No favorites yet.</p>
-                <a href="{{ url_for('movies') }}" class="btn btn-primary">Browse Movies</a>
+                <a href="{{ url_for('main.movies') }}" class="btn btn-primary">Browse Movies</a>
             </div>
             {% endif %}
         </div>
@@ -286,7 +286,7 @@
             <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-3">
                 {% for movie in watchlist %}
                 <div class="col">
-                    <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+                    <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
                         <div class="card h-100 movie-card shadow-sm">
                             {% if movie.poster_path %}
                             <img src="{{ config.get_poster_url(movie.poster_path) }}"
@@ -312,7 +312,7 @@
             <div class="text-center py-5 text-muted">
                 <i class="bi bi-bookmark display-4 d-block mb-3"></i>
                 <p>Your watchlist is empty.</p>
-                <a href="{{ url_for('movies') }}" class="btn btn-primary">Browse Movies</a>
+                <a href="{{ url_for('main.movies') }}" class="btn btn-primary">Browse Movies</a>
             </div>
             {% endif %}
         </div>

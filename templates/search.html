@@ -4,7 +4,7 @@
 {% block title %}{% if query %}"{{ query }}" - Search{% else %}Search{% endif %} - Movie Analytics Dashboard{% endblock %}
 
 {% block content %}
-{{ breadcrumbs([("Home", url_for('index')), ("Search", none)]) }}
+{{ breadcrumbs([("Home", url_for('main.index')), ("Search", none)]) }}
 
 {% if query %}
 <h1 class="mb-3">Search Results for "{{ query }}"</h1>
@@ -20,7 +20,7 @@
         {% if total > movies|length %}
         Showing the top <strong>{{ movies|length }}</strong> of <strong>{{ total }}</strong> matches
         (title matches first). Try more specific words, or
-        <a href="{{ url_for('advanced_search', q=query) }}">Advanced Search</a> to page through all of them.
+        <a href="{{ url_for('main.advanced_search', q=query) }}">Advanced Search</a> to page through all of them.
         {% else %}
         Found <strong>{{ total }}</strong> result{{ 's' if total != 1 else '' }}
         {% endif %}
@@ -30,7 +30,7 @@
     <div class="row">
         {% for movie in movies %}
         <div class="col-md-2 col-sm-4 col-6 mb-3">
-            <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+            <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
                 <div class="card movie-card h-100">
                     {% if movie.poster_path %}
                     <img src="{{ config.get_poster_url(movie.poster_path, 'w300') }}"
@@ -92,22 +92,22 @@
                             <li>Double-check your spelling</li>
                             <li>Try using different or more general keywords</li>
                             <li>Search matches movie titles and plot summaries; for people, use
-                                <a href="{{ url_for('top_actors') }}">Top Actors</a>,
-                                <a href="{{ url_for('directors') }}">Directors</a> or
-                                <a href="{{ url_for('common_films') }}">Common Films</a></li>
+                                <a href="{{ url_for('people.top_actors') }}">Top Actors</a>,
+                                <a href="{{ url_for('people.directors') }}">Directors</a> or
+                                <a href="{{ url_for('people.common_films') }}">Common Films</a></li>
                             <li>Use filters instead to narrow down by genre or year</li>
                         </ul>
                     </div>
                 </div>
 
                 <div class="d-flex gap-2 flex-wrap">
-                    <a href="{{ url_for('movies') }}" class="btn btn-primary">
+                    <a href="{{ url_for('main.movies') }}" class="btn btn-primary">
                         <i class="bi bi-film me-2"></i>Browse All Movies
                     </a>
-                    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                    <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary">
                         <i class="bi bi-house me-2"></i>Back to Home
                     </a>
-                    <a href="{{ url_for('hidden_gems') }}" class="btn btn-outline-info">
+                    <a href="{{ url_for('main.hidden_gems') }}" class="btn btn-outline-info">
                         <i class="bi bi-gem me-2"></i>Discover Hidden Gems
                     </a>
                 </div>
@@ -124,7 +124,7 @@
         <p class="text-muted">Since we couldn't find what you were looking for, here are some popular movies:</p>
 
         <div class="text-center py-4">
-            <a href="{{ url_for('movies', sort='popularity') }}" class="btn btn-lg btn-outline-primary">
+            <a href="{{ url_for('main.movies', sort='popularity') }}" class="btn btn-lg btn-outline-primary">
                 <i class="bi bi-fire me-2"></i>View Popular Movies
             </a>
         </div>

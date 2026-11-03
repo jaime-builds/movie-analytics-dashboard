@@ -6,7 +6,7 @@
 {% block chart_library %}{{ chart_library() }}{% endblock %}
 
 {% block content %}
-{{ breadcrumbs([("Home", url_for('index')), ("Decades", url_for('decades')), (label, none)]) }}
+{{ breadcrumbs([("Home", url_for('main.index')), ("Decades", url_for('main.decades')), (label, none)]) }}
 <div class="container-fluid py-4">
 
     <!-- Header -->
@@ -219,7 +219,7 @@
                     </h5>
                     <div class="d-flex flex-wrap gap-2">
                         {% for genre in genre_stats %}
-                        <a href="{{ url_for('movies', decade=decade_start, genre=genre.id) }}"
+                        <a href="{{ url_for('main.movies', decade=decade_start, genre=genre.id) }}"
                            class="text-decoration-none">
                             <span class="badge bg-primary"
                                   style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">

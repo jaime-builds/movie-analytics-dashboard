@@ -11,7 +11,7 @@ from datetime import date, datetime, timedelta
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from src.app import get_movie_of_the_day
+from src.featured import get_movie_of_the_day
 from src.models import Movie, MovieOfTheDay
 
 # ============================================

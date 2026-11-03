@@ -243,7 +243,7 @@ class TestTrailerSelection:
             ]
         }
 
-        from src.app import get_trailer_for_movie
+        from src.featured import get_trailer_for_movie
 
         trailer = get_trailer_for_movie(tmdb_id=550)
 
@@ -261,7 +261,7 @@ class TestTrailerSelection:
             ]
         }
 
-        from src.app import get_trailer_for_movie
+        from src.featured import get_trailer_for_movie
 
         trailer = get_trailer_for_movie(tmdb_id=550)
 
@@ -275,7 +275,7 @@ class TestTrailerSelection:
             "results": [{"key": "abc", "site": "Vimeo", "type": "Trailer", "official": True}]
         }
 
-        from src.app import get_trailer_for_movie
+        from src.featured import get_trailer_for_movie
 
         trailer = get_trailer_for_movie(tmdb_id=550)
 
@@ -287,7 +287,7 @@ class TestTrailerSelection:
         """Test handling when no videos at all"""
         mock_get_videos.return_value = {"results": []}
 
-        from src.app import get_trailer_for_movie
+        from src.featured import get_trailer_for_movie
 
         trailer = get_trailer_for_movie(tmdb_id=550)
 

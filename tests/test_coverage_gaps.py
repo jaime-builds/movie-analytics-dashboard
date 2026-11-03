@@ -6,7 +6,7 @@ generic 500 handler, and admin listing details.
 
 import pytest
 
-import src.app as app_module
+import src.routes.main as main_routes
 from src.models import Cast, Collection, Movie, Person, User, collection_movies_table
 
 
@@ -162,7 +162,7 @@ class TestErrorHandling:
         def explode(*args, **kwargs):
             raise RuntimeError("boom")
 
-        monkeypatch.setattr(app_module, "_home_stats", explode)
+        monkeypatch.setattr(main_routes, "_home_stats", explode)
         app.config["PROPAGATE_EXCEPTIONS"] = False
 
         response = client.get("/")

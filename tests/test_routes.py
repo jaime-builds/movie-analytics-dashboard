@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.app import cache
+from src.extensions import cache
 from src.models import Rating, Review, User
 
 
@@ -123,8 +123,8 @@ class TestMovieDetailRoute:
         assert response.status_code == 200
         # Should show some similar movies
 
-    @patch("src.app.TMDBClient.get_watch_providers", return_value={})
-    @patch("src.app.TMDBClient.get_movie_videos", return_value={"results": []})
+    @patch("src.tmdb_api.TMDBClient.get_watch_providers", return_value={})
+    @patch("src.tmdb_api.TMDBClient.get_movie_videos", return_value={"results": []})
     def test_movie_detail_uses_review_count_in_heading(
         self, mock_videos, mock_providers, client, db_session, sample_movie
     ):
@@ -154,8 +154,8 @@ class TestMovieDetailRoute:
         assert b"User Reviews (1)" in response.data
         assert b"User Reviews (2)" not in response.data
 
-    @patch("src.app.TMDBClient.get_watch_providers", side_effect=TimeoutError("slow"))
-    @patch("src.app.TMDBClient.get_movie_videos", side_effect=TimeoutError("slow"))
+    @patch("src.tmdb_api.TMDBClient.get_watch_providers", side_effect=TimeoutError("slow"))
+    @patch("src.tmdb_api.TMDBClient.get_movie_videos", side_effect=TimeoutError("slow"))
     def test_movie_detail_handles_tmdb_timeout_fallbacks(
         self, mock_videos, mock_providers, client, sample_movie
     ):

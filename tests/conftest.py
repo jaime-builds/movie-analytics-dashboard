@@ -11,7 +11,7 @@ from sqlalchemy import event
 
 from config.config import Config
 from src.app import app as flask_app
-from src.app import cache, limiter
+from src.extensions import cache, limiter
 from src.models import Base, Cast, Crew, Genre, Movie, Person, ProductionCompany, User
 
 
@@ -126,14 +126,15 @@ def db_session(app, _shared_test_engine):
     TestSession = _sessionmaker(bind=connection, join_transaction_mode="create_savepoint")
     session = TestSession()
 
-    import src.app
+    import src.helpers
 
-    original_get_db_session = src.app.get_db_session
-    src.app.get_db_session = lambda: session
+    # Every route and request hook gets its session from get_db_session()
+    original_factory = src.helpers.session_factory
+    src.helpers.session_factory = lambda: session
 
     yield session
 
-    src.app.get_db_session = original_get_db_session
+    src.helpers.session_factory = original_factory
     session.close()
     transaction.rollback()
     connection.close()

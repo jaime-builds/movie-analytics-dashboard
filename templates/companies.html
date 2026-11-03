@@ -4,7 +4,7 @@
 {% block title %}Production Companies - Movie Analytics Dashboard{% endblock %}
 
 {% block content %}
-{{ breadcrumbs([("Home", url_for('index')), ("Studios", none)]) }}
+{{ breadcrumbs([("Home", url_for('main.index')), ("Studios", none)]) }}
 <div class="container-fluid py-4">
     <div class="row mb-4">
         <div class="col-12">
@@ -16,7 +16,7 @@
     </div>
 
     <!-- Search and Sort (applied on the server, across every studio) -->
-    <form class="row mb-4 g-2" method="get" action="{{ url_for('companies') }}" role="search">
+    <form class="row mb-4 g-2" method="get" action="{{ url_for('main.companies') }}" role="search">
         <div class="col-md-6">
             <label for="companySearch" class="visually-hidden">Search studios</label>
             <div class="input-group">
@@ -101,7 +101,7 @@
                         <div class="small">
                             {% for movie in company.top_movies %}
                             <div class="mb-1">
-                                <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+                                <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
                                     <i class="bi bi-film"></i>
                                     {{ movie.title }}{% if movie.year %} ({{ movie.year }}){% endif %}
                                     {% if movie.vote_average %}
@@ -116,7 +116,7 @@
                     </div>
                     {% endif %}
 
-                    <a href="{{ url_for('company_detail', company_id=company.id) }}" class="btn btn-primary btn-sm w-100">
+                    <a href="{{ url_for('main.company_detail', company_id=company.id) }}" class="btn btn-primary btn-sm w-100">
                         <i class="bi bi-arrow-right-circle"></i> View Filmography
                     </a>
                 </div>

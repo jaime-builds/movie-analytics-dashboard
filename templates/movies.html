@@ -4,7 +4,7 @@
 {% block title %}Movies - Movie Analytics Dashboard{% endblock %}
 
 {% block content %}
-{{ breadcrumbs([("Home", url_for('index')), ("Movies", none)]) }}
+{{ breadcrumbs([("Home", url_for('main.index')), ("Movies", none)]) }}
 <h1>All Movies</h1>
 
 <!-- Filter Section -->
@@ -19,7 +19,7 @@
     </div>
     <div class="collapse show" id="filterCollapse">
         <div class="card-body">
-            <form method="get" action="{{ url_for('movies') }}" id="filterForm">
+            <form method="get" action="{{ url_for('main.movies') }}" id="filterForm">
                 <div class="row g-3">
                     <!-- Genre Filter -->
                     <div class="col-md-3">
@@ -137,7 +137,7 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-search"></i> Apply Filters
                         </button>
-                        <a href="{{ url_for('movies') }}" class="btn btn-secondary">
+                        <a href="{{ url_for('main.movies') }}" class="btn btn-secondary">
                             <i class="bi bi-x-circle"></i> Clear All
                         </a>
                     </div>
@@ -223,7 +223,7 @@
                 title="Add to compare" aria-label="Add {{ movie.title }} to compare" aria-pressed="false">
             <i class="bi bi-plus-lg" aria-hidden="true"></i>
         </button>
-        <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+        <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
             <div class="card movie-card h-100">
                 {% if movie.poster_path %}
                 <img src="{{ config.get_poster_url(movie.poster_path, 'w342') }}" class="card-img-top" alt="{{ movie.title }}" loading="lazy">

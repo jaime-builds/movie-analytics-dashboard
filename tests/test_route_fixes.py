@@ -7,7 +7,10 @@ from datetime import date, timedelta
 
 import pytest
 
-import src.app as app_module
+import src.featured as featured
+import src.routes.analytics as analytics_routes
+import src.routes.main as main_routes
+from src.extensions import cache
 from src.models import (
     Cast,
     Crew,
@@ -266,7 +269,7 @@ class TestRecommendationsAndMoviePage:
         db_session.commit()
         current_id = current.id
 
-        recs = app_module.get_personalized_recommendations(
+        recs = featured.get_personalized_recommendations(
             db_session, logged_in_user, exclude_ids=[current_id]
         )
 
@@ -276,16 +279,17 @@ class TestRecommendationsAndMoviePage:
         calls = []
         store = {}
         monkeypatch.setattr(
-            app_module, "get_trailer_for_movie", lambda tmdb_id: calls.append(tmdb_id)
+            main_routes, "get_trailer_for_movie", lambda tmdb_id: calls.append(tmdb_id)
         )
-        monkeypatch.setattr(app_module.cache, "get", store.get)
+        monkeypatch.setattr(cache, "get", store.get)
         monkeypatch.setattr(
-            app_module.cache, "set", lambda key, value, timeout=None: store.__setitem__(key, value)
+            cache, "set", lambda key, value, timeout=None: store.__setitem__(key, value)
         )
         app.config["TESTING"] = False
 
-        app_module._tmdb_movie_extras(42)
-        app_module._tmdb_movie_extras(42)
+        with app.app_context():
+            main_routes._tmdb_movie_extras(42)
+            main_routes._tmdb_movie_extras(42)
 
         assert calls == [42]
 
@@ -309,7 +313,7 @@ class TestPageViews:
 
 
 class TestBoxOfficeByGenre:
-    def test_analytics_page_totals_revenue_per_genre(self, client, db_session):
+    def test_analytics_page_totals_revenue_per_genre(self, app, client, db_session):
         action, drama = Genre(tmdb_id=28, name="Action"), Genre(tmdb_id=18, name="Drama")
         both = _movie(700, "Both Genres", revenue=300)
         action_only = _movie(701, "Action Only", revenue=100)
@@ -320,7 +324,8 @@ class TestBoxOfficeByGenre:
         db_session.add_all([both, action_only, no_revenue])
         db_session.commit()
 
-        data = app_module._analytics_data(db_session)["box_office_by_genre"]
+        with app.app_context():
+            data = analytics_routes._analytics_data(db_session)["box_office_by_genre"]
 
         assert data == [
             {"name": "Action", "total_revenue": 400, "avg_revenue": 200, "count": 2},

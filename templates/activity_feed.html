@@ -5,7 +5,7 @@
 {% block description %}Recent movie ratings and reviews from people using Movie Analytics Dashboard.{% endblock %}
 
 {% block content %}
-{{ breadcrumbs([("Home", url_for('index')), ("Activity Feed", none)]) }}
+{{ breadcrumbs([("Home", url_for('main.index')), ("Activity Feed", none)]) }}
 <div class="row justify-content-center">
     <div class="col-lg-8">
         <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-3">
@@ -14,7 +14,7 @@
                 <p class="text-muted mb-0">Recent ratings and reviews from the community</p>
             </div>
             {% if current_user %}
-            <a href="{{ url_for('profile') }}#activity-visibility" class="small">Feed privacy settings</a>
+            <a href="{{ url_for('account.profile') }}#activity-visibility" class="small">Feed privacy settings</a>
             {% endif %}
         </div>
 
@@ -29,13 +29,13 @@
                             <strong>{{ item.username }}</strong>
                             {% if item.kind == 'rating' %}
                             rated
-                            <a href="{{ url_for('movie_detail', movie_id=item.movie.id) }}">{{ item.movie.title }}</a>
+                            <a href="{{ url_for('main.movie_detail', movie_id=item.movie.id) }}">{{ item.movie.title }}</a>
                             <span class="text-warning ms-1" aria-label="{{ item.stars }} out of 5 stars">
                                 {% for i in range(1, 6) %}<i class="bi bi-star{{ '-fill' if i <= item.stars }}" aria-hidden="true"></i>{% endfor %}
                             </span>
                             {% else %}
                             reviewed
-                            <a href="{{ url_for('movie_detail', movie_id=item.movie.id) }}">{{ item.movie.title }}</a>
+                            <a href="{{ url_for('main.movie_detail', movie_id=item.movie.id) }}">{{ item.movie.title }}</a>
                             {% endif %}
                         </p>
                         {% if item.kind == 'review' %}

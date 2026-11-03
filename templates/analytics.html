@@ -6,7 +6,7 @@
 {% block chart_library %}{{ chart_library() }}{% endblock %}
 
 {% block content %}
-{{ breadcrumbs([("Home", url_for('index')), ("Analytics", none)]) }}
+{{ breadcrumbs([("Home", url_for('main.index')), ("Analytics", none)]) }}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="mb-0">Analytics Dashboard</h1>
     <div class="dropdown">
@@ -16,7 +16,7 @@
         </button>
         <ul class="dropdown-menu dropdown-menu-end">
             <li>
-                <a class="dropdown-item" href="{{ url_for('analytics_export_csv') }}">
+                <a class="dropdown-item" href="{{ url_for('analytics.export_csv') }}">
                     <i class="bi bi-filetype-csv me-2"></i>Download CSV
                 </a>
             </li>

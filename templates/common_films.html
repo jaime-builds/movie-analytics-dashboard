@@ -4,7 +4,7 @@
 {% block title %}Common Films - Movie Analytics Dashboard{% endblock %}
 
 {% block content %}
-{{ breadcrumbs([("Home", url_for('index')), ("Common Films", none)]) }}
+{{ breadcrumbs([("Home", url_for('main.index')), ("Common Films", none)]) }}
 
 <!-- ===================== HEADER ===================== -->
 <div class="cf-header mb-4">
@@ -108,7 +108,7 @@
 <div class="row g-3">
     {% for movie in movies %}
     <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 col-6">
-        <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+        <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
             <div class="card movie-card h-100 cf-movie-card">
                 {{ poster_img(movie, config) }}
                 <div class="card-body p-2">

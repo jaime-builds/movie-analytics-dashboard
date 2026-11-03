@@ -4,7 +4,7 @@
 {% block title %}Directors - Movie Analytics Dashboard{% endblock %}
 
 {% block content %}
-{{ breadcrumbs([("Home", url_for('index')), ("Directors", none)]) }}
+{{ breadcrumbs([("Home", url_for('main.index')), ("Directors", none)]) }}
 <div class="container-fluid py-4">
     <div class="row mb-4">
         <div class="col-12">
@@ -16,7 +16,7 @@
     </div>
 
     <!-- Search and Filter (applied on the server, across every director) -->
-    <form class="row mb-4 g-2" method="get" action="{{ url_for('directors') }}" role="search">
+    <form class="row mb-4 g-2" method="get" action="{{ url_for('people.directors') }}" role="search">
         <div class="col-md-5">
             <label for="directorSearch" class="visually-hidden">Search directors</label>
             <div class="input-group">
@@ -94,7 +94,7 @@
                         <div class="small">
                             {% for movie in director.top_movies[:3] %}
                             <div class="mb-1">
-                                <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+                                <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
                                     <i class="bi bi-film"></i>
                                     {{ movie.title }}{% if movie.year %} ({{ movie.year }}){% endif %}
                                     {% if movie.vote_average %}
@@ -109,7 +109,7 @@
                     </div>
                     {% endif %}
 
-                    <a href="{{ url_for('director_detail', director_id=director.id) }}" class="btn btn-primary btn-sm w-100">
+                    <a href="{{ url_for('people.director_detail', director_id=director.id) }}" class="btn btn-primary btn-sm w-100">
                         <i class="bi bi-arrow-right-circle"></i>
                         View Filmography
                     </a>

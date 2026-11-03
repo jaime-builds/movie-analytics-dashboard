@@ -6,10 +6,10 @@
 {% block chart_library %}{{ chart_library() }}{% endblock %}
 
 {% block content %}
-{{ breadcrumbs([("Home", url_for('index')), ("Compare", none)]) }}
+{{ breadcrumbs([("Home", url_for('main.index')), ("Compare", none)]) }}
 <div class="d-flex align-items-center mb-4 gap-3">
     <h1 class="mb-0">Movie Comparison</h1>
-    <a href="{{ url_for('movies') }}" class="btn btn-outline-secondary btn-sm ms-auto">
+    <a href="{{ url_for('main.movies') }}" class="btn btn-outline-secondary btn-sm ms-auto">
         <i class="bi bi-plus-lg me-1"></i>Add More Movies
     </a>
 </div>
@@ -17,7 +17,7 @@
 {% if movies|length < 2 %}
 <div class="alert alert-info">
     <i class="bi bi-info-circle me-2"></i>
-    Select at least 2 movies to compare. Browse <a href="{{ url_for('movies') }}">all movies</a> and use the
+    Select at least 2 movies to compare. Browse <a href="{{ url_for('main.movies') }}">all movies</a> and use the
     <strong><i class="bi bi-plus-lg"></i></strong> button on any movie card.
 </div>
 {% else %}
@@ -32,7 +32,7 @@
                 <th>
                     {{ movie.title }}
                     <br>
-                    <a href="{{ url_for('movie_detail', movie_id=movie.id) }}"
+                    <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}"
                        class="badge bg-secondary text-decoration-none mt-1 small">View Detail</a>
                 </th>
                 {% endfor %}
@@ -73,7 +73,7 @@
                 {% for movie in movies %}
                 <td>
                     {% if directors[movie.id] %}
-                    <a href="{{ url_for('director_detail', director_id=directors[movie.id].id) }}"
+                    <a href="{{ url_for('people.director_detail', director_id=directors[movie.id].id) }}"
                        class="text-decoration-none">
                         {{ directors[movie.id].name }}
                     </a>

@@ -6,13 +6,13 @@
 {% block chart_library %}{{ chart_library() }}{% endblock %}
 
 {% block content %}
-{{ breadcrumbs([("Home", url_for('index')), ("Profile", url_for('profile')), ("Year in Review", none)]) }}
+{{ breadcrumbs([("Home", url_for('main.index')), ("Profile", url_for('account.profile')), ("Year in Review", none)]) }}
 <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-4">
     <div>
         <h1 class="mb-1"><i class="bi bi-calendar3 me-2" aria-hidden="true"></i>{{ year }} in Review</h1>
         <p class="text-muted mb-0">Your movie year, {{ current_user.username }}</p>
     </div>
-    <form method="get" action="{{ url_for('year_in_review') }}" class="d-flex gap-2 align-items-center">
+    <form method="get" action="{{ url_for('account.year_in_review') }}" class="d-flex gap-2 align-items-center">
         <label for="yearSelect" class="form-label mb-0 small">Year</label>
         <select id="yearSelect" name="year" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
             {% for y in years %}
@@ -82,7 +82,7 @@
 <div class="row row-cols-2 row-cols-md-3 row-cols-lg-6 g-3 mb-4">
     {% for movie in stats.top_rated %}
     <div class="col">
-        <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none text-reset">
+        <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}" class="text-decoration-none text-reset">
             <div class="card h-100">
                 {{ poster_img(movie, config, placeholder_height='240px') }}
                 <div class="card-body p-2"><p class="small mb-0">{{ movie.title }}</p></div>

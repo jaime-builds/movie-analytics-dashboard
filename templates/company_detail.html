@@ -6,7 +6,7 @@
 {% block chart_library %}{{ chart_library() }}{% endblock %}
 
 {% block content %}
-{{ breadcrumbs([("Home", url_for('index')), ("Studios", url_for('companies')), (company.name, none)]) }}
+{{ breadcrumbs([("Home", url_for('main.index')), ("Studios", url_for('main.companies')), (company.name, none)]) }}
 <div class="container-fluid py-4">
 
     <!-- Company Header -->
@@ -145,7 +145,7 @@
                     <div id="gridView" class="row row-cols-2 row-cols-md-4 row-cols-lg-5 g-3">
                         {% for movie in movies %}
                         <div class="col">
-                            <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+                            <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
                                 <div class="card h-100 movie-card">
                                     {% if movie.poster_path %}
                                     <img src="https://image.tmdb.org/t/p/w342{{ movie.poster_path }}"
@@ -193,7 +193,7 @@
                                     <tr>
                                         <td>{{ movie.year or '—' }}</td>
                                         <td>
-                                            <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="fw-semibold">{{ movie.title }}</a>
+                                            <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}" class="fw-semibold">{{ movie.title }}</a>
                                             {% if movie.genres %}
                                             <br><small class="text-muted">{{ movie.genres|join(', ') }}</small>
                                             {% endif %}

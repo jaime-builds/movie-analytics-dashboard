@@ -4,7 +4,7 @@
 {% block title %}My Favorites - Movie Analytics Dashboard{% endblock %}
 
 {% block content %}
-{{ breadcrumbs([("Home", url_for('index')), ("Favorites", none)]) }}
+{{ breadcrumbs([("Home", url_for('main.index')), ("Favorites", none)]) }}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="mb-0">
         <i class="bi bi-heart-fill text-danger me-2" aria-hidden="true"></i>My Favorite Movies
@@ -26,7 +26,7 @@
         <p>You haven't added any movies to your favorites yet.</p>
         <hr>
         <p class="mb-0">
-            <a href="{{ url_for('movies') }}" class="alert-link">Browse movies</a> and click the "Favorite" button to save your favorites!
+            <a href="{{ url_for('main.movies') }}" class="alert-link">Browse movies</a> and click the "Favorite" button to save your favorites!
         </p>
     </div>
 {% endif %}

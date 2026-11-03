@@ -10,7 +10,7 @@ from datetime import timedelta
 
 import pytest
 
-import src.app as app_module
+import src.featured as featured
 from src.models import Movie, MovieOfTheDay, User, local_today
 
 
@@ -83,7 +83,7 @@ class TestMovieOfTheDay:
         )
         db_session.commit()
 
-        pick = app_module.get_movie_of_the_day(db_session)
+        pick = featured.get_movie_of_the_day(db_session)
 
         assert pick.title == "Clean Gem"
 
@@ -96,7 +96,7 @@ class TestMovieOfTheDay:
         flagged.is_mature = True
         db_session.commit()
 
-        pick = app_module.get_movie_of_the_day(db_session)
+        pick = featured.get_movie_of_the_day(db_session)
 
         assert pick.title == "Replacement"
         row = db_session.query(MovieOfTheDay).filter_by(shown_date=local_today()).one()
@@ -160,7 +160,7 @@ class TestMovieOfTheDayBoundaries:
         db_session.add(Movie(tmdb_id=50, title="Edge Case", **fields))
         db_session.commit()
 
-        pick = app_module.get_movie_of_the_day(db_session)
+        pick = featured.get_movie_of_the_day(db_session)
 
         assert (pick is not None) is eligible
 
@@ -181,4 +181,4 @@ class TestMovieOfTheDayBoundaries:
         db_session.add(MovieOfTheDay(movie_id=gem.id, shown_date=today - timedelta(days=31)))
         db_session.commit()
 
-        assert app_module.get_movie_of_the_day(db_session).title == "Only Gem"
+        assert featured.get_movie_of_the_day(db_session).title == "Only Gem"

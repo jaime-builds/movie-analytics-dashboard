@@ -4,7 +4,7 @@
 {% block title %}{{ actor.name }} — Collaboration Network{% endblock %}
 
 {% block content %}
-{{ breadcrumbs([("Home", url_for('index')), ("Top Actors", url_for('top_actors')), (actor.name, url_for('actor_detail', actor_id=actor.id)), ("Network", none)]) }}
+{{ breadcrumbs([("Home", url_for('main.index')), ("Top Actors", url_for('people.top_actors')), (actor.name, url_for('people.actor_detail', actor_id=actor.id)), ("Network", none)]) }}
 
 <!-- ===================== HEADER ===================== -->
 <div class="an-header mb-4">
@@ -27,7 +27,7 @@
             </div>
         </div>
         <div class="an-header-actions">
-            <a href="{{ url_for('actor_detail', actor_id=actor.id) }}"
+            <a href="{{ url_for('people.actor_detail', actor_id=actor.id) }}"
                class="btn btn-outline-light btn-sm">
                 <i class="bi bi-arrow-left me-1"></i>Back to profile
             </a>
@@ -63,7 +63,7 @@
     <ul class="list-unstyled mt-2 mb-0">
         {% for node in graph_data.nodes if not node.focal %}
         <li class="mb-1">
-            <a href="{{ url_for('actor_detail', actor_id=node.id) }}">{{ node.name }}</a>
+            <a href="{{ url_for('people.actor_detail', actor_id=node.id) }}">{{ node.name }}</a>
             <span class="text-muted small">: {{ node.shared_movies }} shared film{{ 's' if node.shared_movies != 1 }}</span>
         </li>
         {% endfor %}
@@ -75,7 +75,7 @@
     <i class="bi bi-diagram-3 an-empty-icon"></i>
     <h3>No collaboration data</h3>
     <p>There aren't enough shared cast credits in the current dataset to build a network for this actor.</p>
-    <a href="{{ url_for('actor_detail', actor_id=actor.id) }}" class="btn btn-primary mt-2">
+    <a href="{{ url_for('people.actor_detail', actor_id=actor.id) }}" class="btn btn-primary mt-2">
         Back to profile
     </a>
 </div>

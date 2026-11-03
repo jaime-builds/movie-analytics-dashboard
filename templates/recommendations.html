@@ -4,7 +4,7 @@
 {% block title %}Recommended For You - Movie Analytics Dashboard{% endblock %}
 
 {% block content %}
-{{ breadcrumbs([("Home", url_for('index')), ("Recommendations", none)]) }}
+{{ breadcrumbs([("Home", url_for('main.index')), ("Recommendations", none)]) }}
 <div class="container-fluid py-4">
     <div class="row mb-4">
         <div class="col-12">
@@ -29,7 +29,7 @@
         <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-3">
             {% for movie in recommendations %}
             <div class="col">
-                <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+                <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
                     <div class="card h-100 movie-card">
                         {% if movie.poster_path %}
                         <img src="{{ config.get_poster_url(movie.poster_path, 'w342') }}"
@@ -81,9 +81,9 @@
                 <div class="card-body text-center">
                     <h5 class="card-title">Want better recommendations?</h5>
                     <p class="card-text text-muted">
-                        Add more movies to your <a href="{{ url_for('favorites') }}">favorites</a> to get even more personalized suggestions!
+                        Add more movies to your <a href="{{ url_for('account.favorites') }}">favorites</a> to get even more personalized suggestions!
                     </p>
-                    <a href="{{ url_for('movies') }}" class="btn btn-primary">
+                    <a href="{{ url_for('main.movies') }}" class="btn btn-primary">
                         <i class="bi bi-film me-2"></i>Browse Movies
                     </a>
                 </div>
@@ -99,13 +99,13 @@
             <p>We need to know what you like first! Start by adding movies to your favorites.</p>
             <hr>
             <div class="d-flex gap-2 flex-wrap">
-                <a href="{{ url_for('movies') }}" class="btn btn-primary">
+                <a href="{{ url_for('main.movies') }}" class="btn btn-primary">
                     <i class="bi bi-film me-2"></i>Browse All Movies
                 </a>
-                <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary">
                     <i class="bi bi-house me-2"></i>Back to Home
                 </a>
-                <a href="{{ url_for('hidden_gems') }}" class="btn btn-outline-info">
+                <a href="{{ url_for('main.hidden_gems') }}" class="btn btn-outline-info">
                     <i class="bi bi-gem me-2"></i>Discover Hidden Gems
                 </a>
             </div>
@@ -119,7 +119,7 @@
             </h4>
             <p class="text-muted">While we learn your preferences, here are some popular movies you might enjoy:</p>
             <!-- This would need to be passed from the route, or you could just link to the movies page -->
-            <a href="{{ url_for('movies', sort='popularity') }}" class="btn btn-lg btn-primary">
+            <a href="{{ url_for('main.movies', sort='popularity') }}" class="btn btn-lg btn-primary">
                 <i class="bi bi-arrow-right-circle me-2"></i>View Popular Movies
             </a>
         </div>

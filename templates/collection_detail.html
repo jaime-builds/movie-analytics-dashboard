@@ -4,7 +4,7 @@
 {% block title %}{{ collection.name }} - Movie Analytics Dashboard{% endblock %}
 
 {% block content %}
-{{ breadcrumbs([("Home", url_for('index')), ("Collections", url_for('collections')), (collection.name, none)]) }}
+{{ breadcrumbs([("Home", url_for('main.index')), ("Collections", url_for('collections.index')), (collection.name, none)]) }}
 <div class="container-fluid py-4">
 
     <!-- Header -->

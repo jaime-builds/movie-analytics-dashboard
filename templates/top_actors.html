@@ -4,10 +4,10 @@
 {% block title %}Top Actors - Movie Analytics Dashboard{% endblock %}
 
 {% block content %}
-{{ breadcrumbs([("Home", url_for('index')), ("Top Actors", none)]) }}
+{{ breadcrumbs([("Home", url_for('main.index')), ("Top Actors", none)]) }}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>Top Actors</h1>
-    <form method="get" action="{{ url_for('top_actors') }}" class="d-flex gap-2 align-items-center">
+    <form method="get" action="{{ url_for('people.top_actors') }}" class="d-flex gap-2 align-items-center">
         <label for="sortSelect" class="visually-hidden">Sort actors</label>
         <select class="form-select" id="sortSelect" name="sort" onchange="this.form.submit()">
             <option value="movie_count" {% if sort_by == 'movie_count' %}selected{% endif %}>Most Movies</option>
@@ -28,7 +28,7 @@
     {% if actors %}
         {% for actor in actors %}
         <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-4">
-            <a href="{{ url_for('actor_detail', actor_id=actor.person.id) }}" class="text-decoration-none">
+            <a href="{{ url_for('people.actor_detail', actor_id=actor.person.id) }}" class="text-decoration-none">
                 <div class="card actor-card h-100">
                     {% if actor.person.profile_path %}
                     {% set srcset = 'https://image.tmdb.org/t/p/w185' ~ actor.person.profile_path ~ ' 185w, https://image.tmdb.org/t/p/w342' ~ actor.person.profile_path ~ ' 342w' %}

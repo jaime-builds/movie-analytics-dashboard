@@ -4,7 +4,7 @@
 {% block title %}{{ actor.name }} - Actor Detail{% endblock %}
 
 {% block content %}
-{{ breadcrumbs([("Home", url_for('index')), ("Top Actors", url_for('top_actors')), (actor.name, none)]) }}
+{{ breadcrumbs([("Home", url_for('main.index')), ("Top Actors", url_for('people.top_actors')), (actor.name, none)]) }}
 <div class="container-fluid py-4">
     <!-- Actor Header -->
     <div class="row mb-4">
@@ -23,7 +23,7 @@
             <h1 class="display-4">{{ actor.name }}</h1>
 
             <div class="mb-3">
-                <a href="{{ url_for('actor_network', actor_id=actor.id) }}"
+                <a href="{{ url_for('people.actor_network', actor_id=actor.id) }}"
                    class="btn btn-outline-primary">
                     <i class="bi bi-diagram-3 me-2"></i>View Collaboration Network
                 </a>
@@ -96,7 +96,7 @@
             <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-3">
                 {% for movie, character, cast_order in filmography %}
                 <div class="col">
-                    <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+                    <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
                         <div class="card h-100 movie-card">
                             {% if movie.poster_path %}
                             <img src="https://image.tmdb.org/t/p/w342{{ movie.poster_path }}"

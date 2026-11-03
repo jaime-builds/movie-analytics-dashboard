@@ -6,7 +6,6 @@
 - [ ] **Performance monitoring** (3h) - Sentry integration for error tracking and performance insights
 - [ ] **Public collections** (3h) - Toggle to make user collections public; browseable by other users
 - [ ] **TMDB data dump sync** (2h) - Replace popular movies pagination with daily TMDB export file; removes 10,000 movie ceiling, faster ID collection, better movie selection by popularity
-- [ ] **Split src/app.py into blueprints** - RR-05 from the 2026-11 review, kept as its own change so the fix batch stays reviewable
 
 ## 🚀 Next Up (This Month)
 
@@ -53,6 +52,7 @@
 - [x] **Blind pick** - Random movie from your watchlist
 - [x] **User activity feed** - `/activity`: recent public ratings and reviews, with a per-user opt-out on the profile
 - [x] **Year in review** - `/year-in-review`: ratings, reviews, favorites, genres, decades and charts for any year
+- [x] **Blueprints** - `src/app.py` split into eight Flask blueprints under `src/routes/`, with shared helpers in `src/helpers.py` and `src/featured.py` (RR-05). URLs are unchanged; endpoint names now carry the blueprint (`url_for('main.movie_detail', ...)`)
 
 ## ✅ Recently Completed (August 3, 2026)
 

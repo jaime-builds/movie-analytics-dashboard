@@ -33,7 +33,7 @@
                         {% endif %}
                     </td>
                     <td>
-                        <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+                        <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
                             {{ movie.title }}
                         </a>
                     </td>
@@ -58,7 +58,7 @@
                     </td>
                     <td class="text-end text-nowrap">
                         {% if rating.is_deleted %}
-                        <form method="POST" action="{{ url_for('admin_restore_rating', rating_id=rating.id) }}" class="d-inline">
+                        <form method="POST" action="{{ url_for('admin.restore_rating', rating_id=rating.id) }}" class="d-inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="next" value="{{ request.full_path }}">
                             <button type="submit" class="btn btn-sm btn-outline-success">
@@ -66,7 +66,7 @@
                             </button>
                         </form>
                         {% else %}
-                        <form method="POST" action="{{ url_for('admin_soft_delete_rating', rating_id=rating.id) }}" class="d-inline">
+                        <form method="POST" action="{{ url_for('admin.soft_delete_rating', rating_id=rating.id) }}" class="d-inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="next" value="{{ request.full_path }}">
                             <button type="submit" class="btn btn-sm btn-outline-secondary">
@@ -74,7 +74,7 @@
                             </button>
                         </form>
                         {% endif %}
-                        <form method="POST" action="{{ url_for('admin_hard_delete_rating', rating_id=rating.id) }}" class="d-inline"
+                        <form method="POST" action="{{ url_for('admin.hard_delete_rating', rating_id=rating.id) }}" class="d-inline"
                               data-confirm="Permanently delete this rating? This cannot be undone.">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="next" value="{{ request.full_path }}">

@@ -26,10 +26,10 @@
                 </div>
             </div>
             <div class="home-hero-actions">
-                <a class="btn btn-primary btn-lg home-btn" href="{{ url_for('movies') }}">
+                <a class="btn btn-primary btn-lg home-btn" href="{{ url_for('main.movies') }}">
                     <i class="bi bi-collection-play me-2"></i>Browse Movies
                 </a>
-                <a class="btn btn-outline-light btn-lg home-btn" href="{{ url_for('analytics') }}">
+                <a class="btn btn-outline-light btn-lg home-btn" href="{{ url_for('analytics.index') }}">
                     <i class="bi bi-bar-chart-line me-2"></i>View Analytics
                 </a>
             </div>
@@ -49,7 +49,7 @@
 </div>
 <div class="row mb-5">
     <div class="col-md-8 col-lg-6">
-        <a href="{{ url_for('movie_detail', movie_id=movie_of_the_day.id) }}" class="text-decoration-none">
+        <a href="{{ url_for('main.movie_detail', movie_id=movie_of_the_day.id) }}" class="text-decoration-none">
             <div class="card movie-card h-100">
                 <div class="row g-0">
                     <div class="col-4 col-sm-3">
@@ -85,7 +85,7 @@
 <!-- ===================== FEATURE CARDS ===================== -->
 <div class="row g-3 mb-5">
     <div class="col-6 col-md-3">
-        <a href="{{ url_for('directors') }}" class="text-decoration-none">
+        <a href="{{ url_for('people.directors') }}" class="text-decoration-none">
             <div class="home-feature-card">
                 <i class="bi bi-camera-reels home-feature-icon"></i>
                 <div class="home-feature-label">Directors</div>
@@ -94,7 +94,7 @@
         </a>
     </div>
     <div class="col-6 col-md-3">
-        <a href="{{ url_for('hidden_gems') }}" class="text-decoration-none">
+        <a href="{{ url_for('main.hidden_gems') }}" class="text-decoration-none">
             <div class="home-feature-card">
                 <i class="bi bi-gem home-feature-icon" style="color: #a78bfa;"></i>
                 <div class="home-feature-label">Hidden Gems</div>
@@ -103,7 +103,7 @@
         </a>
     </div>
     <div class="col-6 col-md-3">
-        <a href="{{ url_for('analytics') }}" class="text-decoration-none">
+        <a href="{{ url_for('analytics.index') }}" class="text-decoration-none">
             <div class="home-feature-card">
                 <i class="bi bi-bar-chart-line home-feature-icon" style="color: #34d399;"></i>
                 <div class="home-feature-label">Analytics</div>
@@ -112,7 +112,7 @@
         </a>
     </div>
     <div class="col-6 col-md-3">
-        <a href="{{ url_for('top_actors') }}" class="text-decoration-none">
+        <a href="{{ url_for('people.top_actors') }}" class="text-decoration-none">
             <div class="home-feature-card">
                 <i class="bi bi-people home-feature-icon" style="color: #f59e0b;"></i>
                 <div class="home-feature-label">Top Actors</div>
@@ -125,12 +125,12 @@
 <!-- ===================== TOP RATED ===================== -->
 <div class="home-section-header">
     <h2 class="mb-0">Top Rated Movies</h2>
-    <a href="{{ url_for('movies', sort='rating', min_vote_count=top_rated_min_votes) }}" class="home-see-all">See all <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+    <a href="{{ url_for('main.movies', sort='rating', min_vote_count=top_rated_min_votes) }}" class="home-see-all">See all <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
 </div>
 <div class="row mb-5">
     {% for movie in top_movies %}
     <div class="col-md-2 col-sm-4 col-6 mb-3">
-        <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+        <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
             <div class="card movie-card h-100">
                 {{ poster_img(movie, config) }}
                 <div class="card-body p-2">
@@ -154,12 +154,12 @@
 
 <div class="home-section-header">
     <h2 class="mb-0">Upcoming Releases</h2>
-    <a href="{{ url_for('movies', sort='upcoming') }}" class="home-see-all">See all <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+    <a href="{{ url_for('main.movies', sort='upcoming') }}" class="home-see-all">See all <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
 </div>
 <div class="row mb-5">
     {% for movie in upcoming_movies %}
     <div class="col-md-2 col-sm-4 col-6 mb-3">
-        <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+        <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
             <div class="card movie-card h-100">
                 {{ poster_img(movie, config) }}
                 <div class="card-body p-2">
@@ -183,12 +183,12 @@
 
 <div class="home-section-header">
     <h2 class="mb-0">Most Popular</h2>
-    <a href="{{ url_for('movies', sort='popularity') }}" class="home-see-all">See all <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+    <a href="{{ url_for('main.movies', sort='popularity') }}" class="home-see-all">See all <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
 </div>
 <div class="row">
     {% for movie in popular_movies %}
     <div class="col-md-2 col-sm-4 col-6 mb-3">
-        <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+        <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
             <div class="card movie-card h-100">
                 {{ poster_img(movie, config) }}
                 <div class="card-body p-2">

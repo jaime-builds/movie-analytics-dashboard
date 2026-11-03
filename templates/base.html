@@ -36,7 +36,7 @@
     {% set endpoint = request.endpoint or '' %}
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark" aria-label="Main navigation">
         <div class="container-fluid">
-            <a class="navbar-brand" href="{{ url_for('index') }}">
+            <a class="navbar-brand" href="{{ url_for('main.index') }}">
                 <i class="bi bi-film" aria-hidden="true"></i> Movie Analytics
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
@@ -46,66 +46,66 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link {{ 'active' if endpoint == 'index' }}" href="{{ url_for('index') }}"
-                           {% if endpoint == 'index' %}aria-current="page"{% endif %}>Home</a>
+                        <a class="nav-link {{ 'active' if endpoint == 'main.index' }}" href="{{ url_for('main.index') }}"
+                           {% if endpoint == 'main.index' %}aria-current="page"{% endif %}>Home</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{ 'active' if endpoint == 'movies' }}" href="{{ url_for('movies') }}"
-                           {% if endpoint == 'movies' %}aria-current="page"{% endif %}>Movies</a>
+                        <a class="nav-link {{ 'active' if endpoint == 'main.movies' }}" href="{{ url_for('main.movies') }}"
+                           {% if endpoint == 'main.movies' %}aria-current="page"{% endif %}>Movies</a>
                     </li>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {{ 'active' if endpoint in ('top_actors', 'directors', 'companies', 'decades', 'hidden_gems') }}" href="#" role="button"
+                        <a class="nav-link dropdown-toggle {{ 'active' if endpoint in ('people.top_actors', 'people.directors', 'main.companies', 'main.decades', 'main.hidden_gems') }}" href="#" role="button"
                            data-bs-toggle="dropdown" aria-expanded="false">
                             Explore
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('top_actors') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('people.top_actors') }}">
                                 <i class="bi bi-person-fill me-2" aria-hidden="true"></i>Top Actors
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('directors') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('people.directors') }}">
                                 <i class="bi bi-camera-reels me-2" aria-hidden="true"></i>Directors
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('companies') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('main.companies') }}">
                                 <i class="bi bi-building me-2" aria-hidden="true"></i>Studios
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('decades') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('main.decades') }}">
                                 <i class="bi bi-clock-history me-2" aria-hidden="true"></i>Decades
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('hidden_gems') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('main.hidden_gems') }}">
                                 <i class="bi bi-gem me-2" aria-hidden="true"></i>Hidden Gems
                             </a></li>
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {{ 'active' if endpoint in ('recommendations', 'compare', 'advanced_search', 'common_films', 'activity_feed') }}" href="#" role="button"
+                        <a class="nav-link dropdown-toggle {{ 'active' if endpoint in ('account.recommendations', 'main.compare', 'main.advanced_search', 'people.common_films', 'account.activity_feed') }}" href="#" role="button"
                            data-bs-toggle="dropdown" aria-expanded="false">
                             Discover
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('recommendations') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('account.recommendations') }}">
                                 <i class="bi bi-lightbulb me-2" aria-hidden="true"></i>Recommendations
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('activity_feed') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('account.activity_feed') }}">
                                 <i class="bi bi-activity me-2" aria-hidden="true"></i>Activity Feed
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('compare') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('main.compare') }}">
                                 <i class="bi bi-bar-chart-line me-2" aria-hidden="true"></i>Compare Movies
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('advanced_search') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('main.advanced_search') }}">
                                 <i class="bi bi-sliders me-2" aria-hidden="true"></i>Advanced Search
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('common_films') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('people.common_films') }}">
                                 <i class="bi bi-people-fill me-2" aria-hidden="true"></i>Common Films
                             </a></li>
                         </ul>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{ 'active' if endpoint == 'analytics' }}" href="{{ url_for('analytics') }}"
-                           {% if endpoint == 'analytics' %}aria-current="page"{% endif %}>Analytics</a>
+                        <a class="nav-link {{ 'active' if endpoint == 'analytics.index' }}" href="{{ url_for('analytics.index') }}"
+                           {% if endpoint == 'analytics.index' %}aria-current="page"{% endif %}>Analytics</a>
                     </li>
                 </ul>
-                <form class="d-flex me-3" action="{{ url_for('search') }}" method="get" autocomplete="off" role="search">
+                <form class="d-flex me-3" action="{{ url_for('main.search') }}" method="get" autocomplete="off" role="search">
                     <div class="autocomplete-wrapper position-relative me-2">
                         <label for="search-input" class="visually-hidden">Search movies</label>
                         <input id="search-input" class="form-control" type="search" placeholder="Search movies..." name="q"
@@ -127,31 +127,31 @@
                                 <i class="bi bi-person-circle" aria-hidden="true"></i> {{ current_user.username }}
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                                <li><a class="dropdown-item" href="{{ url_for('profile') }}">
+                                <li><a class="dropdown-item" href="{{ url_for('account.profile') }}">
                                     <i class="bi bi-person-fill text-secondary" aria-hidden="true"></i> My Profile
                                 </a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('year_in_review') }}">
+                                <li><a class="dropdown-item" href="{{ url_for('account.year_in_review') }}">
                                     <i class="bi bi-calendar3 text-info" aria-hidden="true"></i> Year in Review
                                 </a></li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="{{ url_for('favorites') }}">
+                                <li><a class="dropdown-item" href="{{ url_for('account.favorites') }}">
                                     <i class="bi bi-heart-fill text-danger" aria-hidden="true"></i> My Favorites
                                 </a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('watchlist') }}">
+                                <li><a class="dropdown-item" href="{{ url_for('account.watchlist') }}">
                                     <i class="bi bi-bookmark-fill text-primary" aria-hidden="true"></i> My Watchlist
                                 </a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('collections') }}">
+                                <li><a class="dropdown-item" href="{{ url_for('collections.index') }}">
                                     <i class="bi bi-collection-play-fill text-success" aria-hidden="true"></i> My Collections
                                 </a></li>
                                 {% if current_user.is_admin %}
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="{{ url_for('admin_dashboard') }}">
+                                <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}">
                                     <i class="bi bi-shield-lock text-warning" aria-hidden="true"></i> Admin Dashboard
                                 </a></li>
                                 {% endif %}
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
-                                    <form action="{{ url_for('logout') }}" method="post">
+                                    <form action="{{ url_for('auth.logout') }}" method="post">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="dropdown-item">
                                             <i class="bi bi-box-arrow-right" aria-hidden="true"></i> Logout
@@ -162,12 +162,12 @@
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('login') }}">
+                            <a class="nav-link" href="{{ url_for('auth.login') }}">
                                 <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> Login
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('register') }}">
+                            <a class="nav-link" href="{{ url_for('auth.register') }}">
                                 <i class="bi bi-person-plus" aria-hidden="true"></i> Register
                             </a>
                         </li>
@@ -175,7 +175,7 @@
                 </ul>
 
                 <!-- Family-friendly toggle: hides movies flagged mature across lists and search -->
-                <form method="post" action="{{ url_for('set_family_friendly') }}" class="ms-3 family-toggle-form">
+                <form method="post" action="{{ url_for('main.set_family_friendly') }}" class="ms-3 family-toggle-form">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="next" value="{{ request.full_path if request.query_string else request.path }}">
                     <input type="hidden" name="enabled" value="{{ 'false' if family_friendly else 'true' }}">

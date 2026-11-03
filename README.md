@@ -149,6 +149,20 @@ flowchart TB
     end
 ```
 
+### Code Layout
+
+| Path | Holds |
+|---|---|
+| `src/app.py` | App setup, request hooks, error pages, CLI |
+| `src/extensions.py` | Cache, CSRF, rate limiter |
+| `src/helpers.py` | Shared query and request helpers |
+| `src/featured.py` | Movie of the Day, recommendations |
+| `src/routes/` | One blueprint per area (below) |
+| `src/models.py` | SQLAlchemy models |
+| `src/tmdb_api.py` | TMDB client |
+
+Blueprints in `src/routes/`: `main` (home, movies, search, decades, studios), `people` (actors, directors), `account` (saved lists, ratings, reviews, profile, activity), `collections`, `analytics`, `auth`, `api` (`/api/v1`) and `admin`. Endpoint names include the blueprint: `url_for('main.movie_detail', movie_id=550)`.
+
 ### RESTful API
 
 **Available Endpoints**
@@ -663,6 +677,7 @@ See [TODO.md](TODO.md) for the complete roadmap.
 ### Recently Shipped
 
 - [x] **Family-friendly mode, Box office by genre, Blind Pick, Activity Feed, Year in Review** (2026-11-02) - a navbar toggle hides movies flagged mature by their TMDB keywords; a revenue-by-genre chart on /analytics; a random pick from your watchlist; a public feed of recent ratings and reviews with a per-user opt-out; personal stats for any year
+- [x] **Blueprints** (2026-11-02) - `src/app.py` split into eight Flask blueprints under `src/routes/`; URLs unchanged
 - [x] **Full code review fixes** (2026-11-02) - security hardening (rate limits, headers, revocable sessions, safer confirms), Postgres-correct queries, stable pagination, caching, sync reliability, accessibility and front-end fixes (see `TODO.md`)
 - [x] **Admin dashboard** - `/admin` panel: site analytics (page views, account growth), user access control (ban/unban, content hidden site-wide, registration toggle), and moderation (soft/hard-delete on ratings and reviews)
 - [x] **Unraid migration prep** - Docs and config moved off Railway: architecture diagram now shows the `dashboard` Compose stack (Postgres, no Redis) behind a Cloudflare Tunnel; GitHub Actions TMDB sync disabled in favor of an Unraid User Script

@@ -4,7 +4,7 @@
 {% block title %}Advanced Search - Movie Analytics Dashboard{% endblock %}
 
 {% block content %}
-{{ breadcrumbs([("Home", url_for('index')), ("Advanced Search", none)]) }}
+{{ breadcrumbs([("Home", url_for('main.index')), ("Advanced Search", none)]) }}
 
 <!-- ===================== PAGE HEADER ===================== -->
 <div class="as-header mb-4">
@@ -29,7 +29,7 @@
 
     <!-- ---- FILTER PANEL ---- -->
     <aside class="as-sidebar">
-        <form method="get" action="{{ url_for('advanced_search') }}" id="as-form">
+        <form method="get" action="{{ url_for('main.advanced_search') }}" id="as-form">
 
             <!-- Text search -->
             <div class="as-filter-group">
@@ -175,7 +175,7 @@
                 <button type="submit" class="btn btn-primary as-search-btn">
                     <i class="bi bi-search me-1"></i>Search
                 </button>
-                <a href="{{ url_for('advanced_search') }}" class="btn btn-outline-secondary as-reset-btn">
+                <a href="{{ url_for('main.advanced_search') }}" class="btn btn-outline-secondary as-reset-btn">
                     <i class="bi bi-x-circle me-1"></i>Reset
                 </a>
             </div>
@@ -183,13 +183,13 @@
             <!-- Active filter pills -->
             {% if has_filters %}
             <div class="as-active-filters mt-3">
-                {% if q %}<span class="as-pill">{{ q }} <a href="{{ url_for('advanced_search', genre=selected_genre, decade=selected_decade, year=selected_year, rating_min=selected_rating_min, rating_max=selected_rating_max, runtime_min=selected_runtime_min, runtime_max=selected_runtime_max, min_votes=selected_min_votes, sort=selected_sort) }}" class="as-pill-remove">×</a></span>{% endif %}
-                {% if selected_genre %}{% for g in genres %}{% if g.id == selected_genre %}<span class="as-pill">{{ g.name }} <a href="{{ url_for('advanced_search', q=q, decade=selected_decade, year=selected_year, rating_min=selected_rating_min, rating_max=selected_rating_max, runtime_min=selected_runtime_min, runtime_max=selected_runtime_max, min_votes=selected_min_votes, sort=selected_sort) }}" class="as-pill-remove">×</a></span>{% endif %}{% endfor %}{% endif %}
-                {% if selected_decade %}<span class="as-pill">{{ selected_decade }}s <a href="{{ url_for('advanced_search', q=q, genre=selected_genre, year=selected_year, rating_min=selected_rating_min, rating_max=selected_rating_max, runtime_min=selected_runtime_min, runtime_max=selected_runtime_max, min_votes=selected_min_votes, sort=selected_sort) }}" class="as-pill-remove">×</a></span>{% endif %}
-                {% if selected_year %}<span class="as-pill">{{ selected_year }} <a href="{{ url_for('advanced_search', q=q, genre=selected_genre, decade=selected_decade, rating_min=selected_rating_min, rating_max=selected_rating_max, runtime_min=selected_runtime_min, runtime_max=selected_runtime_max, min_votes=selected_min_votes, sort=selected_sort) }}" class="as-pill-remove">×</a></span>{% endif %}
-                {% if selected_rating_min is not none or selected_rating_max is not none %}<span class="as-pill">Rating {{ selected_rating_min or '0' }}–{{ selected_rating_max or '10' }} <a href="{{ url_for('advanced_search', q=q, genre=selected_genre, decade=selected_decade, year=selected_year, runtime_min=selected_runtime_min, runtime_max=selected_runtime_max, min_votes=selected_min_votes, sort=selected_sort) }}" class="as-pill-remove">×</a></span>{% endif %}
-                {% if selected_runtime_min is not none or selected_runtime_max is not none %}<span class="as-pill">Runtime {{ selected_runtime_min or '0' }}–{{ selected_runtime_max or '∞' }}m <a href="{{ url_for('advanced_search', q=q, genre=selected_genre, decade=selected_decade, year=selected_year, rating_min=selected_rating_min, rating_max=selected_rating_max, min_votes=selected_min_votes, sort=selected_sort) }}" class="as-pill-remove">×</a></span>{% endif %}
-                {% if selected_min_votes is not none %}<span class="as-pill">{{ selected_min_votes }}+ votes <a href="{{ url_for('advanced_search', q=q, genre=selected_genre, decade=selected_decade, year=selected_year, rating_min=selected_rating_min, rating_max=selected_rating_max, runtime_min=selected_runtime_min, runtime_max=selected_runtime_max, sort=selected_sort) }}" class="as-pill-remove">×</a></span>{% endif %}
+                {% if q %}<span class="as-pill">{{ q }} <a href="{{ url_for('main.advanced_search', genre=selected_genre, decade=selected_decade, year=selected_year, rating_min=selected_rating_min, rating_max=selected_rating_max, runtime_min=selected_runtime_min, runtime_max=selected_runtime_max, min_votes=selected_min_votes, sort=selected_sort) }}" class="as-pill-remove">×</a></span>{% endif %}
+                {% if selected_genre %}{% for g in genres %}{% if g.id == selected_genre %}<span class="as-pill">{{ g.name }} <a href="{{ url_for('main.advanced_search', q=q, decade=selected_decade, year=selected_year, rating_min=selected_rating_min, rating_max=selected_rating_max, runtime_min=selected_runtime_min, runtime_max=selected_runtime_max, min_votes=selected_min_votes, sort=selected_sort) }}" class="as-pill-remove">×</a></span>{% endif %}{% endfor %}{% endif %}
+                {% if selected_decade %}<span class="as-pill">{{ selected_decade }}s <a href="{{ url_for('main.advanced_search', q=q, genre=selected_genre, year=selected_year, rating_min=selected_rating_min, rating_max=selected_rating_max, runtime_min=selected_runtime_min, runtime_max=selected_runtime_max, min_votes=selected_min_votes, sort=selected_sort) }}" class="as-pill-remove">×</a></span>{% endif %}
+                {% if selected_year %}<span class="as-pill">{{ selected_year }} <a href="{{ url_for('main.advanced_search', q=q, genre=selected_genre, decade=selected_decade, rating_min=selected_rating_min, rating_max=selected_rating_max, runtime_min=selected_runtime_min, runtime_max=selected_runtime_max, min_votes=selected_min_votes, sort=selected_sort) }}" class="as-pill-remove">×</a></span>{% endif %}
+                {% if selected_rating_min is not none or selected_rating_max is not none %}<span class="as-pill">Rating {{ selected_rating_min or '0' }}–{{ selected_rating_max or '10' }} <a href="{{ url_for('main.advanced_search', q=q, genre=selected_genre, decade=selected_decade, year=selected_year, runtime_min=selected_runtime_min, runtime_max=selected_runtime_max, min_votes=selected_min_votes, sort=selected_sort) }}" class="as-pill-remove">×</a></span>{% endif %}
+                {% if selected_runtime_min is not none or selected_runtime_max is not none %}<span class="as-pill">Runtime {{ selected_runtime_min or '0' }}–{{ selected_runtime_max or '∞' }}m <a href="{{ url_for('main.advanced_search', q=q, genre=selected_genre, decade=selected_decade, year=selected_year, rating_min=selected_rating_min, rating_max=selected_rating_max, min_votes=selected_min_votes, sort=selected_sort) }}" class="as-pill-remove">×</a></span>{% endif %}
+                {% if selected_min_votes is not none %}<span class="as-pill">{{ selected_min_votes }}+ votes <a href="{{ url_for('main.advanced_search', q=q, genre=selected_genre, decade=selected_decade, year=selected_year, rating_min=selected_rating_min, rating_max=selected_rating_max, runtime_min=selected_runtime_min, runtime_max=selected_runtime_max, sort=selected_sort) }}" class="as-pill-remove">×</a></span>{% endif %}
             </div>
             {% endif %}
 
@@ -207,10 +207,10 @@
             <p>Use the filters on the left to search by title, genre, era, rating, or runtime. You can mix and match as many as you like.</p>
             <div class="as-quick-searches">
                 <span class="as-qs-label">Quick searches:</span>
-                <a href="{{ url_for('advanced_search', rating_min=8, min_votes=500) }}" class="as-qs-btn">Highly rated</a>
-                <a href="{{ url_for('advanced_search', decade=1990) }}" class="as-qs-btn">90s classics</a>
-                <a href="{{ url_for('advanced_search', runtime_max=90, rating_min=7) }}" class="as-qs-btn">Under 90 min</a>
-                <a href="{{ url_for('advanced_search', decade=2020, sort='release_date') }}" class="as-qs-btn">Recent releases</a>
+                <a href="{{ url_for('main.advanced_search', rating_min=8, min_votes=500) }}" class="as-qs-btn">Highly rated</a>
+                <a href="{{ url_for('main.advanced_search', decade=1990) }}" class="as-qs-btn">90s classics</a>
+                <a href="{{ url_for('main.advanced_search', runtime_max=90, rating_min=7) }}" class="as-qs-btn">Under 90 min</a>
+                <a href="{{ url_for('main.advanced_search', decade=2020, sort='release_date') }}" class="as-qs-btn">Recent releases</a>
             </div>
         </div>
 
@@ -220,7 +220,7 @@
             <i class="bi bi-search as-empty-icon"></i>
             <h3>No results</h3>
             <p>Try widening your filters — fewer criteria tend to return more matches.</p>
-            <a href="{{ url_for('advanced_search') }}" class="btn btn-outline-primary mt-2">
+            <a href="{{ url_for('main.advanced_search') }}" class="btn btn-outline-primary mt-2">
                 <i class="bi bi-arrow-counterclockwise me-1"></i>Reset all filters
             </a>
         </div>
@@ -235,7 +235,7 @@
         <div class="row g-3 as-grid">
             {% for movie in movies %}
             <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 col-6">
-                <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+                <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
                     <div class="card movie-card h-100 as-movie-card">
                         {{ poster_img(movie, config) }}
                         <div class="card-body p-2">

@@ -5,7 +5,7 @@ Replaces the manual test_api.py script with proper pytest coverage.
 
 import pytest
 
-from src.app import limiter
+from src.extensions import limiter
 
 
 class TestHealthEndpoint:
@@ -40,9 +40,9 @@ class TestHealthEndpoint:
             def close(self):
                 pass
 
-        import src.app as app_module
+        import src.helpers
 
-        monkeypatch.setattr(app_module, "get_db_session", lambda: BrokenSession())
+        monkeypatch.setattr(src.helpers, "session_factory", lambda: BrokenSession())
 
         response = client.get("/api/v1/health")
         data = response.get_json()
