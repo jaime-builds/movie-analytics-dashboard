@@ -46,7 +46,7 @@
 
 ## ✅ Recently Completed (November 2, 2026)
 
-- [x] **Full code review fixes** - Two repo reviews and a full code scan (86 findings) fixed in one pass: login/register rate limits, security headers and HTTPS redirect, revocable sessions, safe confirm dialogs, TMDB key kept out of logs, Postgres-correct queries (stable pagination, NULLs last, numeric JSON), N+1 and caching fixes, server-side Directors/Studios search, a reliable TMDB sync (no blank rows, per-movie savepoints, lock, exit codes), migrations 007-009, accessibility and front-end fixes, pinned dependencies, CI with a Postgres job and gated Docker push, Gunicorn as 1 process with 8 threads, a container healthcheck, and an offline test suite (609 tests, 95% coverage)
+- [x] **Full code review fixes** - Two repo reviews and a full code scan (86 findings) fixed in one pass: login/register rate limits, security headers and HTTPS redirect, revocable sessions, safe confirm dialogs, TMDB key kept out of logs, Postgres-correct queries (stable pagination, NULLs last, numeric JSON), N+1 and caching fixes, server-side Directors/Studios search, a reliable TMDB sync (no blank rows, per-movie savepoints, lock, exit codes), migrations 007-009, accessibility and front-end fixes, pinned dependencies, CI with a Postgres job and gated Docker push, Gunicorn as 1 process with 8 threads, a container healthcheck, and an offline test suite (612 tests, 95% coverage)
 - [x] **Family-friendly mode** - TMDB keywords flag mature movies (`movies.is_mature`); they never appear on the home page or as Movie of the Day, and a navbar toggle hides them from lists and search. Admins can also hide any movie from the home page
 - [x] **Box office by genre** - Revenue-by-genre chart and table on `/analytics`
 - [x] **Blind pick** - Random movie from your watchlist
@@ -137,7 +137,7 @@
 - **Total Movies**: 21,000+ (production PostgreSQL) | 12,000+ (local SQLite)
 - **Features Completed**: 65
 - **Test Coverage**: 95% (measured 2026-11-02)
-- **Tests Passing**: 609 ✅ (SQLite; the suite also runs against Postgres 16 in CI)
+- **Tests Passing**: 612 ✅ (SQLite; the suite also runs against Postgres 16 in CI)
 - **Flask Routes**: 74 (34 page · 27 action · 13 API) ✅
 - **API Endpoints**: 13 ✅
 - **Database Tables**: 18 ✅

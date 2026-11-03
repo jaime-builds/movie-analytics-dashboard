@@ -57,7 +57,7 @@ This isn't just another movie app. It's a **portfolio-grade full-stack applicati
 | 🏢 **Studios** | Browse production companies with filmographies and box office stats |
 | 🗓️ **Decade Overview** | Curated pages per decade with defining films, top rated, genre breakdown |
 | 🗂️ **Movie Collections** | Create and manage named lists of your favorite movies |
-| 📊 **Analytics Dashboard** | Interactive Chart.js visualizations including budget/revenue scatter and profitability charts |
+| 📊 **Analytics Dashboard** | Interactive Chart.js visualizations including budget/revenue scatter, profitability and box office by genre |
 | 🔄 **Auto-Sync** | Weekly scheduled job syncing 5,000 movies from TMDB |
 | 🎭 **Actor Profiles** | Top actors with photos, filmography, and collaboration network |
 | 🕸️ **Collaboration Network** | D3.js force graph showing actor connections weighted by shared films |
@@ -67,6 +67,10 @@ This isn't just another movie app. It's a **portfolio-grade full-stack applicati
 | 📱 **Mobile Responsive** | Optimized layouts for all screen sizes |
 | 🔌 **RESTful API** | JSON endpoints for movies, analytics, actors, and collections |
 | 👤 **User Profile** | Activity dashboard with ratings, reviews, favorites, watchlist, and collections |
+| 👪 **Family-Friendly Mode** | Navbar toggle that hides movies flagged mature by their TMDB keywords |
+| 📰 **Activity Feed** | Public feed of recent ratings and reviews, with a per-user opt-out |
+| 🎲 **Blind Pick** | Opens a random movie from your watchlist |
+| 📅 **Year in Review** | Personal stats and charts for any year: ratings, reviews, genres, decades |
 | ⚡ **Infinite Scroll** | Seamless movie browsing without pagination |
 | 🔍 **Search Autocomplete** | Live dropdown with poster thumbnails and keyboard navigation |
 | 🔎 **Advanced Search** | Combine title, genre, era, rating, and runtime filters in one unified UI |
@@ -290,7 +294,7 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 - **8,000+** movies with complete metadata (local) | **10,000+** on the live instance
 - **300+** directors with filmographies
 - **1,000+** actors with profiles
-- **95%** test coverage with 609 tests passing (measured 2026-11-02; the suite also runs against Postgres 16 in CI)
+- **95%** test coverage with 612 tests passing (measured 2026-11-02; the suite also runs against Postgres 16 in CI)
 - **18** database tables with optimized indexes
 - **74** Flask routes (34 page · 27 action · 13 API)
 - **13** RESTful API endpoints
@@ -515,7 +519,7 @@ pytest tests/test_auth.py -v
 - ✅ Database relationships
 - ✅ Security (password hashing)
 
-**Current Coverage**: 95% (609 tests passing, measured 2026-11-02)
+**Current Coverage**: 95% (612 tests passing, measured 2026-11-02)
 
 The suite is offline: `tests/conftest.py` stubs TMDB and fails any real HTTP
 request, so no API key is needed. To run it against Postgres, point
@@ -641,6 +645,7 @@ Finds high-quality, underappreciated films by balancing:
 - **Budget vs Revenue Scatter** - Each movie plotted with a break-even reference line and ROI tooltips
 - **Most Profitable Movies** - Horizontal bar chart of top 15 films by net profit
 - **Top Studios** - Production company rankings
+- **Box Office by Genre** - Total and average revenue per genre, with a table
 
 All charts are:
 
