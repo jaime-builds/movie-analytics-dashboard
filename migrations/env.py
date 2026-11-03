@@ -10,7 +10,7 @@ import sys
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, pool, text
 
 # ---------------------------------------------------------------------------
 # Make sure the repo root is on the path so we can import src and config
@@ -26,8 +26,13 @@ from src.models import Base  # noqa: E402
 config = context.config
 
 # Inject the real database URL from our Config class, overriding the blank
-# sqlalchemy.url in alembic.ini.
-config.set_main_option("sqlalchemy.url", Config.DATABASE_URL)
+# sqlalchemy.url in alembic.ini. The ini parser treats % as interpolation, so a
+# percent-encoded password (for example %40) must be escaped as %%.
+config.set_main_option("sqlalchemy.url", Config.DATABASE_URL.replace("%", "%%"))
+
+# Width of alembic_version.version_num. Alembic's default is VARCHAR(32), but
+# revision IDs here are descriptive and two already exceed 32 characters.
+VERSION_NUM_LENGTH = 255
 
 # Set up Python logging from the alembic.ini [loggers] section.
 if config.config_file_name is not None:
@@ -54,6 +59,40 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+def _ensure_wide_version_table(connection) -> None:
+    """Create or widen alembic_version.version_num before any migration runs.
+
+    On Postgres a revision ID longer than the column fails the whole upgrade,
+    and because the upgrade runs in one transaction, a fresh database ends up
+    empty (the 2026-07-29 incident). SQLite doesn't enforce VARCHAR lengths.
+    """
+    if connection.dialect.name != "postgresql":
+        return
+
+    connection.execute(
+        text(
+            "CREATE TABLE IF NOT EXISTS alembic_version ("
+            f"version_num VARCHAR({VERSION_NUM_LENGTH}) NOT NULL, "
+            "CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num))"
+        )
+    )
+    current_length = connection.execute(
+        text(
+            "SELECT character_maximum_length FROM information_schema.columns "
+            "WHERE table_schema = current_schema() AND table_name = 'alembic_version' "
+            "AND column_name = 'version_num'"
+        )
+    ).scalar()
+    if current_length is not None and current_length < VERSION_NUM_LENGTH:
+        connection.execute(
+            text(
+                "ALTER TABLE alembic_version ALTER COLUMN version_num "
+                f"TYPE VARCHAR({VERSION_NUM_LENGTH})"
+            )
+        )
+    connection.commit()
+
+
 # ---------------------------------------------------------------------------
 # Online mode: run migrations against a live DB connection
 # ---------------------------------------------------------------------------
@@ -65,6 +104,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        _ensure_wide_version_table(connection)
         context.configure(
             connection=connection,
             target_metadata=target_metadata,

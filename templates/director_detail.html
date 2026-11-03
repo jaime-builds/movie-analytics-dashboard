@@ -1,7 +1,9 @@
 {% extends "base.html" %}
-{% from "macros.html" import breadcrumbs %}
+{% from "macros.html" import breadcrumbs, chart_library %}
 
 {% block title %}{{ director.name }} - Director - Movie Analytics Dashboard{% endblock %}
+
+{% block chart_library %}{{ chart_library() }}{% endblock %}
 
 {% block content %}
 {{ breadcrumbs([("Home", url_for('index')), ("Directors", url_for('directors')), (director.name, none)]) }}
@@ -9,14 +11,6 @@
     <!-- Director Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="/">Home</a></li>
-                    <li class="breadcrumb-item"><a href="/directors">Directors</a></li>
-                    <li class="breadcrumb-item active">{{ director.name }}</li>
-                </ol>
-            </nav>
-
             <h1 class="display-4 mb-3">
                 <i class="bi bi-person-circle text-primary"></i>
                 {{ director.name }}
@@ -123,12 +117,12 @@
                             <i class="bi bi-film"></i>
                             Complete Filmography
                         </h5>
-                        <div class="btn-group btn-group-sm" role="group">
-                            <button type="button" class="btn btn-outline-secondary active" data-view="grid">
-                                <i class="bi bi-grid-3x3-gap"></i>
+                        <div class="btn-group btn-group-sm" role="group" aria-label="Filmography view">
+                            <button type="button" class="btn btn-outline-secondary active" data-view="grid" aria-label="Grid view" aria-pressed="true">
+                                <i class="bi bi-grid-3x3-gap" aria-hidden="true"></i>
                             </button>
-                            <button type="button" class="btn btn-outline-secondary" data-view="list">
-                                <i class="bi bi-list-ul"></i>
+                            <button type="button" class="btn btn-outline-secondary" data-view="list" aria-label="List view" aria-pressed="false">
+                                <i class="bi bi-list-ul" aria-hidden="true"></i>
                             </button>
                         </div>
                     </div>
@@ -137,7 +131,7 @@
                     <div id="gridView" class="row row-cols-2 row-cols-md-4 row-cols-lg-5 g-3">
                         {% for movie in movies %}
                         <div class="col">
-                            <a href="/movie/{{ movie.id }}" class="text-decoration-none">
+                            <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
                                 <div class="card h-100 movie-card">
                                     {% if movie.poster_path %}
                                     <img src="https://image.tmdb.org/t/p/w342{{ movie.poster_path }}"
@@ -145,8 +139,7 @@
                                          alt="{{ movie.title }}"
                                          loading="lazy">
                                     {% else %}
-                                    <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center"
-                                         style="height: 200px;">
+                                    <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center poster-placeholder">
                                         <i class="bi bi-film text-white" style="font-size: 3rem;"></i>
                                     </div>
                                     {% endif %}
@@ -183,10 +176,10 @@
                                 </thead>
                                 <tbody>
                                     {% for movie in movies %}
-                                    <tr onclick="window.location.href='/movie/{{ movie.id }}'" style="cursor: pointer;">
+                                    <tr>
                                         <td>{{ movie.year }}</td>
                                         <td>
-                                            <strong>{{ movie.title }}</strong>
+                                            <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="fw-semibold">{{ movie.title }}</a>
                                             {% if movie.genres %}
                                             <br>
                                             <small class="text-muted">
@@ -239,16 +232,6 @@
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
 }
 
-.card-img-top {
-    height: 250px;
-    object-fit: cover;
-}
-
-@media (max-width: 768px) {
-    .card-img-top {
-        height: 200px;
-    }
-}
 </style>
 
 <script>
@@ -264,6 +247,8 @@ document.addEventListener('DOMContentLoaded', function() {
         listView.classList.add('d-none');
         gridBtn.classList.add('active');
         listBtn.classList.remove('active');
+        gridBtn.setAttribute('aria-pressed', 'true');
+        listBtn.setAttribute('aria-pressed', 'false');
     });
 
     listBtn.addEventListener('click', function() {
@@ -271,6 +256,8 @@ document.addEventListener('DOMContentLoaded', function() {
         listView.classList.remove('d-none');
         listBtn.classList.add('active');
         gridBtn.classList.remove('active');
+        listBtn.setAttribute('aria-pressed', 'true');
+        gridBtn.setAttribute('aria-pressed', 'false');
     });
 
     // Ratings Chart

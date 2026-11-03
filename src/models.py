@@ -1,5 +1,4 @@
-from datetime import datetime
-from typing import List
+from datetime import datetime, timezone
 
 from sqlalchemy import (
     DECIMAL,
@@ -12,20 +11,51 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    MetaData,
     String,
     Table,
     Text,
     UniqueConstraint,
     create_engine,
+    false,
 )
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, sessionmaker
+from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from config.config import Config
 
-Base = declarative_base()
-engine = create_engine(Config.DATABASE_URL)
+
+def utcnow():
+    """Current UTC time as a naive datetime, matching the existing DateTime columns.
+
+    Use for stored timestamps (created_at, banned_at and the like).
+    """
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def local_today():
+    """Today's date in the server's time zone (the container sets TZ).
+
+    Use for "which day is it" logic that people see: Movie of the Day rolls
+    over at local midnight, and page views are counted per local day.
+    """
+    return datetime.now().date()
+
+
+# Predictable constraint names, so later migrations can find and drop them
+# (Postgres otherwise generates names like movies_tmdb_id_key)
+NAMING_CONVENTION = {
+    "ix": "ix_%(column_0_label)s",
+    "uq": "uq_%(table_name)s_%(column_0_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s",
+}
+
+Base = declarative_base(metadata=MetaData(naming_convention=NAMING_CONVENTION))
+# pool_pre_ping replaces connections that died while idle (a Postgres restart,
+# for example) instead of failing the first request that picks one up
+engine = create_engine(Config.DATABASE_URL, pool_pre_ping=True)
 Session = sessionmaker(bind=engine)
 
 # Association tables for many-to-many relationships
@@ -50,15 +80,19 @@ collection_movies_table = Table(
     Base.metadata,
     Column("collection_id", Integer, ForeignKey("collections.id"), primary_key=True),
     Column("movie_id", Integer, ForeignKey("movies.id"), primary_key=True),
-    Column("added_at", DateTime, nullable=False, default=datetime.utcnow),
+    Column("added_at", DateTime, nullable=False, default=utcnow),
+    Index("idx_collection_movies_movie_id", "movie_id"),
 )
 
 # Association tables for favorites and watchlist
+# added_at is NULL for rows added before migration 009 recorded it
 user_favorites_table = Table(
     "user_favorites",
     Base.metadata,
     Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
     Column("movie_id", Integer, ForeignKey("movies.id"), primary_key=True),
+    Column("added_at", DateTime, nullable=True, default=utcnow),
+    Index("idx_user_favorites_movie_id", "movie_id"),
 )
 
 user_watchlist_table = Table(
@@ -66,6 +100,8 @@ user_watchlist_table = Table(
     Base.metadata,
     Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
     Column("movie_id", Integer, ForeignKey("movies.id"), primary_key=True),
+    Column("added_at", DateTime, nullable=True, default=utcnow),
+    Index("idx_user_watchlist_movie_id", "movie_id"),
 )
 
 
@@ -75,12 +111,18 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     username = Column(String(50), unique=True, nullable=False)
     password_hash = Column(String(256), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     # Admin dashboard: access control
-    is_admin = Column(Boolean, nullable=False, default=False)
-    is_banned = Column(Boolean, nullable=False, default=False)
+    is_admin = Column(Boolean, nullable=False, default=False, server_default=false())
+    is_banned = Column(Boolean, nullable=False, default=False, server_default=false())
     banned_at = Column(DateTime)
+
+    # Bumped on logout and ban; sessions carrying an older value are rejected
+    session_version = Column(Integer, nullable=False, default=0, server_default="0")
+
+    # Opt out of the public activity feed
+    hide_activity = Column(Boolean, nullable=False, default=False, server_default=false())
 
     # Relationships
     favorites = relationship(
@@ -131,8 +173,13 @@ class Movie(Base):
     imdb_id = Column(String(20))
     status = Column(String(50))
     tagline = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+    # Content flags (see src/content.py). is_mature comes from TMDB keywords;
+    # hide_from_featured is an admin's manual "keep off the home page".
+    is_mature = Column(Boolean, nullable=False, default=False, server_default=false())
+    hide_from_featured = Column(Boolean, nullable=False, default=False, server_default=false())
 
     __table_args__ = (
         Index("idx_movies_vote_count", "vote_count"),
@@ -183,11 +230,11 @@ class Rating(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     movie_id = Column(Integer, ForeignKey("movies.id"), nullable=False)
     rating = Column(Integer, nullable=False)  # 1-5 stars
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     # Admin dashboard: soft-delete moderation
-    is_deleted = Column(Boolean, nullable=False, default=False)
+    is_deleted = Column(Boolean, nullable=False, default=False, server_default=false())
     deleted_at = Column(DateTime)
 
     # Relationships
@@ -215,11 +262,11 @@ class Review(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     movie_id = Column(Integer, ForeignKey("movies.id"), nullable=False)
     content = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     # Admin dashboard: soft-delete moderation
-    is_deleted = Column(Boolean, nullable=False, default=False)
+    is_deleted = Column(Boolean, nullable=False, default=False, server_default=false())
     deleted_at = Column(DateTime)
 
     # Relationships
@@ -244,8 +291,8 @@ class Collection(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     name = Column(String(255), nullable=False)
     description = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     # Relationships
     user = relationship("User", back_populates="collections")
@@ -268,7 +315,10 @@ class MovieOfTheDay(Base):
     movie = relationship("Movie")
 
     # One featured movie per calendar day
-    __table_args__ = (UniqueConstraint("shown_date", name="uq_movie_of_the_day_shown_date"),)
+    __table_args__ = (
+        UniqueConstraint("shown_date", name="uq_movie_of_the_day_shown_date"),
+        Index("idx_movie_of_the_day_movie_id", "movie_id"),
+    )
 
     def __repr__(self):
         return f"<MovieOfTheDay(movie_id={self.movie_id}, shown_date={self.shown_date})>"
@@ -325,9 +375,10 @@ class Person(Base):
     profile_path = Column(String(255))
     popularity = Column(DECIMAL(10, 2))
 
-    # Relationships
-    cast_roles = relationship("Cast", back_populates="person")
-    crew_roles = relationship("Crew", back_populates="person")
+    # Relationships (deleting a person removes their credits rather than
+    # leaving rows with a NULL person_id)
+    cast_roles = relationship("Cast", back_populates="person", cascade="all, delete-orphan")
+    crew_roles = relationship("Crew", back_populates="person", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Person(name='{self.name}')>"
@@ -339,7 +390,8 @@ class Cast(Base):
     id = Column(Integer, primary_key=True)
     movie_id = Column(Integer, ForeignKey("movies.id"), nullable=False)
     person_id = Column(Integer, ForeignKey("people.id"), nullable=False)
-    character_name = Column(String(255))
+    # TEXT: TMDB joins every role in an ensemble voice cast into one string
+    character_name = Column(Text)
     cast_order = Column(Integer, default=0)
 
     __table_args__ = (
@@ -352,7 +404,7 @@ class Cast(Base):
     person = relationship("Person", back_populates="cast_roles")
 
     def __repr__(self):
-        return f"<Cast(person='{self.person.name if self.person else 'Unknown'}', character='{self.character_name}')>"
+        return f"<Cast(person_id={self.person_id}, character='{self.character_name}')>"
 
 
 class Crew(Base):
@@ -375,9 +427,7 @@ class Crew(Base):
     person = relationship("Person", back_populates="crew_roles")
 
     def __repr__(self):
-        return (
-            f"<Crew(person='{self.person.name if self.person else 'Unknown'}', job='{self.job}')>"
-        )
+        return f"<Crew(person_id={self.person_id}, job='{self.job}')>"
 
 
 class ProductionCompany(Base):

@@ -99,8 +99,36 @@ class TestAdminRequired:
     """The @admin_required decorator gates every /admin route"""
 
     @pytest.mark.parametrize("path", ADMIN_PAGES)
-    def test_anonymous_users_get_403(self, client, path):
-        assert client.get(path).status_code == 403
+    def test_anonymous_users_are_sent_to_login(self, client, path):
+        response = client.get(path)
+
+        assert response.status_code == 302
+        assert response.headers["Location"].startswith("/login?next=")
+        assert path in response.headers["Location"]
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/admin/users/1/ban",
+            "/admin/users/1/unban",
+            "/admin/reviews/1/soft-delete",
+            "/admin/reviews/1/restore",
+            "/admin/reviews/1/hard-delete",
+            "/admin/ratings/1/soft-delete",
+            "/admin/ratings/1/restore",
+            "/admin/ratings/1/hard-delete",
+            "/admin/settings/registration",
+        ],
+    )
+    def test_post_routes_reject_anonymous_and_regular_users(
+        self, client, db_session, sample_user, path
+    ):
+        user_id = sample_user.id
+        assert client.post(path).status_code == 403
+
+        with client.session_transaction() as sess:
+            sess["user_id"] = user_id
+        assert client.post(path).status_code == 403
 
     @pytest.mark.parametrize("path", ADMIN_PAGES)
     def test_regular_users_get_403(self, client, logged_in_user, path):
@@ -120,7 +148,9 @@ class TestAdminRequired:
         admin.is_banned = True
         db_session.commit()
 
-        assert client.get("/admin").status_code == 403
+        response = client.get("/admin")
+        assert response.status_code == 302
+        assert response.headers["Location"].startswith("/login")
 
     def test_dashboard_shows_site_totals(self, client, logged_in_admin, sample_movies):
         response = client.get("/admin")
@@ -252,14 +282,26 @@ class TestRegistrationToggle:
         assert b"Create Account" in response.data
         assert b"registration is currently closed" not in response.data.lower()
 
-    def test_toggle_flips_the_setting(self, client, db_session, logged_in_admin):
-        response = client.post("/admin/settings/registration")
+    def test_toggle_sets_the_posted_state(self, client, db_session, logged_in_admin):
+        response = client.post("/admin/settings/registration", data={"enabled": "false"})
 
         assert response.status_code == 302
         assert _registration_setting(db_session) == "false"
 
-        client.post("/admin/settings/registration")
+        client.post("/admin/settings/registration", data={"enabled": "true"})
         assert _registration_setting(db_session) == "true"
+
+    def test_stale_disable_click_does_not_reenable(self, client, db_session, logged_in_admin):
+        # Two tabs both showing "Disable": the second click must not flip it back on
+        client.post("/admin/settings/registration", data={"enabled": "false"})
+        client.post("/admin/settings/registration", data={"enabled": "false"})
+
+        assert _registration_setting(db_session) == "false"
+
+    def test_toggle_rejects_missing_value(self, client, db_session, logged_in_admin):
+        client.post("/admin/settings/registration")
+
+        assert _registration_setting(db_session) in (None, "true")
 
     def test_disabled_registration_shows_closed_message(self, client, db_session):
         db_session.add(SiteSetting(key="registration_enabled", value="false"))
@@ -493,3 +535,28 @@ class TestPageViewTracking:
 
         assert response.status_code == 200
         assert b"Page Views per Day" in response.data
+
+
+# ============================================
+# set-admin CLI command
+# ============================================
+
+
+class TestSetAdminCommand:
+    def test_grants_and_revokes_admin(self, app, db_session, sample_user):
+        user_id = sample_user.id
+        runner = app.test_cli_runner()
+
+        result = runner.invoke(args=["set-admin", "testuser"])
+        assert result.exit_code == 0, result.output
+        assert db_session.query(User).filter_by(id=user_id).one().is_admin is True
+
+        result = runner.invoke(args=["set-admin", "testuser", "--revoke"])
+        assert result.exit_code == 0, result.output
+        assert db_session.query(User).filter_by(id=user_id).one().is_admin is False
+
+    def test_unknown_user_fails(self, app, db_session):
+        result = app.test_cli_runner().invoke(args=["set-admin", "nobody"])
+
+        assert result.exit_code != 0
+        assert "No user named" in result.output

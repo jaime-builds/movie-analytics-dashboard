@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import breadcrumbs, poster_img %}
+{% from "macros.html" import breadcrumbs, poster_img, pagination %}
 
 {% block title %}Advanced Search - Movie Analytics Dashboard{% endblock %}
 
@@ -69,8 +69,8 @@
 
             <!-- Era: Decade OR Year -->
             <div class="as-filter-group">
-                <label class="as-filter-label">
-                    <i class="bi bi-calendar3 me-1"></i>Era
+                <label class="as-filter-label" for="as-decade">
+                    <i class="bi bi-calendar3 me-1" aria-hidden="true"></i>Era
                 </label>
                 <select name="decade" id="as-decade" class="form-select as-select mb-2">
                     <option value="">Any decade</option>
@@ -82,6 +82,7 @@
                 <input type="number"
                        name="year"
                        id="as-year"
+                       aria-label="Exact release year"
                        class="form-control as-input"
                        placeholder="e.g. 1994"
                        min="1900" max="2030"
@@ -90,13 +91,14 @@
 
             <!-- Rating range -->
             <div class="as-filter-group">
-                <label class="as-filter-label">
-                    <i class="bi bi-star-half me-1"></i>Rating
+                <label class="as-filter-label" for="as-rating-min">
+                    <i class="bi bi-star-half me-1" aria-hidden="true"></i>Rating
                 </label>
                 <div class="as-range-row">
                     <input type="number"
                            name="rating_min"
                            id="as-rating-min"
+                           aria-label="Minimum rating"
                            class="form-control as-input"
                            placeholder="Min (0)"
                            min="0" max="10" step="0.1"
@@ -105,6 +107,7 @@
                     <input type="number"
                            name="rating_max"
                            id="as-rating-max"
+                           aria-label="Maximum rating"
                            class="form-control as-input"
                            placeholder="Max (10)"
                            min="0" max="10" step="0.1"
@@ -114,13 +117,14 @@
 
             <!-- Runtime range -->
             <div class="as-filter-group">
-                <label class="as-filter-label">
-                    <i class="bi bi-clock me-1"></i>Runtime (minutes)
+                <label class="as-filter-label" for="as-runtime-min">
+                    <i class="bi bi-clock me-1" aria-hidden="true"></i>Runtime (minutes)
                 </label>
                 <div class="as-range-row">
                     <input type="number"
                            name="runtime_min"
                            id="as-runtime-min"
+                           aria-label="Minimum runtime in minutes"
                            class="form-control as-input"
                            placeholder="Min"
                            min="0"
@@ -129,6 +133,7 @@
                     <input type="number"
                            name="runtime_max"
                            id="as-runtime-max"
+                           aria-label="Maximum runtime in minutes"
                            class="form-control as-input"
                            placeholder="Max"
                            min="0"
@@ -259,37 +264,11 @@
         </div>
 
         <!-- Pagination -->
-        {% if total_pages > 1 %}
-        <nav class="mt-4" aria-label="Search results pagination">
-            <ul class="pagination justify-content-center flex-wrap">
-
-                <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-                    <a class="page-link" href="{{ url_for('advanced_search', q=q, genre=selected_genre, decade=selected_decade, year=selected_year, rating_min=selected_rating_min, rating_max=selected_rating_max, runtime_min=selected_runtime_min, runtime_max=selected_runtime_max, min_votes=selected_min_votes, sort=selected_sort, page=page-1) }}">
-                        <i class="bi bi-chevron-left"></i>
-                    </a>
-                </li>
-
-                {% for p in range(1, total_pages + 1) %}
-                    {% if p == page %}
-                        <li class="page-item active"><span class="page-link">{{ p }}</span></li>
-                    {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
-                        <li class="page-item">
-                            <a class="page-link" href="{{ url_for('advanced_search', q=q, genre=selected_genre, decade=selected_decade, year=selected_year, rating_min=selected_rating_min, rating_max=selected_rating_max, runtime_min=selected_runtime_min, runtime_max=selected_runtime_max, min_votes=selected_min_votes, sort=selected_sort, page=p) }}">{{ p }}</a>
-                        </li>
-                    {% elif p == page - 3 or p == page + 3 %}
-                        <li class="page-item disabled"><span class="page-link">…</span></li>
-                    {% endif %}
-                {% endfor %}
-
-                <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
-                    <a class="page-link" href="{{ url_for('advanced_search', q=q, genre=selected_genre, decade=selected_decade, year=selected_year, rating_min=selected_rating_min, rating_max=selected_rating_max, runtime_min=selected_runtime_min, runtime_max=selected_runtime_max, min_votes=selected_min_votes, sort=selected_sort, page=page+1) }}">
-                        <i class="bi bi-chevron-right"></i>
-                    </a>
-                </li>
-
-            </ul>
-        </nav>
-        {% endif %}
+        {{ pagination(page, total_pages, label="Search results pagination", query_params={
+            'q': q, 'genre': selected_genre, 'decade': selected_decade, 'year': selected_year,
+            'rating_min': selected_rating_min, 'rating_max': selected_rating_max,
+            'runtime_min': selected_runtime_min, 'runtime_max': selected_runtime_max,
+            'min_votes': selected_min_votes, 'sort': selected_sort if selected_sort != 'relevance' else ''}) }}
 
         {% endif %}
     </section>

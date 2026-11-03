@@ -1,375 +1,142 @@
 # Testing Guide for Movie Analytics Dashboard
 
-This guide covers everything you need to know about testing in this project.
+How the test suite is set up, how to run it, and how to add to it.
 
 ## Quick Start
 
-### 1. Install Testing Dependencies
-
 ```bash
-pip install pytest pytest-flask pytest-cov coverage
+pip install -r requirements.txt -r requirements-dev.txt
+
+pytest                                  # whole suite, with coverage (see pytest.ini)
+pytest -o addopts="" -q                 # quick run, no coverage
+pytest tests/test_security.py -v        # one file
+pytest tests/test_auth.py::TestAuthenticationRoutes::test_login_success
+pytest -x                               # stop at the first failure
+pytest --lf                             # rerun only last run's failures
 ```
 
-Or update your `requirements.txt`:
-```txt
-pytest>=7.4.0
-pytest-flask>=1.2.0
-pytest-cov>=4.1.0
-coverage>=7.2.0
-```
+The suite is **offline and needs no secrets**. `tests/conftest.py` sets a fake
+`TMDB_API_KEY`, answers TMDB calls with an empty reply unless a test patches
+`requests.get`, and fails any other real HTTP request. A local `config/.env` is
+never needed for tests.
 
-### 2. Run Tests
+## Databases
 
-```bash
-# Run all tests
-pytest
+- **Default:** each test gets a fresh in-memory SQLite database built from the
+  models. Commits and rollbacks inside app code become savepoints, so a test can
+  never leak data into the next one.
+- **Postgres:** production runs Postgres 16, which enforces things SQLite
+  doesn't (VARCHAR lengths, NULL sort order, numeric types). Point
+  `TEST_DATABASE_URL` at an empty database whose name contains `test`:
 
-# Run with verbose output
-pytest -v
+  ```bash
+  TEST_DATABASE_URL=postgresql+psycopg2://user:pass@localhost:5432/dashboard_test \
+  MIGRATION_TEST_DATABASE_URL=postgresql+psycopg2://user:pass@localhost:5432/dashboard_migration_test \
+  pytest -o addopts=""
+  ```
 
-# Run specific test file
-pytest tests/test_routes.py
+  `MIGRATION_TEST_DATABASE_URL` enables the test that runs every Alembic
+  migration on a fresh Postgres database (it drops and recreates that
+  database's `public` schema). CI's `postgres` job sets both.
 
-# Run specific test class
-pytest tests/test_routes.py::TestIndexRoute
+Never point either variable at the production database.
 
-# Run specific test function
-pytest tests/test_routes.py::TestIndexRoute::test_index_loads
+## Test Files
 
-# Run with coverage report
-pytest --cov=src --cov-report=html
+| File | Covers |
+|---|---|
+| `test_auth.py` | Registration, login, logout, favorites, watchlist, sessions, CSRF |
+| `test_security.py` | Username rules, rate limits, revocable sessions, review deletion, security headers, HTTPS redirect, error pages, TMDB key redaction |
+| `test_admin.py` | Admin access control, bans, registration setting, moderation, page views, `set-admin` command |
+| `test_ratings_reviews.py` | Ratings and reviews, checked in the database |
+| `test_routes.py` | Home, movies, movie detail, search, analytics, template filters |
+| `test_route_fixes.py` | Pagination stability, filters, search ranking, API numbers, caching, page-view keys, Box Office by Genre |
+| `test_discovery_and_profile_pages.py` | Hidden gems, top actors, actors, directors, recommendations, profile |
+| `test_studios_decades_collections.py` | Studios, decades, collections and the collections API |
+| `test_featured_content.py` | Home page and Movie of the Day content rules (mature flag, admin hide, vote minimum) |
+| `test_features.py` | Family-friendly toggle, Blind Pick, Activity Feed, Year in Review, robots.txt, page-level checks |
+| `test_coverage_gaps.py` | Collection ownership, advanced search, actor network, 500 page, admin edge cases |
+| `test_api_routes.py` | JSON API |
+| `test_movie_of_the_day.py` | Movie of the Day selection |
+| `test_models.py` | Models, constraints and cascades |
+| `test_migrations.py` | Alembic upgrade on SQLite (and Postgres when configured) |
+| `test_config.py` | Production config checks |
+| `test_tmdb_api.py` | TMDB client, including error and retry paths |
+| `test_data_import.py` | `src/data_import.py` |
+| `test_sync_script.py` | `scripts/sync_tmdb_data.py` and `scripts/backfill_mature_flags.py` |
 
-# Run and show print statements
-pytest -s
+## Fixtures (`tests/conftest.py`)
 
-# Run tests in parallel (faster)
-pytest -n auto  # requires pytest-xdist
-```
+- `app`, `client`: the Flask app and a test client. App config changes made in
+  a test are rolled back afterwards.
+- `db_session`: the test database session; routes use it too.
+- `capture_sql`: records SQL statements, for query-shape tests.
+- Data: `sample_genre`, `sample_person`, `sample_movie`, `sample_movies` (25),
+  `sample_cast`, `sample_crew`, `sample_production_company`, `sample_user`,
+  `logged_in_user`, `user_with_favorites`, `user_with_watchlist`, `multiple_users`.
+- Automatic: `no_real_network` (see Quick Start).
 
-## Test Structure
+Two habits keep tests reliable:
 
-```
-tests/
-├── __init__.py
-├── conftest.py           # Shared fixtures and configuration
-├── test_routes.py        # Tests for Flask routes
-├── test_models.py        # Tests for database models
-└── test_tmdb_api.py      # Tests for TMDB API client
-```
+- Routes close the shared session, which detaches ORM objects loaded before the
+  request. Read the ids you need (`movie_id = sample_movie.id`) **before** the
+  request.
+- Rate limiting is off by default. Tests that need it turn it on for a block and
+  reset it afterwards (see `rate_limits_on` in `test_security.py`).
 
 ## Writing Tests
 
-### Test Naming Convention
-
-- Test files: `test_*.py` or `*_test.py`
-- Test classes: `Test*`
-- Test functions: `test_*`
-
-### Using Fixtures
-
-Fixtures are reusable test components defined in `conftest.py`:
-
-```python
-def test_movie_detail(client, sample_movie):
-    """Test uses client and sample_movie fixtures"""
-    response = client.get(f'/movie/{sample_movie.id}')
-    assert response.status_code == 200
-```
-
-Available fixtures:
-- `app` - Flask application
-- `client` - Test client for making requests
-- `db_session` - Database session
-- `sample_movie` - Pre-created movie
-- `sample_movies` - List of 25 movies
-- `sample_genre` - Pre-created genre
-- `sample_person` - Pre-created actor
-- `sample_cast` - Pre-created cast member
-- `sample_crew` - Pre-created crew member
-- `sample_production_company` - Pre-created company
-
-### Example Test
+- Assert the behavior, not just the status code: check the database row, the
+  redirect target, or the exact element on the page.
+- Never loosen an assertion to make a test pass.
+- Mock TMDB by patching `src.tmdb_api.requests.get` (or `src.app.TMDBClient` for
+  route-level tests).
 
 ```python
 def test_search_finds_movies(client, sample_movie):
-    """Test that search finds movies by title"""
-    # Make request to search endpoint
-    response = client.get('/search?q=Fight')
+    response = client.get("/search?q=Fight")
 
-    # Assert response is successful
     assert response.status_code == 200
-
-    # Assert movie title is in response
-    assert b'Fight Club' in response.data
+    assert b"Fight Club" in response.data
 ```
 
-## Test Coverage
-
-### Generate Coverage Report
+## Coverage
 
 ```bash
-# Terminal report
 pytest --cov=src --cov-report=term-missing
-
-# HTML report (opens in browser)
-pytest --cov=src --cov-report=html
-open htmlcov/index.html
-
-# XML report (for CI/CD)
-pytest --cov=src --cov-report=xml
+pytest --cov=src --cov-report=html   # then open htmlcov/index.html
 ```
 
-### Coverage Goals
+Coverage settings live in `.coveragerc`. CI fails below 85%; the suite was at
+95% on 2026-11-02.
 
-- **Overall**: Aim for 80%+ coverage
-- **Critical paths**: 100% coverage for routes, models
-- **API client**: 70%+ (some parts are hard to test)
+## Lint and Security Checks
 
-## GitHub Actions CI/CD
-
-### Setting Up
-
-1. **Add TMDB API Key to GitHub Secrets**
-   - Go to repo Settings → Secrets and variables → Actions
-   - Click "New repository secret"
-   - Name: `TMDB_API_KEY`
-   - Value: Your TMDB API key
-
-2. **Commit the workflow file**
-   ```bash
-   git add .github/workflows/tests.yml
-   git commit -m "Add GitHub Actions testing workflow"
-   git push
-   ```
-
-3. **Tests run automatically on every push and PR!**
-
-### Viewing Test Results
-
-- Go to your GitHub repo → Actions tab
-- Click on the latest workflow run
-- See test results, coverage, and any failures
-
-### Branch Protection
-
-Set up branch protection to require tests to pass:
-
-1. Go to Settings → Branches
-2. Click "Add rule"
-3. Branch name pattern: `main`
-4. Check ✅ "Require status checks to pass before merging"
-5. Select: `test` (your workflow job)
-6. Save
-
-Now PRs will require all tests to pass before merging!
-
-## Pre-commit Hooks (Optional)
-
-Run tests automatically before every commit:
+CI runs these on `src scripts migrations config tests`, with the versions pinned
+in `requirements-dev.txt`:
 
 ```bash
-# Install pre-commit
-pip install pre-commit
-
-# Install hooks
-pre-commit install
-
-# Now tests run automatically on git commit!
-
-# Run manually on all files
-pre-commit run --all-files
-
-# Skip pre-commit hooks (not recommended)
-git commit --no-verify
+flake8 src scripts migrations config tests
+black --check src scripts migrations config tests --line-length 100
+isort --check-only --profile black src scripts migrations config tests
+bandit -r src scripts migrations config -ll
 ```
 
-## Common Testing Patterns
+`pre-commit install` runs black, isort and whitespace checks on each commit.
 
-### Testing Flask Routes
+## CI (`.github/workflows/tests.yml`)
 
-```python
-def test_route(client):
-    response = client.get('/endpoint')
-    assert response.status_code == 200
-    assert b'expected text' in response.data
-```
+- `test`: the suite on Python 3.11, 3.12 and 3.13 (no secrets needed).
+- `postgres`: the suite and the migration test against a `postgres:16` service.
+- `lint`, `security`: the checks above; both fail the build on problems.
 
-### Testing Database Models
+`ci.yml` builds and pushes the Docker Hub image only after `Tests` passes on main.
 
-```python
-def test_create_model(db_session):
-    model = Movie(title="Test", tmdb_id=123)
-    db_session.add(model)
-    db_session.commit()
+## Smoke Test Against a Running Server
 
-    assert model.id is not None
-    assert model.title == "Test"
-```
-
-### Testing with Mock Data
-
-```python
-from unittest.mock import patch, Mock
-
-@patch('src.tmdb_api.requests.get')
-def test_api_call(mock_get):
-    mock_response = Mock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {'results': []}
-    mock_get.return_value = mock_response
-
-    # Your test code here
-```
-
-### Testing Relationships
-
-```python
-def test_relationship(db_session):
-    movie = Movie(title="Test", tmdb_id=1)
-    genre = Genre(name="Action", tmdb_id=28)
-    movie.genres.append(genre)
-
-    db_session.add(movie)
-    db_session.commit()
-
-    assert len(movie.genres) == 1
-    assert genre in movie.genres
-```
-
-## Debugging Failing Tests
-
-### Run with verbose output
 ```bash
-pytest -vv
+python scripts/smoke_test.py                                   # http://127.0.0.1:5000
+python scripts/smoke_test.py https://movie-dashboard.jaime.build
 ```
 
-### Show print statements
-```bash
-pytest -s
-```
-
-### Stop on first failure
-```bash
-pytest -x
-```
-
-### Drop into debugger on failure
-```bash
-pytest --pdb
-```
-
-### Run only failed tests from last run
-```bash
-pytest --lf  # last failed
-pytest --ff  # failed first
-```
-
-## Test Organization Tips
-
-1. **One assertion per test** (when possible)
-   ```python
-   # Good
-   def test_movie_title(sample_movie):
-       assert sample_movie.title == "Fight Club"
-
-   def test_movie_rating(sample_movie):
-       assert sample_movie.vote_average == 8.4
-   ```
-
-2. **Use descriptive test names**
-   ```python
-   # Good
-   def test_search_finds_movies_by_title()
-
-   # Bad
-   def test_search()
-   ```
-
-3. **Arrange-Act-Assert pattern**
-   ```python
-   def test_example():
-       # Arrange - set up test data
-       movie = Movie(title="Test")
-
-       # Act - perform the action
-       result = movie.title.upper()
-
-       # Assert - verify the result
-       assert result == "TEST"
-   ```
-
-## Common Issues
-
-### Issue: Tests can't find modules
-**Solution**: Make sure you're running pytest from the project root directory
-
-### Issue: Database errors
-**Solution**: Check that fixtures are properly cleaning up (see `conftest.py`)
-
-### Issue: API tests failing
-**Solution**: Make sure TMDB_API_KEY is set in environment or use mocks
-
-### Issue: Tests pass locally but fail in CI
-**Solution**: Check that all dependencies are in `requirements.txt`
-
-## Adding New Tests
-
-When adding a new feature:
-
-1. Write tests FIRST (Test-Driven Development)
-2. Run tests to see them fail
-3. Implement the feature
-4. Run tests to see them pass
-5. Refactor if needed
-
-Example workflow:
-```bash
-# 1. Create test
-echo "def test_new_feature(): assert False" >> tests/test_new.py
-
-# 2. Run test (should fail)
-pytest tests/test_new.py
-
-# 3. Implement feature in src/
-
-# 4. Run test again (should pass)
-pytest tests/test_new.py
-
-# 5. Run all tests
-pytest
-```
-
-## Performance Testing
-
-For testing with many movies:
-
-```python
-def test_performance(db_session):
-    import time
-
-    # Create 1000 movies
-    start = time.time()
-    movies = [Movie(title=f"Movie {i}", tmdb_id=i) for i in range(1000)]
-    db_session.add_all(movies)
-    db_session.commit()
-    duration = time.time() - start
-
-    # Should complete in reasonable time
-    assert duration < 5.0  # 5 seconds
-```
-
-## Resources
-
-- [Pytest Documentation](https://docs.pytest.org/)
-- [Flask Testing Documentation](https://flask.palletsprojects.com/en/latest/testing/)
-- [SQLAlchemy Testing Documentation](https://docs.sqlalchemy.org/en/latest/orm/session_transaction.html#joining-a-session-into-an-external-transaction-such-as-for-test-suites)
-
-## Questions?
-
-If you run into issues:
-1. Check this guide
-2. Look at existing tests for examples
-3. Read error messages carefully
-4. Check test output with `pytest -vv`
-
-Happy testing! 🧪
+Exits 0 when every check passes, 1 otherwise.

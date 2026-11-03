@@ -4,11 +4,10 @@
 
 ![Tests](https://github.com/jaime-builds/movie-analytics-dashboard/actions/workflows/tests.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)
-![Flask](https://img.shields.io/badge/flask-3.0-green)
+![Flask](https://img.shields.io/badge/flask-3.1-green)
 ![SQLAlchemy](https://img.shields.io/badge/sqlalchemy-2.0-orange)
 
-<!-- TODO: update to https://dashboard.jaime.build once Unraid deployment is verified -->
-📺 **[Live Demo](https://movie-analytics-dashboard-production.up.railway.app)**
+📺 **[Live Demo](https://movie-dashboard.jaime.build)**
 
 ![Movie Analytics Dashboard](docs/screenshot.png)
 
@@ -21,7 +20,7 @@ cd movie-analytics-dashboard
 python -m venv venv && source venv/bin/activate  # or .\venv\Scripts\activate on Windows
 
 # Install and configure
-pip install -r requirements.txt
+pip install -r requirements.txt -r requirements-dev.txt  # app + test/lint tools
 echo "TMDB_API_KEY=your_key_here" > config/.env
 echo "SECRET_KEY=your_secret_here" >> config/.env
 
@@ -32,6 +31,14 @@ python -m src.app  # Start server at http://127.0.0.1:5000
 ```
 
 Get your [TMDB API key here](https://www.themoviedb.org/settings/api) (free, takes 2 minutes).
+
+**Make yourself an admin** (after registering in the browser):
+
+```bash
+flask --app src.app set-admin your_username          # local
+docker exec dashboard-app flask --app src.app set-admin your_username   # production
+flask --app src.app set-admin your_username --revoke # remove admin rights
+```
 
 ## 💡 What Makes This Special
 
@@ -108,7 +115,7 @@ flowchart TB
         CF["Cloudflare Tunnel\nTLS · Public ingress"]
         subgraph Stackd["📦 Compose stack: dashboard"]
             direction TB
-            APP["dashboard-app\nFlask · gunicorn · 2 workers\nSimpleCache · in-memory limiter"]
+            APP["dashboard-app\nFlask · gunicorn · 1 process, 8 threads\nSimpleCache · in-memory limiter"]
             PG[("dashboard-db\nPostgreSQL · 5,000+ movies")]
             APP -- SQLAlchemy ORM --> PG
         end
@@ -227,7 +234,8 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 - Python 3.13+ with Flask
 - SQLAlchemy ORM
 - Flask-Caching (SimpleCache by default; RedisCache when `REDIS_URL` is set)
-- Flask-Limiter for API rate limiting
+- Flask-Limiter (login/register limits per IP and per username; API limits)
+- Security headers (CSP, frame denial, HSTS on HTTPS) and revocable sessions
 - Flask-WTF (CSRF protection)
 - Structured JSON logging with daily rotation (logs/app.log)
 - Werkzeug password hashing
@@ -253,13 +261,14 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 
 **DevOps**
 
-- Docker (Dockerfile + docker-compose with volume mounts and health check)
+- Docker (multi-stage Dockerfile with HEALTHCHECK; dev-only docker-compose)
 - Self-hosted on Unraid: `dashboard` Compose stack (`dashboard-app` + `dashboard-db`)
 - Cloudflare Tunnel for public ingress (no ports forwarded)
-- No Redis — app falls back to SimpleCache + in-memory rate limiter when `REDIS_URL` is unset
+- No Redis: one Gunicorn process with 8 threads shares the SimpleCache and in-memory rate limiter (set `REDIS_URL` to use Redis instead)
 - Weekly TMDB sync via Unraid User Script (`Sync-TMDB-Dashboard`, Sundays 3am)
 - Structured JSON logging
-- GitHub Actions CI (tests, lint, security — 3 Python versions)
+- GitHub Actions CI (tests on 3 Python versions plus a Postgres 16 job, lint, Bandit); the Docker Hub image is pushed only after tests pass
+- Pinned dependencies (`requirements.in` -> `requirements.txt` via pip-tools; dev tools in `requirements-dev.txt`)
 - Environment-based config
 
 ## 📊 Project Stats
@@ -267,11 +276,11 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 - **8,000+** movies with complete metadata (local) | **10,000+** on the live instance
 - **300+** directors with filmographies
 - **1,000+** actors with profiles
-- **86.2%** test coverage (last measured 2026-07-21) with 463 tests passing
+- **95%** test coverage with 609 tests passing (measured 2026-11-02; the suite also runs against Postgres 16 in CI)
 - **18** database tables with optimized indexes
-- **66** Flask routes (32 page · 21 action · 13 API)
+- **74** Flask routes (34 page · 27 action · 13 API)
 - **13** RESTful API endpoints
-- **34** Jinja2 templates
+- **38** Jinja2 templates
 
 ## 🎓 Skills Demonstrated
 
@@ -355,8 +364,12 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 3. **Install dependencies**
 
    ```bash
-   pip install -r requirements.txt
+   pip install -r requirements.txt -r requirements-dev.txt
    ```
+
+   `requirements.txt` is fully pinned. To change a dependency, edit
+   `requirements.in` (or `requirements-dev.in`) and regenerate with
+   `pip-compile --strip-extras requirements.in`.
 
 4. **Configure environment**
 
@@ -394,6 +407,12 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
    ```
 
    Visit: <http://127.0.0.1:5000>
+
+8. **Make an admin account** (optional)
+
+   Register in the browser, then run `flask --app src.app set-admin <username>`.
+   Admins get `/admin` (analytics, user bans, moderation, registration
+   on/off) and a "Hide from home page" control on each movie page.
 
 </details>
 
@@ -435,6 +454,9 @@ ORDER BY (vote_average / LOG(popularity + 2)) DESC;
 - `page_views` - Per-path daily view counters for site analytics
 - `site_settings` - Key/value store for site-wide toggles (e.g. registration on/off)
 - `users.is_admin` / `is_banned` / `banned_at` - Admin access and ban state
+- `users.session_version` - Bumped on logout and ban so older session cookies stop working
+- `users.hide_activity` - Opt out of the public activity feed
+- `movies.is_mature` / `hide_from_featured` - Keyword-based mature flag and an admin's "keep off the home page"
 - `ratings.is_deleted` / `deleted_at`, `reviews.is_deleted` / `deleted_at` - Soft-delete moderation flags
 
 ### ER Diagram
@@ -479,23 +501,18 @@ pytest tests/test_auth.py -v
 - ✅ Database relationships
 - ✅ Security (password hashing)
 
-**Current Coverage**: 86.2% (463 tests passing; coverage % last measured 2026-07-21)
+**Current Coverage**: 95% (609 tests passing, measured 2026-11-02)
 
-### Run Tests
+The suite is offline: `tests/conftest.py` stubs TMDB and fails any real HTTP
+request, so no API key is needed. To run it against Postgres, point
+`TEST_DATABASE_URL` at an empty database whose name contains `test`:
 
 ```bash
-# Convenience wrapper (recommended)
-python run_tests.py
-
-# Direct pytest
-pytest
-
-# With coverage
-pytest --cov=src --cov-report=html
-
-# Specific test file
-pytest tests/test_auth.py -v
+TEST_DATABASE_URL=postgresql+psycopg2://user:pass@localhost/dashboard_test pytest
 ```
+
+After a deploy, `python scripts/smoke_test.py https://movie-dashboard.jaime.build`
+checks the live API and home page and exits 1 on any failure.
 
 </details>
 
@@ -513,7 +530,20 @@ python scripts/sync_tmdb_data.py --limit 5000 --update-existing
 
 # Tune parallel workers for local syncs
 python scripts/sync_tmdb_data.py --limit 1000 --workers 20
+
+# Exit 1 on any failed movie (default tolerates up to 5%)
+python scripts/sync_tmdb_data.py --limit 5000 --strict
+
+# Classify movies already in the database as mature or not (run once after migration 009)
+python scripts/backfill_mature_flags.py --dry-run
+python scripts/backfill_mature_flags.py
 ```
+
+The sync makes one TMDB call per movie (details, credits and keywords together),
+retries HTTP 429 with backoff, writes each movie in its own savepoint so one bad
+movie never discards others, and refreshes vote counts and popularity for movies
+it already has. Exit codes: 0 done, 1 failed (see the summary's `Errors:` line),
+2 another sync holds the lock, 130 interrupted.
 
 ### Automated Sync
 
@@ -522,15 +552,17 @@ Automated TMDB sync runs on the Unraid host as a User Script (`Sync-TMDB-Dashboa
 - **Weekly sync** every Sunday at 3:00 AM local time
 - Runs against the `dashboard-db` Postgres container on the LAN
 
-The old GitHub Actions workflow (`.github/workflows/sync_tmdb.yml`) is retained but
-disabled — GitHub's cloud runners can't reach a LAN-only database.
+`.github/workflows/sync_tmdb.yml` is manual-only: GitHub's cloud runners can't
+reach a LAN-only database, so it needs a `SYNC_DATABASE_URL` secret pointing at
+some other, reachable database.
 
 For local or ad hoc updates, run `python scripts/sync_tmdb_data.py` manually.
 
 ### What Gets Synced
 
 - ✅ Movie metadata (title, overview, release date)
-- ✅ Ratings and popularity
+- ✅ Ratings and popularity (refreshed weekly for movies already stored)
+- ✅ Keywords, used only to flag mature movies (`movies.is_mature`)
 - ✅ Cast and crew (top 10 actors)
 - ✅ Director information
 - ✅ Production companies
@@ -630,13 +662,15 @@ See [TODO.md](TODO.md) for the complete roadmap.
 
 ### Recently Shipped
 
+- [x] **Family-friendly mode, Box office by genre, Blind Pick, Activity Feed, Year in Review** (2026-11-02) - a navbar toggle hides movies flagged mature by their TMDB keywords; a revenue-by-genre chart on /analytics; a random pick from your watchlist; a public feed of recent ratings and reviews with a per-user opt-out; personal stats for any year
+- [x] **Full code review fixes** (2026-11-02) - security hardening (rate limits, headers, revocable sessions, safer confirms), Postgres-correct queries, stable pagination, caching, sync reliability, accessibility and front-end fixes (see `TODO.md`)
 - [x] **Admin dashboard** - `/admin` panel: site analytics (page views, account growth), user access control (ban/unban, content hidden site-wide, registration toggle), and moderation (soft/hard-delete on ratings and reviews)
 - [x] **Unraid migration prep** - Docs and config moved off Railway: architecture diagram now shows the `dashboard` Compose stack (Postgres, no Redis) behind a Cloudflare Tunnel; GitHub Actions TMDB sync disabled in favor of an Unraid User Script
 - [x] **Python 3.13** - Dockerfile, CI workflows, and dependencies upgraded; test matrix trimmed to 3.11/3.12/3.13
 - [x] **Movie of the Day** - Homepage feature drawn from the Hidden Gems pool, deterministic per day with a 30-day anti-repeat window
 - [x] **Breadcrumb navigation** - Bootstrap 5 breadcrumb trail on every page except home, via a shared Jinja2 macro
 - [x] **Collection ordering fix** - collections now track when each movie was added (added_at) and display in that order instead of by internal ID
-- [x] **Redis** - Railway Redis add-on; production app now uses RedisCache + Redis rate limiter storage
+- [x] **Redis** - Railway Redis add-on (historical: production on Unraid runs without Redis)
 - [x] **Common Films** - `/common-films`; find movies shared by up to 5 actors with smart autocomplete
 - [x] **Responsive image optimization** - srcset on all poster grids (w185/w342/w500); Jinja2 macro for reuse
 - [x] **Advanced search** - Dedicated `/advanced-search` with genre, era, rating, runtime filters; active filter pills
@@ -648,7 +682,7 @@ See [TODO.md](TODO.md) for the complete roadmap.
 - [x] **PostgreSQL registration fix** - Alembic migration 002 expands password_hash to String(256)
 - [x] Error logging and monitoring (JSON structured, daily rotation)
 - [x] Docker containerization (Dockerfile + docker-compose)
-- [x] Restored run_tests.py as pytest convenience wrapper
+- [x] ~~Restored run_tests.py as pytest convenience wrapper~~ (removed 2026-11-02; run `pytest`)
 - [x] Production companies (Studios) page with detail pages
 - [x] Decade overview pages with defining films and charts
 - [x] Movie collections (user-created named lists)
@@ -656,10 +690,10 @@ See [TODO.md](TODO.md) for the complete roadmap.
 - [x] Search autocomplete with keyboard navigation
 - [x] Query caching with Flask-Caching (1-hour TTL)
 - [x] Movie comparison tool (up to 4 movies, `/compare` page)
-- [x] **Railway deployment** - Live at https://movie-analytics-dashboard-production.up.railway.app
+- [x] **Railway deployment** - Historical: hosted on Railway until the 2026-07-29 move to Unraid
 - [x] **PostgreSQL** - Migrated from SQLite; dual-database compatible
 - [x] **Alembic migrations** - Full schema versioning with baseline migration
-- [x] **CI/CD auto-deploy** - Push to main triggers Railway deployment
+- [x] **CI/CD auto-deploy** - Historical (Railway); production now rebuilds from its Unraid checkout
 - [x] **Test suite unified** - Main test suite runs in a single pytest pass; 418 passing
 
 ### Up Next

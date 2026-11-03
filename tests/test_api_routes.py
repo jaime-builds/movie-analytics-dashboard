@@ -173,12 +173,12 @@ class TestMoviesApiEndpoint:
     def test_movie_object_fields(self, client, sample_movies):
         response = client.get("/api/v1/movies?per_page=1")
         data = response.get_json()
-        if data["movies"]:
-            movie = data["movies"][0]
-            assert "id" in movie
-            assert "title" in movie
-            assert "tmdb_id" in movie
-            assert "genres" in movie
+        assert len(data["movies"]) == 1
+        movie = data["movies"][0]
+        assert "id" in movie
+        assert "title" in movie
+        assert "tmdb_id" in movie
+        assert "genres" in movie
 
     def test_movies_endpoint_is_rate_limited_when_enabled(self, app, sample_movies):
         previous_enabled = getattr(limiter, "enabled", True)
@@ -321,11 +321,11 @@ class TestGenresApiEndpoint:
     def test_genre_object_fields(self, client, sample_genre):
         response = client.get("/api/v1/genres")
         data = response.get_json()
-        if data["genres"]:
-            genre = data["genres"][0]
-            assert "id" in genre
-            assert "name" in genre
-            assert "tmdb_id" in genre
+        assert data["genres"]
+        genre = data["genres"][0]
+        assert "id" in genre
+        assert "name" in genre
+        assert "tmdb_id" in genre
 
 
 class TestAnalyticsApiEndpoints:

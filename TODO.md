@@ -2,14 +2,11 @@
 
 ## 🎯 Current Sprint (Next 2 Weeks)
 
-- [ ] **SEO optimization** (2h) - Meta tags, og:image for social sharing, structured data markup
+- [ ] **Structured data** (1h) - JSON-LD movie markup (meta description and Open Graph tags shipped 2026-11-02)
 - [ ] **Performance monitoring** (3h) - Sentry integration for error tracking and performance insights
-- [ ] **Year in review** (4h) - Personal stats page for movies watched, ratings given, genres explored
-- [ ] **User activity feed** (3h) - Public feed of recent ratings and reviews across all users
 - [ ] **Public collections** (3h) - Toggle to make user collections public; browseable by other users
-- [ ] **Box office by genre** (2h) - Aggregation chart on analytics page showing total revenue per genre
 - [ ] **TMDB data dump sync** (2h) - Replace popular movies pagination with daily TMDB export file; removes 10,000 movie ceiling, faster ID collection, better movie selection by popularity
-- [ ] **Smoke test timeouts** (15m) - Add HTTP timeouts to scripts/smoke_test.py requests; flagged by Bandit (B113) during lint/security scope expansion, low priority since it's a manual dev-only script
+- [ ] **Split src/app.py into blueprints** - RR-05 from the 2026-11 review, kept as its own change so the fix batch stays reviewable
 
 ## 🚀 Next Up (This Month)
 
@@ -29,7 +26,6 @@
 - [ ] User-to-user recommendations
 - [ ] Email digest - Weekly email of new movies in favorite genres
 - [ ] Rating trends over time (window functions)
-- [ ] Box office by genre (aggregations)
 - [ ] Genre trending analysis
 - [ ] User analytics dashboard
 - [ ] Machine learning recommendations
@@ -39,16 +35,24 @@
 - [ ] Shareable movie lists - Public URL for collections
 - [ ] Export profile data - Download ratings, reviews, collections as JSON or CSV
 - [ ] "Not interested" dismissal on recommendations
-- [ ] Runtime and content filters - Family-friendly toggle, language filter
+- [ ] Runtime and language filters (the family-friendly toggle shipped 2026-11-02)
 - [ ] Watchlist streaming alert
 - [ ] "Seen it" quick-log
 - [ ] API key management page
 - [ ] Full-text search with SQLite FTS5 / PostgreSQL full-text
-- [ ] Blind pick - Random movie from your watchlist
 - [ ] Movie mood matcher
 - [ ] Friends' ratings overlay
 
 ---
+
+## ✅ Recently Completed (November 2, 2026)
+
+- [x] **Full code review fixes** - Two repo reviews and a full code scan (86 findings) fixed in one pass: login/register rate limits, security headers and HTTPS redirect, revocable sessions, safe confirm dialogs, TMDB key kept out of logs, Postgres-correct queries (stable pagination, NULLs last, numeric JSON), N+1 and caching fixes, server-side Directors/Studios search, a reliable TMDB sync (no blank rows, per-movie savepoints, lock, exit codes), migrations 007-009, accessibility and front-end fixes, pinned dependencies, CI with a Postgres job and gated Docker push, Gunicorn as 1 process with 8 threads, a container healthcheck, and an offline test suite (609 tests, 95% coverage)
+- [x] **Family-friendly mode** - TMDB keywords flag mature movies (`movies.is_mature`); they never appear on the home page or as Movie of the Day, and a navbar toggle hides them from lists and search. Admins can also hide any movie from the home page
+- [x] **Box office by genre** - Revenue-by-genre chart and table on `/analytics`
+- [x] **Blind pick** - Random movie from your watchlist
+- [x] **User activity feed** - `/activity`: recent public ratings and reviews, with a per-user opt-out on the profile
+- [x] **Year in review** - `/year-in-review`: ratings, reviews, favorites, genres, decades and charts for any year
 
 ## ✅ Recently Completed (August 3, 2026)
 
@@ -130,17 +134,16 @@
 
 ## 📊 Project Stats
 
-- **Total Movies**: 5,000+ (production PostgreSQL) | 8,000+ (local SQLite)
+- **Total Movies**: 21,000+ (production PostgreSQL) | 12,000+ (local SQLite)
 - **Features Completed**: 65
-- **Test Coverage**: 86.2% (last measured 2026-07-21, not re-measured after Aug 3 admin batch)
-- **Tests Passing**: 463 ✅
-- **Flask Routes**: 66 (32 page · 21 action · 13 API) ✅
+- **Test Coverage**: 95% (measured 2026-11-02)
+- **Tests Passing**: 609 ✅ (SQLite; the suite also runs against Postgres 16 in CI)
+- **Flask Routes**: 74 (34 page · 27 action · 13 API) ✅
 - **API Endpoints**: 13 ✅
 - **Database Tables**: 18 ✅
-- **Jinja2 Templates**: 34 ✅
-- **Latest Migration**: 006_admin_dashboard ✅
-<!-- TODO: update to https://dashboard.jaime.build once Unraid deployment is verified -->
-- **Live URL**: https://movie-analytics-dashboard-production.up.railway.app
+- **Jinja2 Templates**: 38 ✅
+- **Latest Migration**: 009_content_flags_and_dates ✅
+- **Live URL**: https://movie-dashboard.jaime.build
 
 ## 🎓 Learning Goals
 
@@ -163,4 +166,4 @@ This project showcases:
 
 ---
 
-**Last Updated**: August 3, 2026
+**Last Updated**: November 2, 2026

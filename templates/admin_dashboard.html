@@ -82,6 +82,7 @@
                         <form method="POST" action="{{ url_for('admin_toggle_registration') }}">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="next" value="{{ request.full_path }}">
+                            <input type="hidden" name="enabled" value="{{ 'false' if registration_enabled else 'true' }}">
                             <button type="submit" class="btn btn-sm {{ 'btn-outline-danger' if registration_enabled else 'btn-outline-success' }}">
                                 {{ 'Disable' if registration_enabled else 'Enable' }}
                             </button>

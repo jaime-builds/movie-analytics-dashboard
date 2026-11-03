@@ -1,5 +1,9 @@
 {% extends "base.html" %}
-{% from "macros.html" import breadcrumbs %}
+{% from "macros.html" import breadcrumbs, chart_library %}
+
+{% block title %}Analytics - Movie Analytics Dashboard{% endblock %}
+
+{% block chart_library %}{{ chart_library() }}{% endblock %}
 
 {% block content %}
 {{ breadcrumbs([("Home", url_for('index')), ("Analytics", none)]) }}
@@ -85,6 +89,42 @@
             <div class="card-body">
                 <h5 class="card-title text-center">Top Production Companies</h5>
                 <canvas id="companiesChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Box Office by Genre -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title text-center">Box Office by Genre</h5>
+                <p class="text-muted text-center small mb-2">
+                    Total worldwide revenue of movies with reported box office. A movie with several genres counts toward each.
+                </p>
+                {% if box_office_by_genre %}
+                <canvas id="boxOfficeGenreChart" style="max-height:480px;"
+                        role="img" aria-label="Bar chart of total box office revenue by genre"></canvas>
+                <details class="mt-2 small">
+                    <summary>Show as a table</summary>
+                    <table class="table table-sm mt-2 mb-0">
+                        <thead><tr><th scope="col">Genre</th><th scope="col" class="text-end">Total revenue</th><th scope="col" class="text-end">Average per movie</th><th scope="col" class="text-end">Movies</th></tr></thead>
+                        <tbody>
+                        {% for row in box_office_by_genre %}
+                        <tr>
+                            <td>{{ row.name }}</td>
+                            <td class="text-end">${{ '{:,.0f}'.format(row.total_revenue) }}</td>
+                            <td class="text-end">${{ '{:,.0f}'.format(row.avg_revenue) }}</td>
+                            <td class="text-end">{{ row.count }}</td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </details>
+                {% else %}
+                <p class="text-muted text-center mb-0">No box office data yet.</p>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -217,6 +257,47 @@
             }
         }
     });
+
+    // --- Box Office by Genre Bar Chart ---
+    const boxOffice = {{ box_office_by_genre | tojson }};
+    const boxOfficeCanvas = document.getElementById('boxOfficeGenreChart');
+    if (boxOfficeCanvas && boxOffice.length) {
+        const formatBillions = v => '$' + (v / 1e9).toFixed(v >= 1e10 ? 0 : 1) + 'B';
+        new Chart(boxOfficeCanvas, {
+            type: 'bar',
+            data: {
+                labels: boxOffice.map(r => r.name),
+                datasets: [{
+                    label: 'Total revenue',
+                    data: boxOffice.map(r => r.total_revenue),
+                    backgroundColor: '#f39c12',
+                    borderColor: '#d68910',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: { callback: value => formatBillions(value) },
+                        title: { display: true, text: 'Total revenue (USD)' }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => 'Total: $' + boxOffice[ctx.dataIndex].total_revenue.toLocaleString(),
+                            afterLabel: ctx => 'Average: $' + boxOffice[ctx.dataIndex].avg_revenue.toLocaleString()
+                                + ' across ' + boxOffice[ctx.dataIndex].count + ' movies'
+                        }
+                    }
+                }
+            }
+        });
+    }
 
     // --- Top Production Companies Bar Chart ---
     const companyLabels = {{ top_companies | map(attribute='name') | list | tojson }};

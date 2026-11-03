@@ -5,119 +5,148 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}Movie Analytics Dashboard{% endblock %}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <meta name="description" content="{% block description %}Explore thousands of movies with TMDB data: ratings, directors, actors, studios, decades, hidden gems and box office analytics.{% endblock %}">
+    <meta property="og:site_name" content="Movie Analytics Dashboard">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{{ self.title()|trim }}">
+    <meta property="og:description" content="{{ self.description()|trim }}">
+    <meta property="og:url" content="{{ request.base_url }}">
+    <meta property="og:image" content="{% block og_image %}{{ url_for('static', filename='images/jaime_builds_logo.png', _external=True) }}{% endblock %}">
+    <meta name="twitter:card" content="summary">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/jaime_builds_logo.png') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css"
+          integrity="sha384-QuGBSgV5Im3DzL2z+8Ko9/hqNy/N0O7zwvXAtfd1MvPKWa/UbeLV65cfm4BV5Wgq" crossorigin="anonymous">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}">
     <script>
-        // Apply saved theme immediately to prevent flash of wrong theme
+        // Apply the saved theme (or the system preference) before first paint
         (function() {
-            var theme = localStorage.getItem('theme') || 'light';
+            var theme = localStorage.getItem('theme');
+            if (!theme) {
+                theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
             document.documentElement.setAttribute('data-bs-theme', theme);
         })();
     </script>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <a class="visually-hidden-focusable skip-link" href="#main-content">Skip to main content</a>
+    {% set endpoint = request.endpoint or '' %}
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark" aria-label="Main navigation">
         <div class="container-fluid">
             <a class="navbar-brand" href="{{ url_for('index') }}">
-                <i class="bi bi-film"></i> Movie Analytics
+                <i class="bi bi-film" aria-hidden="true"></i> Movie Analytics
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('index') }}">Home</a>
+                        <a class="nav-link {{ 'active' if endpoint == 'index' }}" href="{{ url_for('index') }}"
+                           {% if endpoint == 'index' %}aria-current="page"{% endif %}>Home</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('movies') }}">Movies</a>
+                        <a class="nav-link {{ 'active' if endpoint == 'movies' }}" href="{{ url_for('movies') }}"
+                           {% if endpoint == 'movies' %}aria-current="page"{% endif %}>Movies</a>
                     </li>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button"
+                        <a class="nav-link dropdown-toggle {{ 'active' if endpoint in ('top_actors', 'directors', 'companies', 'decades', 'hidden_gems') }}" href="#" role="button"
                            data-bs-toggle="dropdown" aria-expanded="false">
                             Explore
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{{ url_for('top_actors') }}">
-                                <i class="bi bi-person-fill me-2"></i>Top Actors
+                                <i class="bi bi-person-fill me-2" aria-hidden="true"></i>Top Actors
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('directors') }}">
-                                <i class="bi bi-camera-reels me-2"></i>Directors
+                                <i class="bi bi-camera-reels me-2" aria-hidden="true"></i>Directors
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('companies') }}">
-                                <i class="bi bi-building me-2"></i>Studios
+                                <i class="bi bi-building me-2" aria-hidden="true"></i>Studios
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('decades') }}">
-                                <i class="bi bi-clock-history me-2"></i>Decades
+                                <i class="bi bi-clock-history me-2" aria-hidden="true"></i>Decades
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('hidden_gems') }}">
-                                <i class="bi bi-gem me-2"></i>Hidden Gems
+                                <i class="bi bi-gem me-2" aria-hidden="true"></i>Hidden Gems
                             </a></li>
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button"
+                        <a class="nav-link dropdown-toggle {{ 'active' if endpoint in ('recommendations', 'compare', 'advanced_search', 'common_films', 'activity_feed') }}" href="#" role="button"
                            data-bs-toggle="dropdown" aria-expanded="false">
                             Discover
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{{ url_for('recommendations') }}">
-                                <i class="bi bi-lightbulb me-2"></i>Recommendations
+                                <i class="bi bi-lightbulb me-2" aria-hidden="true"></i>Recommendations
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('activity_feed') }}">
+                                <i class="bi bi-activity me-2" aria-hidden="true"></i>Activity Feed
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('compare') }}">
-                                <i class="bi bi-bar-chart-line me-2"></i>Compare Movies
+                                <i class="bi bi-bar-chart-line me-2" aria-hidden="true"></i>Compare Movies
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('advanced_search') }}">
-                                <i class="bi bi-sliders me-2"></i>Advanced Search
+                                <i class="bi bi-sliders me-2" aria-hidden="true"></i>Advanced Search
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('common_films') }}">
-                                <i class="bi bi-people-fill me-2"></i>Common Films
+                                <i class="bi bi-people-fill me-2" aria-hidden="true"></i>Common Films
                             </a></li>
                         </ul>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('analytics') }}">Analytics</a>
+                        <a class="nav-link {{ 'active' if endpoint == 'analytics' }}" href="{{ url_for('analytics') }}"
+                           {% if endpoint == 'analytics' %}aria-current="page"{% endif %}>Analytics</a>
                     </li>
                 </ul>
-                <form class="d-flex me-3" action="{{ url_for('search') }}" method="get" autocomplete="off">
+                <form class="d-flex me-3" action="{{ url_for('search') }}" method="get" autocomplete="off" role="search">
                     <div class="autocomplete-wrapper position-relative me-2">
-                        <input id="search-input" class="form-control" type="search" placeholder="Search movies..." name="q" autocomplete="off">
-                        <div id="autocomplete-dropdown" class="autocomplete-dropdown" style="display:none;"></div>
+                        <label for="search-input" class="visually-hidden">Search movies</label>
+                        <input id="search-input" class="form-control" type="search" placeholder="Search movies..." name="q"
+                               autocomplete="off" required
+                               role="combobox" aria-expanded="false" aria-controls="autocomplete-dropdown" aria-autocomplete="list">
+                        <div id="autocomplete-dropdown" class="autocomplete-dropdown" role="listbox" aria-label="Search suggestions" style="display:none;"></div>
                     </div>
-                    <button class="btn btn-outline-light" type="submit">
-                        <i class="bi bi-search"></i>
+                    <button class="btn btn-outline-light" type="submit" aria-label="Search">
+                        <i class="bi bi-search" aria-hidden="true"></i>
                     </button>
                 </form>
 
-                <!-- User Menu (NEW) -->
+                <!-- User Menu -->
                 <ul class="navbar-nav">
                     {% if current_user %}
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
                                data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi bi-person-circle"></i> {{ current_user.username }}
+                                <i class="bi bi-person-circle" aria-hidden="true"></i> {{ current_user.username }}
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                                 <li><a class="dropdown-item" href="{{ url_for('profile') }}">
-                                    <i class="bi bi-person-fill text-secondary"></i> My Profile
+                                    <i class="bi bi-person-fill text-secondary" aria-hidden="true"></i> My Profile
+                                </a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('year_in_review') }}">
+                                    <i class="bi bi-calendar3 text-info" aria-hidden="true"></i> Year in Review
                                 </a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{{ url_for('favorites') }}">
-                                    <i class="bi bi-heart-fill text-danger"></i> My Favorites
+                                    <i class="bi bi-heart-fill text-danger" aria-hidden="true"></i> My Favorites
                                 </a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('watchlist') }}">
-                                    <i class="bi bi-bookmark-fill text-primary"></i> My Watchlist
+                                    <i class="bi bi-bookmark-fill text-primary" aria-hidden="true"></i> My Watchlist
                                 </a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('collections') }}">
-                                    <i class="bi bi-collection-play-fill text-success"></i> My Collections
+                                    <i class="bi bi-collection-play-fill text-success" aria-hidden="true"></i> My Collections
                                 </a></li>
                                 {% if current_user.is_admin %}
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{{ url_for('admin_dashboard') }}">
-                                    <i class="bi bi-shield-lock text-warning"></i> Admin Dashboard
+                                    <i class="bi bi-shield-lock text-warning" aria-hidden="true"></i> Admin Dashboard
                                 </a></li>
                                 {% endif %}
                                 <li><hr class="dropdown-divider"></li>
@@ -125,7 +154,7 @@
                                     <form action="{{ url_for('logout') }}" method="post">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="dropdown-item">
-                                            <i class="bi bi-box-arrow-right"></i> Logout
+                                            <i class="bi bi-box-arrow-right" aria-hidden="true"></i> Logout
                                         </button>
                                     </form>
                                 </li>
@@ -134,19 +163,32 @@
                     {% else %}
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('login') }}">
-                                <i class="bi bi-box-arrow-in-right"></i> Login
+                                <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> Login
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('register') }}">
-                                <i class="bi bi-person-plus"></i> Register
+                                <i class="bi bi-person-plus" aria-hidden="true"></i> Register
                             </a>
                         </li>
                     {% endif %}
                 </ul>
 
-                <button id="darkModeToggle" class="dark-mode-toggle ms-3" title="Toggle dark mode" aria-label="Toggle dark mode">
-                    <i class="bi bi-moon-fill"></i>
+                <!-- Family-friendly toggle: hides movies flagged mature across lists and search -->
+                <form method="post" action="{{ url_for('set_family_friendly') }}" class="ms-3 family-toggle-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="next" value="{{ request.full_path if request.query_string else request.path }}">
+                    <input type="hidden" name="enabled" value="{{ 'false' if family_friendly else 'true' }}">
+                    <button type="submit" class="family-toggle {{ 'active' if family_friendly }}"
+                            aria-pressed="{{ 'true' if family_friendly else 'false' }}"
+                            title="{{ 'Family-friendly is on: mature movies are hidden' if family_friendly else 'Turn on family-friendly mode' }}">
+                        <i class="bi bi-shield-check" aria-hidden="true"></i>
+                        <span class="family-toggle-label">Family-friendly</span>
+                    </button>
+                </form>
+
+                <button id="darkModeToggle" class="dark-mode-toggle ms-3" type="button" title="Toggle dark mode" aria-label="Toggle dark mode" aria-pressed="false">
+                    <i class="bi bi-moon-fill" aria-hidden="true"></i>
                 </button>
             </div>
         </div>
@@ -155,13 +197,13 @@
     <!-- Toast Notifications -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
-            <div class="toast-container">
+            <div class="toast-container" aria-live="polite">
                 {% for category, message in messages %}
                     {% set icon = 'check-circle-fill' if category == 'success' else 'exclamation-triangle-fill' if category == 'warning' else 'x-circle-fill' if category == 'danger' else 'info-circle-fill' %}
                     {% set close_class = 'btn-close-white' if category in ['success', 'danger'] else '' %}
-                    <div class="toast app-toast toast-{{ category }}" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast app-toast toast-{{ category }}" role="{{ 'alert' if category in ['danger', 'warning'] else 'status' }}" aria-atomic="true">
                         <div class="d-flex align-items-center px-3 py-2">
-                            <i class="bi bi-{{ icon }} me-2 fs-5"></i>
+                            <i class="bi bi-{{ icon }} me-2 fs-5" aria-hidden="true"></i>
                             <div class="toast-body flex-grow-1 ps-0">{{ message }}</div>
                             <button type="button" class="btn-close {{ close_class }} ms-2" data-bs-dismiss="toast" aria-label="Close"></button>
                         </div>
@@ -171,24 +213,26 @@
         {% endif %}
     {% endwith %}
 
-    <main class="container-fluid py-4">
+    <main class="container-fluid py-4" id="main-content" tabindex="-1">
         {% block content %}{% endblock %}
     </main>
 
     <footer class="bg-dark text-white text-center py-3 mt-5">
         <p class="mb-0">
-            Movie Analytics Dashboard | Data from <a href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer" class="text-muted">TMDB</a>
+            Movie Analytics Dashboard | Data from <a href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer" class="link-light">TMDB</a>
             &nbsp;·&nbsp;
-            <img src="{{ url_for('static', filename='images/jaime_builds_logo.png') }}" alt="jaime-builds" style="height:20px; vertical-align:middle; border-radius:50%; margin-right:4px;">
-            <a href="https://github.com/jaime-builds" target="_blank" rel="noopener noreferrer" class="text-muted">jaime-builds</a>
+            <img src="{{ url_for('static', filename='images/jaime_builds_logo.png') }}" alt="" style="height:20px; vertical-align:middle; border-radius:50%; margin-right:4px;">
+            <a href="https://github.com/jaime-builds" target="_blank" rel="noopener noreferrer" class="link-light">jaime-builds</a>
         </p>
     </footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
     <script src="{{ url_for('static', filename='js/toasts.js') }}"></script>
     <script src="{{ url_for('static', filename='js/autocomplete.js') }}"></script>
     <script src="{{ url_for('static', filename='js/compare.js') }}"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    {# Pages with charts fill this block with chart_library() from macros.html #}
+    {% block chart_library %}{% endblock %}
     <script>
         (function() {
             function getCsrfToken() {
@@ -212,6 +256,45 @@
 
                 return fetch(input, options);
             };
+
+            // Forms with data-confirm ask before submitting. The message is read
+            // as plain text, so names inside it are never run as script.
+            document.addEventListener('submit', function(event) {
+                var form = event.target;
+                var message = form && form.getAttribute ? form.getAttribute('data-confirm') : null;
+                if (message && !window.confirm(message)) {
+                    event.preventDefault();
+                }
+            });
+
+            // Small toast for script-driven errors (fetch failures and the like)
+            window.showToast = function(message, category) {
+                category = category || 'danger';
+                var container = document.querySelector('.toast-container');
+                if (!container) {
+                    container = document.createElement('div');
+                    container.className = 'toast-container';
+                    container.setAttribute('aria-live', 'polite');
+                    document.body.appendChild(container);
+                }
+                var toastEl = document.createElement('div');
+                toastEl.className = 'toast app-toast toast-' + category;
+                toastEl.setAttribute('role', category === 'danger' ? 'alert' : 'status');
+                var row = document.createElement('div');
+                row.className = 'd-flex align-items-center px-3 py-2';
+                var body = document.createElement('div');
+                body.className = 'toast-body flex-grow-1 ps-0';
+                body.textContent = message;
+                var close = document.createElement('button');
+                close.type = 'button';
+                close.className = 'btn-close ms-2' + (category === 'danger' || category === 'success' ? ' btn-close-white' : '');
+                close.setAttribute('data-bs-dismiss', 'toast');
+                close.setAttribute('aria-label', 'Close');
+                row.append(body, close);
+                toastEl.appendChild(row);
+                container.appendChild(toastEl);
+                if (window.initAppToast) { window.initAppToast(toastEl); }
+            };
         })();
     </script>
     <script>
@@ -219,16 +302,38 @@
             var toggle = document.getElementById('darkModeToggle');
             var icon = toggle.querySelector('i');
 
+            // Chart.js colors follow the theme; charts already drawn are updated too
+            function applyChartTheme(theme) {
+                if (!window.Chart) { return; }
+                var dark = theme === 'dark';
+                Chart.defaults.color = dark ? '#dee2e6' : '#495057';
+                Chart.defaults.borderColor = dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)';
+                Object.values(Chart.instances || {}).forEach(function(chart) {
+                    ['x', 'y', 'r'].forEach(function(axis) {
+                        var scale = chart.options.scales && chart.options.scales[axis];
+                        if (!scale) { return; }
+                        scale.ticks = Object.assign({}, scale.ticks, { color: Chart.defaults.color });
+                        scale.grid = Object.assign({}, scale.grid, { color: Chart.defaults.borderColor });
+                        if (scale.title) { scale.title.color = Chart.defaults.color; }
+                        if (scale.pointLabels) { scale.pointLabels.color = Chart.defaults.color; }
+                    });
+                    if (chart.options.plugins && chart.options.plugins.legend && chart.options.plugins.legend.labels) {
+                        chart.options.plugins.legend.labels.color = Chart.defaults.color;
+                    }
+                    chart.update('none');
+                });
+            }
+            window.applyChartTheme = applyChartTheme;
+
             function updateIcon(theme) {
-                if (theme === 'dark') {
-                    icon.className = 'bi bi-sun-fill';
-                } else {
-                    icon.className = 'bi bi-moon-fill';
-                }
+                icon.className = theme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-fill';
+                toggle.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
             }
 
             // Set icon based on current theme
-            updateIcon(document.documentElement.getAttribute('data-bs-theme'));
+            var initial = document.documentElement.getAttribute('data-bs-theme');
+            updateIcon(initial);
+            applyChartTheme(initial);
 
             toggle.addEventListener('click', function() {
                 var current = document.documentElement.getAttribute('data-bs-theme');
@@ -236,9 +341,17 @@
                 document.documentElement.setAttribute('data-bs-theme', next);
                 localStorage.setItem('theme', next);
                 updateIcon(next);
+                applyChartTheme(next);
+                document.dispatchEvent(new CustomEvent('themechange', { detail: { theme: next } }));
             });
         })();
     </script>
     {% block scripts %}{% endblock %}
+    <script>
+        // Re-color charts created by page scripts above
+        if (window.applyChartTheme) {
+            window.applyChartTheme(document.documentElement.getAttribute('data-bs-theme'));
+        }
+    </script>
 </body>
 </html>

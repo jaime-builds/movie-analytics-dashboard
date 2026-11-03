@@ -131,3 +131,86 @@ def test_alembic_upgrade_head_builds_clean_sqlite_database(tmp_path):
                     "VALUES (1, 1, 'second review')"
                 )
             )
+
+
+def _upgrade_head(database_url):
+    repo_root = Path(__file__).resolve().parents[1]
+    env = os.environ.copy()
+    env["DATABASE_URL"] = database_url
+    return subprocess.run(
+        [sys.executable, "-m", "alembic", "upgrade", "head"],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+
+
+def test_migrations_007_to_009_add_their_columns(tmp_path):
+    database_url = f"sqlite:///{(tmp_path / 'later.sqlite').as_posix()}"
+    result = _upgrade_head(database_url)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    inspector = inspect(create_engine(database_url))
+    columns = {
+        table: {c["name"]: c for c in inspector.get_columns(table)}
+        for table in ("users", "movies", "user_favorites", "user_watchlist", "cast")
+    }
+    assert columns["users"]["session_version"]["nullable"] is False
+    assert columns["users"]["hide_activity"]["nullable"] is False
+    assert columns["movies"]["is_mature"]["nullable"] is False
+    assert columns["movies"]["hide_from_featured"]["nullable"] is False
+    assert "added_at" in columns["user_favorites"]
+    assert "added_at" in columns["user_watchlist"]
+    # TEXT has no length limit (VARCHAR(255) overflowed on voice casts)
+    assert getattr(columns["cast"]["character_name"]["type"], "length", None) is None
+
+    for table in ("user_favorites", "user_watchlist", "collection_movies", "movie_of_the_day"):
+        names = {index["name"] for index in inspector.get_indexes(table)}
+        assert f"idx_{table}_movie_id" in names
+
+
+def test_every_revision_id_fits_the_version_column():
+    """env.py widens alembic_version to 255; keep IDs well inside that."""
+    from alembic.config import Config as AlembicConfig
+    from alembic.script import ScriptDirectory
+
+    repo_root = Path(__file__).resolve().parents[1]
+    script = ScriptDirectory.from_config(AlembicConfig(str(repo_root / "alembic.ini")))
+    lengths = {rev.revision: len(rev.revision) for rev in script.walk_revisions()}
+
+    assert lengths
+    assert max(lengths.values()) <= 64, lengths
+
+
+@pytest.mark.skipif(
+    not os.getenv("MIGRATION_TEST_DATABASE_URL"),
+    reason="needs MIGRATION_TEST_DATABASE_URL (an empty Postgres database; set in CI)",
+)
+def test_alembic_upgrade_head_on_a_fresh_postgres_database():
+    """The 2026-07-29 failure: revision 003 overflowed VARCHAR(32) on Postgres."""
+    database_url = os.environ["MIGRATION_TEST_DATABASE_URL"]
+    engine = create_engine(database_url)
+    with engine.begin() as connection:
+        connection.execute(text("DROP SCHEMA public CASCADE"))
+        connection.execute(text("CREATE SCHEMA public"))
+
+    result = _upgrade_head(database_url)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    with engine.connect() as connection:
+        version = connection.execute(text("SELECT version_num FROM alembic_version")).scalar()
+        width = connection.execute(
+            text(
+                "SELECT character_maximum_length FROM information_schema.columns "
+                "WHERE table_name = 'alembic_version' AND column_name = 'version_num'"
+            )
+        ).scalar()
+    assert version == "009_content_flags_and_dates"
+    assert width == 255
+
+    # Running it again on an up-to-date database is a no-op
+    again = _upgrade_head(database_url)
+    assert again.returncode == 0, again.stdout + again.stderr
+    engine.dispose()

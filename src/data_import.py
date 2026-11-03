@@ -1,8 +1,14 @@
+"""Small-batch TMDB importer (the production sync is scripts/sync_tmdb_data.py).
+
+Run from the repo root as a module, so the src package resolves:
+    python -m src.data_import
+"""
+
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from src.models import Cast, Crew, Genre, Movie, Person, ProductionCompany, Session
 from src.tmdb_api import TMDBClient
@@ -44,7 +50,7 @@ class DataImporter:
                 self.session.rollback()
                 print(f"  - Genre already exists: {genre.name}")
 
-        print(f"Genres import complete!")
+        print("Genres import complete!")
 
     def import_movie(self, tmdb_movie_id: int) -> MovieImportResult:
         """Import a single movie with all its details"""
@@ -114,18 +120,19 @@ class DataImporter:
         try:
             self.session.add(movie)
             self.session.commit()
-            print(
-                f"  ✓ Added movie: {movie.title} ({movie.release_date.year if movie.release_date else 'N/A'})"
-            )
-
-            # Import cast and crew
-            self.import_movie_credits(movie)
-
-            return MovieImportResult(status="created", movie=movie)
-        except IntegrityError as e:
+        except SQLAlchemyError as e:
+            # IntegrityError for duplicates, DataError for values too long, etc.
             self.session.rollback()
             print(f"  ✗ Error adding movie: {e}")
             return MovieImportResult(status="failed", error=e)
+
+        year = movie.release_date.year if movie.release_date else "N/A"
+        print(f"  ✓ Added movie: {movie.title} ({year})")
+
+        # Cast and crew are best-effort: the movie is already saved
+        self.import_movie_credits(movie)
+
+        return MovieImportResult(status="created", movie=movie)
 
     def import_movie_credits(self, movie: Movie):
         """Import cast and crew for a movie"""
@@ -134,6 +141,15 @@ class DataImporter:
         if not credits:
             return
 
+        try:
+            self._add_credits(movie, credits)
+            self.session.commit()
+        except SQLAlchemyError as e:
+            # A flush inside _add_credits can fail too, not just the commit
+            self.session.rollback()
+            print(f"  ✗ Could not save credits for {movie.title}: {e}")
+
+    def _add_credits(self, movie: Movie, credits: dict):
         # Import cast (top 10 actors)
         for cast_data in credits.get("cast", [])[:10]:
             # Get or create person
@@ -187,11 +203,6 @@ class DataImporter:
             )
             self.session.add(crew_entry)
 
-        try:
-            self.session.commit()
-        except IntegrityError:
-            self.session.rollback()
-
     def import_popular_movies(self, num_pages: int = 5):
         """Import popular movies (20 movies per page)"""
         total_movies = num_pages * 20
@@ -229,7 +240,7 @@ class DataImporter:
 
         # Final summary
         print(f"\n{'='*60}")
-        print(f"✅ Import complete!")
+        print("✅ Import complete!")
         print(f"{'='*60}")
         print(f"  ✓ New movies imported:  {movies_created}")
         print(f"  - Movies skipped:       {movies_skipped}")

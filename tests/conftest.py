@@ -2,6 +2,7 @@
 Pytest configuration and fixtures for testing
 """
 
+import os
 from contextlib import contextmanager
 from datetime import datetime
 
@@ -11,52 +12,118 @@ from sqlalchemy import event
 from config.config import Config
 from src.app import app as flask_app
 from src.app import cache, limiter
-from src.models import (
-    Base,
-    Cast,
-    Collection,
-    Crew,
-    Genre,
-    Movie,
-    Person,
-    ProductionCompany,
-    Session,
-    User,
-    engine,
-)
+from src.models import Base, Cast, Crew, Genre, Movie, Person, ProductionCompany, User
 
 
-@pytest.fixture(scope="function")
-def app():
-    """Create application for testing"""
-    flask_app.config.update(
-        {
-            "TESTING": True,
-            "WTF_CSRF_ENABLED": False,  # Disable CSRF for testing
-            "SECRET_KEY": "test-secret-key",
-            "CACHE_TYPE": "NullCache",  # Disable caching during tests
-            "RATELIMIT_ENABLED": False,  # Disable rate limiting during tests
-        }
-    )
+class _OfflineTMDBResponse:
+    """Stand-in for a TMDB reply: an empty 200, so pages render their no-data path."""
+
+    status_code = 200
+    headers = {}
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return {}
+
+
+@pytest.fixture(autouse=True)
+def no_real_network(monkeypatch):
+    """Keep the suite offline and independent of a local config/.env.
+
+    `requests.get` (what TMDBClient calls) returns an empty TMDB reply unless a
+    test patches it with its own mock. Any other real HTTP request fails loudly.
+    """
+    import requests
+
+    monkeypatch.setattr(Config, "TMDB_API_KEY", "test-api-key")
+    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: _OfflineTMDBResponse())
+
+    def _blocked(*args, **kwargs):
+        raise AssertionError("A test tried to make a real HTTP request")
+
+    monkeypatch.setattr(requests.Session, "request", _blocked)
+
+
+_TEST_CONFIG = {
+    "TESTING": True,
+    "WTF_CSRF_ENABLED": False,  # Disable CSRF for testing
+    "SECRET_KEY": "test-secret-key",
+    "CACHE_TYPE": "NullCache",  # Disable caching during tests
+    "RATELIMIT_ENABLED": False,  # Disable rate limiting during tests
+}
+
+
+@pytest.fixture(scope="session")
+def _configured_app():
+    """Configure the app, cache and limiter once for the whole run.
+
+    Calling limiter.init_app per test would stack another set of request hooks
+    every time, and cache.init_app per test repeats a NullCache warning.
+    """
+    flask_app.config.update(_TEST_CONFIG)
     cache.init_app(flask_app, config={"CACHE_TYPE": "NullCache"})
     limiter.init_app(flask_app)
-
-    yield flask_app
+    limiter.enabled = False
+    return flask_app
 
 
 @pytest.fixture(scope="function")
-def db_session(app):
-    # IMPORTANT: Use an isolated in-memory test database.
+def app(_configured_app):
+    """The configured app, with any per-test config changes rolled back afterwards."""
+    saved_config = dict(_configured_app.config)
+    yield _configured_app
+    _configured_app.config.clear()
+    _configured_app.config.update(saved_config)
+    limiter.enabled = False
+
+
+@pytest.fixture(scope="session")
+def _shared_test_engine():
+    """A Postgres engine when TEST_DATABASE_URL is set (CI's Postgres job), else None.
+
+    The schema is created once per run; each test still rolls back its own
+    transaction. The database name must contain "test" so a production URL
+    can never be wiped by mistake.
+    """
+    url = os.getenv("TEST_DATABASE_URL")
+    if not url:
+        yield None
+        return
+
+    from sqlalchemy import create_engine as _create_engine
+    from sqlalchemy.engine import make_url
+
+    if "test" not in (make_url(url).database or ""):
+        raise RuntimeError("TEST_DATABASE_URL must point at a database whose name contains 'test'")
+
+    engine = _create_engine(url)
+    Base.metadata.drop_all(engine)
+    Base.metadata.create_all(engine)
+    yield engine
+    Base.metadata.drop_all(engine)
+    engine.dispose()
+
+
+@pytest.fixture(scope="function")
+def db_session(app, _shared_test_engine):
+    # IMPORTANT: Use an isolated test database (in-memory SQLite by default).
     # Never run drop_all/create_all against the production engine.
     from sqlalchemy import create_engine as _create_engine
     from sqlalchemy.orm import sessionmaker as _sessionmaker
 
-    test_engine = _create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(test_engine)
+    if _shared_test_engine is not None:
+        test_engine = _shared_test_engine
+    else:
+        test_engine = _create_engine("sqlite:///:memory:")
+        Base.metadata.create_all(test_engine)
 
     connection = test_engine.connect()
     transaction = connection.begin()
-    TestSession = _sessionmaker(bind=connection)
+    # Session commits and rollbacks become savepoints inside the outer test
+    # transaction, so app code that rolls back cannot end the fixture early
+    TestSession = _sessionmaker(bind=connection, join_transaction_mode="create_savepoint")
     session = TestSession()
 
     import src.app
@@ -70,7 +137,8 @@ def db_session(app):
     session.close()
     transaction.rollback()
     connection.close()
-    Base.metadata.drop_all(test_engine)
+    if _shared_test_engine is None:
+        Base.metadata.drop_all(test_engine)
 
 
 @pytest.fixture(scope="function")

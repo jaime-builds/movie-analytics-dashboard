@@ -1,18 +1,29 @@
 {% extends "base.html" %}
 {% from "macros.html" import breadcrumbs %}
 
-{% block title %}Search Results - Movie Analytics Dashboard{% endblock %}
+{% block title %}{% if query %}"{{ query }}" - Search{% else %}Search{% endif %} - Movie Analytics Dashboard{% endblock %}
 
 {% block content %}
 {{ breadcrumbs([("Home", url_for('index')), ("Search", none)]) }}
 
+{% if query %}
 <h1 class="mb-3">Search Results for "{{ query }}"</h1>
+{% else %}
+<h1 class="mb-3">Search</h1>
+<p class="text-muted">Type a movie title or a few words from its plot in the search box above.</p>
+{% endif %}
 
 {% if movies %}
     <!-- Show result count -->
     <p class="text-muted mb-4">
         <i class="bi bi-search me-1"></i>
-        Found <strong>{{ movies|length }}</strong> result{{ 's' if movies|length != 1 else '' }}
+        {% if total > movies|length %}
+        Showing the top <strong>{{ movies|length }}</strong> of <strong>{{ total }}</strong> matches
+        (title matches first). Try more specific words, or
+        <a href="{{ url_for('advanced_search', q=query) }}">Advanced Search</a> to page through all of them.
+        {% else %}
+        Found <strong>{{ total }}</strong> result{{ 's' if total != 1 else '' }}
+        {% endif %}
     </p>
 
     <!-- Movies Grid -->
@@ -50,7 +61,7 @@
         {% endfor %}
     </div>
 
-{% else %}
+{% elif query %}
     <!-- Feature 3: No Results Found Message -->
     <div class="alert alert-info border-info mt-4" role="alert">
         <div class="row align-items-center">
@@ -80,7 +91,10 @@
                         <ul class="mb-3">
                             <li>Double-check your spelling</li>
                             <li>Try using different or more general keywords</li>
-                            <li>Search for actor names or director names</li>
+                            <li>Search matches movie titles and plot summaries; for people, use
+                                <a href="{{ url_for('top_actors') }}">Top Actors</a>,
+                                <a href="{{ url_for('directors') }}">Directors</a> or
+                                <a href="{{ url_for('common_films') }}">Common Films</a></li>
                             <li>Use filters instead to narrow down by genre or year</li>
                         </ul>
                     </div>
@@ -109,8 +123,6 @@
         </h4>
         <p class="text-muted">Since we couldn't find what you were looking for, here are some popular movies:</p>
 
-        <!-- Note: You would need to add a query in app.py to fetch popular movies -->
-        <!-- This is just a placeholder to show the structure -->
         <div class="text-center py-4">
             <a href="{{ url_for('movies', sort='popularity') }}" class="btn btn-lg btn-outline-primary">
                 <i class="bi bi-fire me-2"></i>View Popular Movies

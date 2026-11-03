@@ -1,0 +1,10 @@
+# Development and CI tools, never installed in the Docker image. Regenerate
+# requirements-dev.txt with:  pip-compile --strip-extras requirements-dev.in
+-c requirements.txt
+pytest==9.2.0
+pytest-cov==7.1.0
+pre-commit==4.7.0
+black==23.12.1
+isort==5.13.2
+flake8==7.5.0
+bandit==1.9.4

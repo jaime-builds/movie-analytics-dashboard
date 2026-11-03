@@ -22,33 +22,25 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-
-    - name: Cache pip packages
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
+        cache: pip
+        cache-dependency-path: |
+          requirements.txt
+          requirements-dev.txt
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pytest pytest-cov pytest-flask
+        pip install -r requirements.txt -r requirements-dev.txt
 
-    - name: Initialize database
-      run: |
-        alembic upgrade head
-
+    # The suite is offline: tests/conftest.py stubs TMDB, so no API key is needed
     - name: Run pytest tests
       env:
-        TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         FLASK_ENV: testing
       run: |
-        pytest -v --cov=src --cov-report=xml --cov-report=term-missing
+        pytest -v --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=85
 
     - name: Upload coverage to Codecov
+      if: matrix.python-version == '3.13'
       uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
@@ -56,6 +48,60 @@ jobs:
         name: codecov-umbrella
         fail_ci_if_error: false
         token: ${{ secrets.CODECOV_TOKEN }}
+
+  # Production runs Postgres 16. This job applies every migration to a fresh
+  # Postgres database and runs the whole suite against Postgres, which catches
+  # what SQLite never enforces: VARCHAR lengths, NULL sort order, numeric types.
+  postgres:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: dashboard
+          POSTGRES_PASSWORD: dashboard
+          POSTGRES_DB: dashboard_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dashboard"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      FLASK_ENV: testing
+      MIGRATION_TEST_DATABASE_URL: postgresql+psycopg2://dashboard:dashboard@localhost:5432/dashboard_migration_test
+      TEST_DATABASE_URL: postgresql+psycopg2://dashboard:dashboard@localhost:5432/dashboard_test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+        cache: pip
+        cache-dependency-path: |
+          requirements.txt
+          requirements-dev.txt
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt -r requirements-dev.txt
+
+    - name: Create the migration test database
+      env:
+        PGPASSWORD: dashboard
+      run: |
+        psql -h localhost -U dashboard -d dashboard_test -c "CREATE DATABASE dashboard_migration_test"
+
+    - name: Run pytest against Postgres
+      run: |
+        pytest -v -p no:cacheprovider -o addopts=""
 
   lint:
     runs-on: ubuntu-latest
@@ -68,25 +114,27 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.13'
+        cache: pip
+        cache-dependency-path: requirements-dev.txt
 
+    # Same pinned versions as requirements-dev.txt and .pre-commit-config.yaml
     - name: Install linting tools
       run: |
-        pip install flake8 black==23.12.1 isort==5.13.2
+        pip install -r requirements-dev.txt
 
     - name: Lint with flake8
       run: |
-        # Stop the build if there are Python syntax errors or undefined names
-        flake8 src scripts migrations --count --select=E9,F63,F7,F82 --show-source --statistics
-        # Exit-zero treats all errors as warnings
-        flake8 src scripts migrations --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        flake8 src scripts migrations config tests --count --show-source --statistics
+        # Complexity is reported, not enforced
+        flake8 src scripts migrations config tests --count --exit-zero --select=C901 --max-complexity=10 --statistics
 
     - name: Check code formatting with black
       run: |
-        black --check src scripts migrations --line-length 100
+        black --check src scripts migrations config tests --line-length 100
 
     - name: Check import sorting with isort
       run: |
-        isort --check-only --profile black src scripts migrations
+        isort --check-only --profile black src scripts migrations config tests
 
   security:
     runs-on: ubuntu-latest
@@ -99,17 +147,26 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.13'
+        cache: pip
+        cache-dependency-path: requirements-dev.txt
 
     - name: Install bandit
       run: |
-        pip install bandit
+        pip install -r requirements-dev.txt
 
+    # Medium and high severity findings fail the build. Mark a reviewed line
+    # with `# nosec BXXX` plus a reason rather than loosening this step.
     - name: Run security checks with bandit
       run: |
-        bandit -r src scripts migrations -f json -o bandit-report.json
-      continue-on-error: true
+        bandit -r src scripts migrations config -ll
+
+    - name: Write a full bandit report
+      if: always()
+      run: |
+        bandit -r src scripts migrations config -f json -o bandit-report.json || true
 
     - name: Upload bandit results
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: bandit-report

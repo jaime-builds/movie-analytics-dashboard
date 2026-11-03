@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% from "macros.html" import breadcrumbs, pagination %}
+
+{% block title %}Activity Feed - Movie Analytics Dashboard{% endblock %}
+{% block description %}Recent movie ratings and reviews from people using Movie Analytics Dashboard.{% endblock %}
+
+{% block content %}
+{{ breadcrumbs([("Home", url_for('index')), ("Activity Feed", none)]) }}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-3">
+            <div>
+                <h1 class="mb-1"><i class="bi bi-activity me-2" aria-hidden="true"></i>Activity Feed</h1>
+                <p class="text-muted mb-0">Recent ratings and reviews from the community</p>
+            </div>
+            {% if current_user %}
+            <a href="{{ url_for('profile') }}#activity-visibility" class="small">Feed privacy settings</a>
+            {% endif %}
+        </div>
+
+        {% if items %}
+        <ol class="list-unstyled activity-list">
+            {% for item in items %}
+            <li class="card shadow-sm mb-3">
+                <div class="card-body d-flex gap-3">
+                    <span class="avatar-initials flex-shrink-0 activity-avatar" aria-hidden="true">{{ item.username[:2]|upper }}</span>
+                    <div class="flex-grow-1 min-w-0">
+                        <p class="mb-1">
+                            <strong>{{ item.username }}</strong>
+                            {% if item.kind == 'rating' %}
+                            rated
+                            <a href="{{ url_for('movie_detail', movie_id=item.movie.id) }}">{{ item.movie.title }}</a>
+                            <span class="text-warning ms-1" aria-label="{{ item.stars }} out of 5 stars">
+                                {% for i in range(1, 6) %}<i class="bi bi-star{{ '-fill' if i <= item.stars }}" aria-hidden="true"></i>{% endfor %}
+                            </span>
+                            {% else %}
+                            reviewed
+                            <a href="{{ url_for('movie_detail', movie_id=item.movie.id) }}">{{ item.movie.title }}</a>
+                            {% endif %}
+                        </p>
+                        {% if item.kind == 'review' %}
+                        <blockquote class="mb-1 small text-body-secondary activity-review">
+                            {{ item.text|truncate(preview_chars, killwords=False, end='…') }}
+                        </blockquote>
+                        {% endif %}
+                        <small class="text-muted">
+                            {% if item.at %}<time datetime="{{ item.at.isoformat() }}">{{ item.at|format_date }}</time>{% endif %}
+                        </small>
+                    </div>
+                </div>
+            </li>
+            {% endfor %}
+        </ol>
+
+        {{ pagination(page, total_pages, label="Activity pagination") }}
+        {% else %}
+        <div class="alert alert-info" role="status">
+            No public activity yet. Rate or review a movie and it will show up here.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.activity-avatar { width: 2.5rem; height: 2.5rem; font-size: 0.9rem; }
+.activity-review { border-left: 3px solid var(--bs-border-color); padding-left: 0.75rem; overflow-wrap: anywhere; }
+.min-w-0 { min-width: 0; }
+</style>
+{% endblock %}

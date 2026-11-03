@@ -2,9 +2,8 @@
 Tests for TMDB API client
 """
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
-import pytest
 import requests
 
 from src.tmdb_api import TMDBClient
@@ -81,6 +80,7 @@ class TestGetPopularMovies:
         client = TMDBClient()
         result = client.get_popular_movies(page=2)
 
+        assert result == {"page": 2, "results": []}
         # Verify the API was called with correct page parameter
         mock_get.assert_called_once()
         call_args = mock_get.call_args
@@ -95,8 +95,8 @@ class TestGetPopularMovies:
         client = TMDBClient()
         result = client.get_popular_movies(page=1)
 
-        # Should handle error gracefully
-        assert result is not None or result == {} or result == []
+        # Unexpected errors are logged and reported as no data
+        assert result == {}
 
 
 class TestGetMovieDetails:
@@ -132,17 +132,17 @@ class TestGetMovieDetails:
         """Test handling of non-existent movie"""
         mock_response = Mock()
         mock_response.status_code = 404
-        mock_response.json.return_value = {
-            "success": False,
-            "status_message": "The resource you requested could not be found.",
-        }
+        mock_response.raise_for_status.side_effect = requests.HTTPError(
+            "404 Client Error", response=mock_response
+        )
         mock_get.return_value = mock_response
 
         client = TMDBClient()
         result = client.get_movie_details(movie_id=999999)
 
-        # Should handle 404 gracefully
-        assert result is not None
+        # A 404 goes through the error path and comes back as no data
+        assert result == {}
+        mock_response.json.assert_not_called()
 
 
 class TestGetMovieCredits:
@@ -302,16 +302,32 @@ class TestRateLimiting:
         """Test handling of rate limit errors"""
         mock_response = Mock()
         mock_response.status_code = 429  # Too Many Requests
-        mock_response.json.return_value = {
-            "status_message": "Your request count is over the allowed limit."
-        }
+        mock_response.headers = {}
+        mock_response.raise_for_status.side_effect = requests.HTTPError(
+            "429 Client Error", response=mock_response
+        )
         mock_get.return_value = mock_response
 
         client = TMDBClient()
         result = client.get_popular_movies(page=1)
 
-        # Should handle rate limiting gracefully
-        assert result is not None
+        # Without retries a 429 is reported as no data
+        assert result == {}
+        assert mock_get.call_count == 1
+
+    @patch("src.tmdb_api.time.sleep")
+    @patch("src.tmdb_api.requests.get")
+    def test_rate_limit_is_retried_when_asked(self, mock_get, mock_sleep):
+        """With max_retries, a 429 waits for Retry-After and tries again"""
+        limited = Mock(status_code=429, headers={"Retry-After": "2"})
+        ok = Mock(status_code=200)
+        ok.json.return_value = {"page": 1, "results": []}
+        mock_get.side_effect = [limited, ok]
+
+        result = TMDBClient(max_retries=2).get_popular_movies(page=1)
+
+        assert result == {"page": 1, "results": []}
+        mock_sleep.assert_called_once_with(2.0)
 
     @patch("src.tmdb_api.requests.get")
     def test_network_timeout(self, mock_get):

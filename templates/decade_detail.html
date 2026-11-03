@@ -1,7 +1,9 @@
 {% extends "base.html" %}
-{% from "macros.html" import breadcrumbs %}
+{% from "macros.html" import breadcrumbs, chart_library %}
 
 {% block title %}{{ label }} - Movie Analytics Dashboard{% endblock %}
+
+{% block chart_library %}{{ chart_library() }}{% endblock %}
 
 {% block content %}
 {{ breadcrumbs([("Home", url_for('index')), ("Decades", url_for('decades')), (label, none)]) }}
@@ -94,8 +96,7 @@
                             <img src="https://image.tmdb.org/t/p/w342{{ movie.poster_path }}"
                                  class="card-img-top" alt="{{ movie.title }}" loading="lazy">
                             {% else %}
-                            <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center"
-                                 style="height:200px;">
+                            <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center poster-placeholder">
                                 <i class="bi bi-film text-white" style="font-size:3rem;"></i>
                             </div>
                             {% endif %}
@@ -139,8 +140,7 @@
                             <img src="https://image.tmdb.org/t/p/w342{{ movie.poster_path }}"
                                  class="card-img-top" alt="{{ movie.title }}" loading="lazy">
                             {% else %}
-                            <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center"
-                                 style="height:200px;">
+                            <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center poster-placeholder">
                                 <i class="bi bi-film text-white" style="font-size:3rem;"></i>
                             </div>
                             {% endif %}
@@ -183,8 +183,7 @@
                             <img src="https://image.tmdb.org/t/p/w342{{ movie.poster_path }}"
                                  class="card-img-top" alt="{{ movie.title }}" loading="lazy">
                             {% else %}
-                            <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center"
-                                 style="height:200px;">
+                            <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center poster-placeholder">
                                 <i class="bi bi-film text-white" style="font-size:3rem;"></i>
                             </div>
                             {% endif %}
@@ -220,7 +219,7 @@
                     </h5>
                     <div class="d-flex flex-wrap gap-2">
                         {% for genre in genre_stats %}
-                        <a href="/movies?decade={{ decade_start }}&genre_name={{ genre.name }}"
+                        <a href="{{ url_for('movies', decade=decade_start, genre=genre.id) }}"
                            class="text-decoration-none">
                             <span class="badge bg-primary"
                                   style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">
@@ -268,13 +267,6 @@
 .movie-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
-}
-.card-img-top {
-    height: 200px;
-    object-fit: cover;
-}
-@media (max-width: 768px) {
-    .card-img-top { height: 160px; }
 }
 </style>
 

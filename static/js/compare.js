@@ -15,7 +15,12 @@
   }
 
   function saveList(list) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    } catch (e) {
+      // Storage full or blocked (some private-browsing modes): compare just
+      // won't persist across pages
+    }
   }
 
   function addMovie(id, title, poster) {
@@ -33,13 +38,19 @@
   }
 
   function clearList() {
-    localStorage.removeItem(STORAGE_KEY);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (e) {
+      // see saveList
+    }
   }
 
   // --- Compare bar DOM ---
   var bar = document.createElement("div");
   bar.id = "compare-bar";
   bar.className = "compare-bar";
+  bar.setAttribute("role", "region");
+  bar.setAttribute("aria-label", "Movies selected for comparison");
   bar.innerHTML =
     '<div class="compare-bar-inner">' +
     '<span class="compare-bar-label"><i class="bi bi-bar-chart-line me-1"></i>Compare:</span>' +
@@ -47,7 +58,7 @@
     '<div class="compare-bar-actions">' +
     '<a id="compare-now-btn" href="#" class="btn btn-primary btn-sm">' +
     '<i class="bi bi-bar-chart-line me-1"></i>Compare Now</a>' +
-    '<button id="compare-clear-btn" class="btn btn-outline-light btn-sm">' +
+    '<button id="compare-clear-btn" type="button" class="btn btn-outline-light btn-sm">' +
     '<i class="bi bi-x-circle me-1"></i>Clear</button>' +
     "</div>" +
     "</div>";
@@ -65,18 +76,32 @@
       var chip = document.createElement("div");
       chip.className = "compare-bar-movie";
 
-      var posterHtml;
+      // Built with DOM calls so stored titles and poster paths stay plain text
       if (movie.poster) {
-        posterHtml = '<img src="' + TMDB_IMG + movie.poster + '" alt="">';
+        var img = document.createElement("img");
+        img.src = TMDB_IMG + movie.poster;
+        img.alt = "";
+        chip.appendChild(img);
       } else {
-        posterHtml = '<i class="bi bi-film" style="font-size:1rem;color:#aaa;width:20px;text-align:center;"></i>';
+        var icon = document.createElement("i");
+        icon.className = "bi bi-film";
+        icon.setAttribute("aria-hidden", "true");
+        icon.style.cssText = "font-size:1rem;color:#aaa;width:20px;text-align:center;";
+        chip.appendChild(icon);
       }
 
-      chip.innerHTML =
-        posterHtml +
-        "<span>" + escapeHtml(movie.title) + "</span>" +
-        '<span class="compare-bar-movie-remove" data-id="' + movie.id + '" title="Remove">' +
-        '<i class="bi bi-x"></i></span>';
+      var titleSpan = document.createElement("span");
+      titleSpan.textContent = movie.title;
+      chip.appendChild(titleSpan);
+
+      var remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "compare-bar-movie-remove";
+      remove.dataset.id = movie.id;
+      remove.title = "Remove";
+      remove.setAttribute("aria-label", "Remove " + movie.title + " from compare");
+      remove.innerHTML = '<i class="bi bi-x" aria-hidden="true"></i>';
+      chip.appendChild(remove);
       moviesContainer.appendChild(chip);
     });
 
@@ -84,11 +109,16 @@
     var ids = list.map(function (m) { return "id=" + m.id; }).join("&");
     compareNowBtn.href = "/compare?" + ids;
 
-    // Show/hide bar
+    // Show/hide bar. Hidden also means out of the tab order (inert), and
+    // the page gets bottom padding while it covers the footer.
     if (list.length >= 2) {
       bar.classList.add("visible");
+      bar.inert = false;
+      document.body.classList.add("compare-bar-open");
     } else {
       bar.classList.remove("visible");
+      bar.inert = true;
+      document.body.classList.remove("compare-bar-open");
     }
 
     // Sync toggle button states on page
@@ -100,23 +130,25 @@
     var ids = list.map(function (m) { return m.id; });
     document.querySelectorAll(".compare-toggle").forEach(function (btn) {
       var movieId = parseInt(btn.dataset.movieId, 10);
-      if (ids.indexOf(movieId) !== -1) {
-        btn.classList.add("selected");
-        btn.querySelector("i").className = "bi bi-check-lg";
-        btn.title = "Remove from compare";
+      var selected = ids.indexOf(movieId) !== -1;
+      var label = btn.querySelector(".compare-toggle-label");
+      var icon = btn.querySelector("i");
+      btn.classList.toggle("selected", selected);
+      btn.setAttribute("aria-pressed", selected ? "true" : "false");
+      btn.title = selected ? "Remove from compare" : "Add to compare";
+      if (icon) {
+        icon.className = selected ? "bi bi-check-lg" : (label ? "bi bi-bar-chart-line" : "bi bi-plus-lg");
+      }
+      if (label) {
+        label.textContent = selected ? "Remove from Compare" : "Add to Compare";
       } else {
-        btn.classList.remove("selected");
-        btn.querySelector("i").className = "bi bi-plus-lg";
-        btn.title = "Add to compare";
+        btn.setAttribute("aria-label", (selected ? "Remove " : "Add ") +
+          (btn.dataset.movieTitle || "movie") + (selected ? " from compare" : " to compare"));
       }
     });
   }
-
-  function escapeHtml(str) {
-    var d = document.createElement("div");
-    d.appendChild(document.createTextNode(str || ""));
-    return d.innerHTML;
-  }
+  // Cards added later (infinite scroll) call this to show their state
+  window.syncCompareToggles = syncToggleButtons;
 
   // --- Event delegation for compare toggles (handles both static and dynamic cards) ---
   document.addEventListener("click", function (e) {
@@ -153,9 +185,9 @@
         removeMovie(movieId);
       } else {
         if (list.length >= MAX_ITEMS) {
-          // Visual feedback: shake
-          bar.style.animation = "none";
-          bar.offsetHeight; // reflow
+          if (window.showToast) {
+            window.showToast("You can compare up to " + MAX_ITEMS + " movies. Remove one first.", "warning");
+          }
           return;
         }
         addMovie(movieId, movieTitle, poster);

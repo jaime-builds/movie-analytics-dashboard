@@ -5,7 +5,7 @@ Tests for User Authentication and Favorites/Watchlist features
 import re
 
 import pytest
-from werkzeug.security import check_password_hash
+from sqlalchemy.exc import IntegrityError
 
 from src.models import Movie, User
 
@@ -82,9 +82,12 @@ class TestUserModel:
         db_session.add(user1)
         db_session.commit()
 
-        # Check that user exists
-        existing = db_session.query(User).filter_by(username="unique_user").first()
-        assert existing is not None
+        duplicate = User(username="unique_user")
+        duplicate.set_password("password2")
+        db_session.add(duplicate)
+        with pytest.raises(IntegrityError):
+            db_session.commit()
+        db_session.rollback()
 
 
 class TestAuthenticationRoutes:
@@ -231,11 +234,10 @@ class TestAuthenticationRoutes:
         response = client.post(
             "/login?next=/analytics",
             data={"username": sample_user.username, "password": "testpassword"},
-            follow_redirects=True,
         )
 
-        assert response.status_code == 200
-        # Should redirect to analytics page
+        assert response.status_code == 302
+        assert response.headers["Location"] == "/analytics"
 
     def test_login_preserves_safe_next_from_get_form_flow(self, client, sample_user):
         """Test GET /login?next=... carries a safe next value through POST."""
@@ -760,8 +762,8 @@ class TestSecurityFeatures:
         # Should start with hashing algorithm identifier
         assert user.password_hash.startswith("scrypt:") or user.password_hash.startswith("pbkdf2:")
 
-    def test_username_is_case_sensitive(self, client, db_session):
-        """Test that usernames are case-sensitive"""
+    def test_username_uniqueness_ignores_case(self, client, db_session):
+        """A name differing only in case is treated as taken"""
         # Create user with lowercase username
         user = User(username="testuser")
         user.set_password("password")
@@ -769,7 +771,7 @@ class TestSecurityFeatures:
         db_session.commit()
 
         # Try to register with same username but different case
-        response = client.post(
+        client.post(
             "/register",
             data={
                 "username": "TestUser",
@@ -779,5 +781,5 @@ class TestSecurityFeatures:
             follow_redirects=True,
         )
 
-        # Should allow registration (case-sensitive)
-        # Or should reject if implementing case-insensitive (document behavior)
+        assert db_session.query(User).count() == 1
+        assert db_session.query(User).filter_by(username="TestUser").first() is None

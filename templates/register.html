@@ -9,13 +9,13 @@
     <div class="col-md-6 col-lg-5">
         <div class="card shadow-sm">
             <div class="card-body p-5">
-                <h2 class="text-center mb-4">
-                    <i class="bi bi-person-plus me-2"></i>Create Account
-                </h2>
+                <h1 class="h2 text-center mb-4">
+                    <i class="bi bi-person-plus me-2" aria-hidden="true"></i>Create Account
+                </h1>
 
                 {% if registration_enabled is defined and not registration_enabled %}
                 <div class="alert alert-warning d-flex align-items-center mb-0" role="alert">
-                    <i class="bi bi-lock-fill me-2 fs-5"></i>
+                    <i class="bi bi-lock-fill me-2 fs-5" aria-hidden="true"></i>
                     <div>
                         New account registration is currently closed. Please check back later.
                     </div>
@@ -28,7 +28,7 @@
                     <a href="{{ url_for('login') }}">Login here</a>
                 </p>
                 {% else %}
-                <form method="POST" action="{{ url_for('register') }}">
+                <form method="POST" action="{{ url_for('register') }}" id="registerForm">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label for="username" class="form-label">Username</label>
@@ -37,11 +37,17 @@
                             class="form-control"
                             id="username"
                             name="username"
+                            value="{{ username or '' }}"
+                            autocomplete="username"
+                            aria-describedby="usernameHelp"
                             required
                             autofocus
                             minlength="3"
-                            maxlength="50">
-                        <div class="form-text">Choose a unique username (3-50 characters)</div>
+                            maxlength="30"
+                            pattern="[A-Za-z0-9_.\-]{3,30}">
+                        <div class="form-text" id="usernameHelp">
+                            3 to 30 characters: letters, numbers, underscores, hyphens and periods
+                        </div>
                     </div>
 
                     <div class="mb-3">
@@ -51,9 +57,11 @@
                             class="form-control"
                             id="password"
                             name="password"
+                            autocomplete="new-password"
+                            aria-describedby="passwordHelp"
                             required
                             minlength="6">
-                        <div class="form-text">Minimum 6 characters</div>
+                        <div class="form-text" id="passwordHelp">Minimum 6 characters</div>
                     </div>
 
                     <div class="mb-3">
@@ -63,13 +71,16 @@
                             class="form-control"
                             id="password_confirm"
                             name="password_confirm"
+                            autocomplete="new-password"
+                            aria-describedby="passwordConfirmError"
                             required
                             minlength="6">
+                        <div class="invalid-feedback" id="passwordConfirmError">Passwords do not match</div>
                     </div>
 
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-success btn-lg">
-                            <i class="bi bi-person-plus me-2"></i>Create Account
+                            <i class="bi bi-person-plus me-2" aria-hidden="true"></i>Create Account
                         </button>
                     </div>
                 </form>
@@ -87,22 +98,26 @@
 </div>
 
 <script>
-// Simple client-side password confirmation validation
+// Client-side password confirmation check, shown inline instead of an alert
 (function() {
-    const form = document.querySelector('form[action="{{ url_for('register') }}"]');
+    const form = document.getElementById('registerForm');
     if (!form) {
         return;
     }
+    const confirmInput = document.getElementById('password_confirm');
 
     form.addEventListener('submit', function(e) {
         const password = document.getElementById('password').value;
-        const confirm = document.getElementById('password_confirm').value;
-
-        if (password !== confirm) {
+        if (password !== confirmInput.value) {
             e.preventDefault();
-            alert('Passwords do not match!');
-            return false;
+            confirmInput.classList.add('is-invalid');
+            confirmInput.setAttribute('aria-invalid', 'true');
+            confirmInput.focus();
         }
+    });
+    confirmInput.addEventListener('input', function() {
+        confirmInput.classList.remove('is-invalid');
+        confirmInput.removeAttribute('aria-invalid');
     });
 })();
 </script>

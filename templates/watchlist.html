@@ -1,59 +1,34 @@
 {% extends "base.html" %}
-{% from "macros.html" import breadcrumbs, poster_img %}
+{% from "macros.html" import breadcrumbs %}
 
 {% block title %}My Watchlist - Movie Analytics Dashboard{% endblock %}
 
 {% block content %}
 {{ breadcrumbs([("Home", url_for('index')), ("Watchlist", none)]) }}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>
-        <i class="bi bi-bookmark-fill text-primary me-2"></i>My Watchlist
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+    <h1 class="mb-0">
+        <i class="bi bi-bookmark-fill text-primary me-2" aria-hidden="true"></i>My Watchlist
     </h1>
+    {% if watchlist %}
+    <a href="{{ url_for('blind_pick') }}" class="btn btn-outline-primary"
+       title="Open a random movie from your watchlist">
+        <i class="bi bi-shuffle me-1" aria-hidden="true"></i>Blind Pick
+    </a>
+    {% endif %}
 </div>
 
 {% if watchlist %}
-    <p class="text-muted mb-4">You have {{ watchlist|length }} movie{{ 's' if watchlist|length != 1 }} in your watchlist</p>
-
-    <div class="row">
-        {% for movie in watchlist %}
-        <div class="col-md-3 col-sm-6 mb-4">
-            <div class="card h-100 shadow-sm hover-card">
-                <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
-                    {{ poster_img(movie, config, css_class='card-img-top', placeholder_height='400px') }}
-
-                    <div class="card-body">
-                        <h5 class="card-title text-dark">{{ movie.title }}</h5>
-                        <p class="card-text">
-                            <small class="text-muted">
-                                {% if movie.release_date %}
-                                {{ movie.release_date.year }}
-                                {% endif %}
-                                {% if movie.genres %}
-                                • {{ movie.genres[0].name }}
-                                {% endif %}
-                            </small>
-                        </p>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span class="badge bg-warning text-dark">
-                                <i class="bi bi-star-fill"></i> {{ movie.vote_average }}
-                            </span>
-                            <button
-                                class="btn btn-sm btn-outline-primary"
-                                onclick="event.preventDefault(); removeFromWatchlist({{ movie.id }}, this);">
-                                <i class="bi bi-bookmark-fill"></i> Remove
-                            </button>
-                        </div>
-                    </div>
-                </a>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
+    {% with movies=watchlist,
+            singular="movie in your watchlist", plural="movies in your watchlist",
+            remove_url_template="/movie/__ID__/unwatchlist",
+            button_class="btn-outline-primary", icon="bi-bookmark-fill" %}
+        {% include "_saved_movies.html" %}
+    {% endwith %}
 {% else %}
     <div class="alert alert-info" role="alert">
-        <h4 class="alert-heading">
-            <i class="bi bi-info-circle me-2"></i>Your watchlist is empty
-        </h4>
+        <h2 class="alert-heading h4">
+            <i class="bi bi-info-circle me-2" aria-hidden="true"></i>Your watchlist is empty
+        </h2>
         <p>You haven't added any movies to your watchlist yet.</p>
         <hr>
         <p class="mb-0">
@@ -72,23 +47,4 @@
     box-shadow: 0 8px 16px rgba(0,0,0,0.2) !important;
 }
 </style>
-
-<script>
-async function removeFromWatchlist(movieId, button) {
-    const url = `/movie/${movieId}/unwatchlist`;
-    const res = await csrfFetch(url, { method: 'POST' });
-
-    if (res.ok) {
-        // Remove the movie card from the page
-        const card = button.closest('.col-md-3');
-        card.remove();
-
-        // Check if there are any items left
-        const remaining = document.querySelectorAll('.col-md-3').length;
-        if (remaining === 0) {
-            location.reload(); // Reload to show "empty watchlist" message
-        }
-    }
-}
-</script>
 {% endblock %}

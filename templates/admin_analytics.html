@@ -1,6 +1,9 @@
 {% extends "admin_layout.html" %}
+{% from "macros.html" import chart_library %}
 {% set admin_page = 'analytics' %}
 {% set admin_title = 'Site Analytics' %}
+
+{% block chart_library %}{{ chart_library() }}{% endblock %}
 
 {% block admin_content %}
 <div class="row g-3 mb-4">

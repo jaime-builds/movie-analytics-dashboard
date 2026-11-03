@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 
 from dotenv import load_dotenv
 
@@ -9,19 +10,13 @@ _DEFAULT_DB = f"sqlite:///{os.path.join(_PROJECT_ROOT, 'movies.db')}"
 # Load environment variables — explicitly point to config/.env so it works
 # regardless of which directory the server is launched from.
 # override=False means existing environment variables take precedence over .env
-# This allows DATABASE_URL and other vars to be set externally (e.g. Railway, CI)
+# This allows DATABASE_URL and other vars to be set externally (the Unraid compose, CI)
 _ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
 load_dotenv(_ENV_PATH, override=False)
 
 _DEV_SECRET_KEY = "dev-secret-key-change-in-production"
 _PRODUCTION_ENV_VALUES = {"production", "prod"}
 _LOCAL_ENV_VALUES = {"development", "dev", "local"}
-_RAILWAY_ENV_MARKERS = (
-    "RAILWAY_ENVIRONMENT",
-    "RAILWAY_ENVIRONMENT_NAME",
-    "RAILWAY_PROJECT_ID",
-    "RAILWAY_SERVICE_ID",
-)
 
 
 def _current_environment():
@@ -32,11 +27,8 @@ def _current_environment():
 
 
 def _is_production_environment():
-    """Detect production only from explicit production/Railway environment signals."""
-    environment = _current_environment()
-    return environment in _PRODUCTION_ENV_VALUES or any(
-        os.getenv(name) for name in _RAILWAY_ENV_MARKERS
-    )
+    """Detect production from an explicit FLASK_ENV/APP_ENV/ENV of production."""
+    return _current_environment() in _PRODUCTION_ENV_VALUES
 
 
 def _debug_default():
@@ -63,30 +55,28 @@ class Config:
     TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p"
 
     # Database
-    # Railway injects DATABASE_URL as postgresql:// but SQLAlchemy 2.0 requires
-    # postgresql+psycopg2://. Fix the scheme if needed.
-    _raw_db_url = os.getenv("DATABASE_URL", _DEFAULT_DB)
-    DATABASE_URL = (
-        _raw_db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
-        if _raw_db_url.startswith("postgresql://")
-        else _raw_db_url
-    )
+    # Hosted Postgres URLs often use postgresql:// or postgres://, but
+    # SQLAlchemy 2.0 needs postgresql+psycopg2://. Fix the scheme if needed.
+    _raw_db_url = os.getenv("DATABASE_URL") or _DEFAULT_DB
+    for _scheme in ("postgresql://", "postgres://"):
+        if _raw_db_url.startswith(_scheme):
+            _raw_db_url = "postgresql+psycopg2://" + _raw_db_url[len(_scheme) :]
+            break
+    DATABASE_URL = _raw_db_url
 
     # Redis -- optional, used for caching and rate limiting in production
     # Set REDIS_URL in the environment to enable. Falls back to in-memory if not set.
     REDIS_URL = os.getenv("REDIS_URL", None)
 
     # Flask
-    ENVIRONMENT = _current_environment()
     IS_PRODUCTION = _is_production_environment()
     SECRET_KEY = _secret_key()
     DEBUG = _debug_default()
     SESSION_COOKIE_SECURE = IS_PRODUCTION
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
-
-    # Pagination
-    MOVIES_PER_PAGE = 20
+    # Flask rejects a session cookie whose signature is older than this
+    PERMANENT_SESSION_LIFETIME = timedelta(days=14)
 
     @staticmethod
     def get_poster_url(poster_path, size="w500"):

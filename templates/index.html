@@ -125,7 +125,7 @@
 <!-- ===================== TOP RATED ===================== -->
 <div class="home-section-header">
     <h2 class="mb-0">Top Rated Movies</h2>
-    <a href="{{ url_for('movies') }}?sort=rating" class="home-see-all">See all <i class="bi bi-arrow-right"></i></a>
+    <a href="{{ url_for('movies', sort='rating', min_vote_count=top_rated_min_votes) }}" class="home-see-all">See all <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
 </div>
 <div class="row mb-5">
     {% for movie in top_movies %}
@@ -154,10 +154,10 @@
 
 <div class="home-section-header">
     <h2 class="mb-0">Upcoming Releases</h2>
-    <a href="{{ url_for('movies') }}?sort=release" class="home-see-all">See all <i class="bi bi-arrow-right"></i></a>
+    <a href="{{ url_for('movies', sort='upcoming') }}" class="home-see-all">See all <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
 </div>
 <div class="row mb-5">
-    {% for movie in recent_movies %}
+    {% for movie in upcoming_movies %}
     <div class="col-md-2 col-sm-4 col-6 mb-3">
         <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
             <div class="card movie-card h-100">
@@ -183,7 +183,7 @@
 
 <div class="home-section-header">
     <h2 class="mb-0">Most Popular</h2>
-    <a href="{{ url_for('movies') }}?sort=popularity" class="home-see-all">See all <i class="bi bi-arrow-right"></i></a>
+    <a href="{{ url_for('movies', sort='popularity') }}" class="home-see-all">See all <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
 </div>
 <div class="row">
     {% for movie in popular_movies %}

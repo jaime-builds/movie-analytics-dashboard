@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import breadcrumbs %}
+{% from "macros.html" import breadcrumbs, initials_avatar %}
 
 {% block title %}{{ actor.name }} - Actor Detail{% endblock %}
 
@@ -16,10 +16,7 @@
                  style="width: 100%; max-width: 300px;">
             {% else %}
             <!-- Use initials-based avatar -->
-            <img src="https://ui-avatars.com/api/?name={{ actor.name|urlencode }}&size=500&background=0D8ABC&color=fff&bold=true&font-size=0.4"
-                 class="img-fluid rounded shadow"
-                 alt="{{ actor.name }}"
-                 style="width: 100%; max-width: 300px;">
+            {{ initials_avatar(actor.name, "shadow avatar-square", "width:100%;max-width:300px;aspect-ratio:2/3;font-size:4rem;") }}
             {% endif %}
         </div>
         <div class="col-md-9">
@@ -107,8 +104,7 @@
                                  alt="{{ movie.title }}"
                                  loading="lazy">
                             {% else %}
-                            <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center"
-                                 style="height: 200px;">
+                            <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center poster-placeholder">
                                 <i class="bi bi-film text-white" style="font-size: 3rem;"></i>
                             </div>
                             {% endif %}
@@ -163,15 +159,5 @@
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
 }
 
-.card-img-top {
-    height: 250px;
-    object-fit: cover;
-}
-
-@media (max-width: 768px) {
-    .card-img-top {
-        height: 200px;
-    }
-}
 </style>
 {% endblock %}

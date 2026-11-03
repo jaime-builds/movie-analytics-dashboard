@@ -1,0 +1,6 @@
+[flake8]
+# Black formats to 100 columns; 127 leaves room for long strings and URLs
+max-line-length = 127
+# E203 and W503 conflict with black's formatting
+extend-ignore = E203, W503
+exclude = .git, __pycache__, venv, .venv, htmlcov

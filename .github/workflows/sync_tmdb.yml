@@ -1,26 +1,20 @@
 # ============================================================================
-# DISABLED — retained for reference only.
+# MANUAL ONLY — the production sync does not run here.
 #
-# The weekly TMDB sync now runs on the Unraid host as a User Script:
+# The weekly TMDB sync runs on the Unraid host as a User Script:
 #   Sync-TMDB-Dashboard — Sundays at 3:00 AM local time
+#   docker exec dashboard-app python scripts/sync_tmdb_data.py --limit 5000
 #
-# Reason: the production database is the `dashboard-db` Postgres container in
-# the `dashboard` Compose stack, reachable only on the LAN. GitHub's hosted
-# runners have no route to it, so a cloud-triggered sync cannot connect.
-#
-# The `schedule:` trigger below is commented out. `workflow_dispatch` is kept
-# so the job can still be run by hand against a publicly reachable database
-# (set DATABASE_URL accordingly) — note the RAILWAY_DATABASE_URL secret it
-# references is dead once the Railway project is torn down.
+# The production database is the `dashboard-db` Postgres container, reachable
+# only on the LAN, so GitHub's hosted runners cannot connect to it. This
+# workflow is kept for a hand-run sync against some other, publicly reachable
+# database: set the SYNC_DATABASE_URL secret first. (The old
+# RAILWAY_DATABASE_URL secret went away with the Railway project.)
 # ============================================================================
 
 name: Sync TMDB Data
 
 on:
-  # schedule:
-  #   # Every Sunday at 2:00 AM UTC — superseded by the Sync-TMDB-Dashboard
-  #   # Unraid User Script (Sundays 3am local).
-  #   - cron: '0 2 * * 0'
   workflow_dispatch:
     inputs:
       limit:
@@ -30,7 +24,7 @@ on:
       update_existing:
         description: 'Update existing movies'
         required: false
-        default: 'false'
+        default: false
         type: boolean
 
 jobs:
@@ -46,41 +40,33 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-
-      - name: Cache pip packages
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+          cache: pip
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Create logs directory
-        run: mkdir -p logs
-
       - name: Run TMDB sync
         env:
-          DATABASE_URL: ${{ secrets.RAILWAY_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.SYNC_DATABASE_URL }}
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          # Inputs pass through env, never pasted into the script text
+          SYNC_LIMIT: ${{ github.event.inputs.limit }}
+          SYNC_UPDATE: ${{ github.event.inputs.update_existing }}
         run: |
-          LIMIT=${{ github.event.inputs.limit || '5000' }}
-          UPDATE=${{ github.event.inputs.update_existing || 'false' }}
+          if [ -z "$DATABASE_URL" ]; then
+            echo "Set the SYNC_DATABASE_URL secret first." >&2
+            exit 1
+          fi
+          case "$SYNC_LIMIT" in
+            ''|*[!0-9]*) echo "limit must be a whole number" >&2; exit 1 ;;
+          esac
 
-          ARGS="--limit $LIMIT"
-          if [ "$UPDATE" = "true" ]; then
-            ARGS="$ARGS --update-existing"
+          ARGS=(--limit "$SYNC_LIMIT")
+          if [ "$SYNC_UPDATE" = "true" ]; then
+            ARGS+=(--update-existing)
           fi
 
-          echo "Running: python scripts/sync_tmdb_data.py $ARGS"
-          python scripts/sync_tmdb_data.py $ARGS
-
-      - name: Report result
-        if: always()
-        run: |
-          echo "Sync completed at $(date -u)"
-          echo "Status: ${{ job.status }}"
+          echo "Running: python scripts/sync_tmdb_data.py ${ARGS[*]}"
+          python scripts/sync_tmdb_data.py "${ARGS[@]}"

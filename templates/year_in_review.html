@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% from "macros.html" import breadcrumbs, chart_library, poster_img %}
+
+{% block title %}Year in Review {{ year }} - Movie Analytics Dashboard{% endblock %}
+
+{% block chart_library %}{{ chart_library() }}{% endblock %}
+
+{% block content %}
+{{ breadcrumbs([("Home", url_for('index')), ("Profile", url_for('profile')), ("Year in Review", none)]) }}
+<div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-4">
+    <div>
+        <h1 class="mb-1"><i class="bi bi-calendar3 me-2" aria-hidden="true"></i>{{ year }} in Review</h1>
+        <p class="text-muted mb-0">Your movie year, {{ current_user.username }}</p>
+    </div>
+    <form method="get" action="{{ url_for('year_in_review') }}" class="d-flex gap-2 align-items-center">
+        <label for="yearSelect" class="form-label mb-0 small">Year</label>
+        <select id="yearSelect" name="year" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+            {% for y in years %}
+            <option value="{{ y }}" {{ 'selected' if y == year }}>{{ y }}</option>
+            {% endfor %}
+        </select>
+        <noscript><button type="submit" class="btn btn-sm btn-primary">Show</button></noscript>
+    </form>
+</div>
+
+{% if not stats.has_activity %}
+<div class="alert alert-info" role="status">
+    No activity recorded for {{ year }} yet. Ratings, reviews, favorites and watchlist additions made during the year show up here.
+    Favorites and watchlist entries added before November 2026 have no date, so they aren't counted.
+</div>
+{% else %}
+<div class="row g-3 mb-4 text-center">
+    {% for value, label in [
+        (stats.ratings_count, 'Movies rated'),
+        (stats.reviews_count, 'Reviews written'),
+        (stats.favorites_count, 'Favorites added'),
+        (stats.watchlist_added, 'Added to watchlist'),
+    ] %}
+    <div class="col-6 col-md-3">
+        <div class="card h-100 shadow-sm"><div class="card-body">
+            <p class="display-6 mb-0">{{ value }}</p>
+            <p class="text-muted small mb-0">{{ label }}</p>
+        </div></div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm"><div class="card-body">
+            <h2 class="h6 text-muted text-uppercase">Highlights</h2>
+            <ul class="list-unstyled mb-0">
+                <li class="mb-2"><strong>Average rating given:</strong>
+                    {% if stats.avg_given is not none %}{{ stats.avg_given }} / 5{% else %}No ratings{% endif %}</li>
+                <li class="mb-2"><strong>Time in rated movies:</strong>
+                    {{ (stats.runtime_minutes // 60) }}h {{ stats.runtime_minutes % 60 }}m</li>
+                <li class="mb-2"><strong>Favorite decade:</strong>
+                    {% if stats.favorite_decade %}{{ stats.favorite_decade }}s{% else %}N/A{% endif %}</li>
+                <li><strong>Top genres:</strong>
+                    {% if stats.top_genres %}
+                    {% for name, count in stats.top_genres %}<span class="badge bg-primary me-1">{{ name }} ({{ count }})</span>{% endfor %}
+                    {% else %}N/A{% endif %}</li>
+            </ul>
+        </div></div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm"><div class="card-body">
+            <h2 class="h6 text-muted text-uppercase">Ratings by month</h2>
+            <canvas id="monthlyChart" role="img" aria-label="Ratings given each month of {{ year }}"></canvas>
+        </div></div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm"><div class="card-body">
+            <h2 class="h6 text-muted text-uppercase">Your star ratings</h2>
+            <canvas id="distributionChart" role="img" aria-label="How many movies you gave each star rating"></canvas>
+        </div></div>
+    </div>
+</div>
+
+{% if stats.top_rated %}
+<h2 class="h4 mb-3">Your favorites of {{ year }} <small class="text-muted fs-6">(rated 4 or 5 stars)</small></h2>
+<div class="row row-cols-2 row-cols-md-3 row-cols-lg-6 g-3 mb-4">
+    {% for movie in stats.top_rated %}
+    <div class="col">
+        <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none text-reset">
+            <div class="card h-100">
+                {{ poster_img(movie, config, placeholder_height='240px') }}
+                <div class="card-body p-2"><p class="small mb-0">{{ movie.title }}</p></div>
+            </div>
+        </a>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if stats.has_activity %}
+<script>
+(function () {
+    const monthly = {{ stats.monthly_ratings|tojson }};
+    const distribution = {{ stats.rating_distribution|tojson }};
+    new Chart(document.getElementById('monthlyChart'), {
+        type: 'bar',
+        data: {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+            datasets: [{ label: 'Ratings', data: monthly, backgroundColor: '#4f86f7' }]
+        },
+        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+    });
+    new Chart(document.getElementById('distributionChart'), {
+        type: 'bar',
+        data: {
+            labels: ['1★', '2★', '3★', '4★', '5★'],
+            datasets: [{ label: 'Movies', data: distribution, backgroundColor: '#ffc107' }]
+        },
+        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}

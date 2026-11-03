@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import breadcrumbs, poster_img %}
+{% from "macros.html" import breadcrumbs, poster_img, initials_avatar %}
 
 {% block title %}Common Films - Movie Analytics Dashboard{% endblock %}
 
@@ -33,23 +33,25 @@
             <img src="{{ config.get_poster_url(actor.profile_path, 'w185') }}"
                  alt="{{ actor.name }}" class="cf-chip-photo">
             {% else %}
-            <img src="https://ui-avatars.com/api/?name={{ actor.name|urlencode }}&size=40&background=4f86f7&color=fff&bold=true"
-                 alt="{{ actor.name }}" class="cf-chip-photo">
+            {{ initials_avatar(actor.name, "cf-chip-photo") }}
             {% endif %}
             <span class="cf-chip-name">{{ actor.name }}</span>
-            <button class="cf-chip-remove" onclick="removeActor({{ actor.id }})" title="Remove">
-                <i class="bi bi-x"></i>
+            <button type="button" class="cf-chip-remove" data-actor-id="{{ actor.id }}"
+                    title="Remove" aria-label="Remove {{ actor.name }}">
+                <i class="bi bi-x" aria-hidden="true"></i>
             </button>
         </div>
         {% endfor %}
         {% if actors|length < 5 %}
         <div class="cf-search-wrap" id="cf-search-wrap">
+            <label for="cf-actor-input" class="visually-hidden">Search for an actor</label>
             <input type="text"
                    id="cf-actor-input"
                    class="form-control cf-actor-input"
+                   role="combobox" aria-expanded="false" aria-controls="cf-dropdown" aria-autocomplete="list"
                    placeholder="{% if actors %}Add another actor...{% else %}Search for an actor...{% endif %}"
                    autocomplete="off">
-            <div class="cf-dropdown" id="cf-dropdown" style="display:none;"></div>
+            <div class="cf-dropdown" id="cf-dropdown" role="listbox" aria-label="Actor suggestions" style="display:none;"></div>
         </div>
         {% endif %}
     </div>
@@ -146,10 +148,20 @@
     const input      = document.getElementById("cf-actor-input");
     const dropdown   = document.getElementById("cf-dropdown");
 
-    if (!input) return;
-
     // Current selected actor IDs from URL params (for smart filtering)
     const selectedIds = {{ actor_ids | tojson }};
+
+    // Chip × buttons. Wired before the early return below: with 5 actors
+    // selected the search box isn't rendered, but removing must still work.
+    function removeActor(id) {
+        const params = selectedIds.filter(i => i !== id).map(i => `actor=${i}`).join("&");
+        window.location.href = params ? `/common-films?${params}` : `/common-films`;
+    }
+    document.querySelectorAll(".cf-chip-remove").forEach(button => {
+        button.addEventListener("click", () => removeActor(Number(button.dataset.actorId)));
+    });
+
+    if (!input) return;
 
     let debounceTimer = null;
     let activeIndex   = -1;
@@ -163,14 +175,23 @@
         let url = `/api/v1/actors/search?q=${encodeURIComponent(q)}&per_page=8`;
         selectedIds.forEach(id => { url += `&with=${id}`; });
 
-        fetch(url)
-            .then(r => r.json())
+        if (pending) pending.abort();
+        pending = new AbortController();
+        fetch(url, { signal: pending.signal })
+            .then(r => {
+                if (!r.ok) throw new Error("HTTP " + r.status);
+                return r.json();
+            })
             .then(data => {
-                if (input.value.trim() !== q) return;
+                // Ignore replies for text the user has since changed or left
+                if (input.value.trim() !== q || document.activeElement !== input) return;
                 renderDropdown(data.actors || []);
             })
-            .catch(closeDropdown);
+            .catch(err => {
+                if (err.name !== "AbortError") closeDropdown();
+            });
     }
+    let pending = null;
 
     function debounced() {
         clearTimeout(debounceTimer);
@@ -185,23 +206,25 @@
         if (!actors.length) {
             dropdown.innerHTML = '<div class="cf-dd-empty">No actors found</div>';
             dropdown.style.display = "block";
+        input.setAttribute("aria-expanded", "true");
             return;
         }
 
         actors.forEach((actor, i) => {
             const item = document.createElement("div");
             item.className = "cf-dd-item";
+            item.setAttribute("role", "option");
             item.dataset.index = i;
 
             const photo = actor.profile_path
-                ? `<img src="${TMDB_IMG}${actor.profile_path}" class="cf-dd-photo" alt="">`
-                : `<img src="https://ui-avatars.com/api/?name=${encodeURIComponent(actor.name)}&size=40&background=4f86f7&color=fff&bold=true" class="cf-dd-photo" alt="">`;
+                ? `<img src="${escapeHtml(TMDB_IMG + actor.profile_path)}" class="cf-dd-photo" alt="">`
+                : `<span class="cf-dd-photo avatar-initials" aria-hidden="true">${escapeHtml(initials(actor.name))}</span>`;
 
             item.innerHTML = `
                 ${photo}
                 <div class="cf-dd-info">
                     <div class="cf-dd-name">${escapeHtml(actor.name)}</div>
-                    <div class="cf-dd-meta">${actor.movie_count} film${actor.movie_count !== 1 ? 's' : ''} in DB</div>
+                    <div class="cf-dd-meta">${Number(actor.movie_count)} film${actor.movie_count !== 1 ? 's' : ''} in DB</div>
                 </div>`;
 
             item.addEventListener("mousedown", e => e.preventDefault());
@@ -210,10 +233,12 @@
         });
 
         dropdown.style.display = "block";
+        input.setAttribute("aria-expanded", "true");
         activeIndex = -1;
     }
 
     function closeDropdown() {
+        input.setAttribute("aria-expanded", "false");
         dropdown.style.display = "none";
         dropdown.innerHTML = "";
         activeIndex = -1;
@@ -250,17 +275,17 @@
         window.location.href = `/common-films?${params}`;
     }
 
+    function initials(name) {
+        return (name || "?").split(/\s+/).filter(Boolean).slice(0, 2)
+            .map(part => part[0].toUpperCase()).join("");
+    }
+
     function escapeHtml(str) {
         const d = document.createElement("div");
         d.appendChild(document.createTextNode(str));
         return d.innerHTML;
     }
 
-    // Expose removeActor globally for the chip × buttons
-    window.removeActor = function (id) {
-        const params = selectedIds.filter(i => i !== id).map(i => `actor=${i}`).join("&");
-        window.location.href = params ? `/common-films?${params}` : `/common-films`;
-    };
 })();
 </script>
 {% endblock %}

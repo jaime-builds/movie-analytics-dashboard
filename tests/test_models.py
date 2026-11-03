@@ -5,6 +5,7 @@ Tests for SQLAlchemy database models
 from datetime import datetime
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from src.models import Cast, Crew, Genre, Movie, Person, ProductionCompany
 
@@ -84,13 +85,12 @@ class TestGenreModel:
         """Test genre string representation"""
         assert "Action" in str(sample_genre)
 
-    def test_unique_genre_name(self, db_session, sample_genre):
-        """Test that genre names should be unique"""
-        # This test documents expected behavior
-        # Actual uniqueness constraint depends on database setup
-        existing_genre = db_session.query(Genre).filter_by(name="Action").first()
-        assert existing_genre is not None
-        assert existing_genre.name == "Action"
+    def test_genre_tmdb_id_is_unique(self, db_session, sample_genre):
+        """Genres are keyed by TMDB id, so a second row with the same id is rejected"""
+        db_session.add(Genre(tmdb_id=sample_genre.tmdb_id, name="Action (copy)"))
+        with pytest.raises(IntegrityError):
+            db_session.commit()
+        db_session.rollback()
 
 
 class TestPersonModel:
@@ -259,14 +259,14 @@ class TestDataIntegrity:
     """Tests for data integrity and constraints"""
 
     def test_movie_tmdb_id_unique(self, db_session, sample_movie):
-        """Test that TMDB IDs should be unique"""
-        # Note: Actual constraint depends on database schema
-        existing = db_session.query(Movie).filter_by(tmdb_id=550).first()
-        assert existing is not None
-        assert existing.title == "Fight Club"
+        """A second movie with the same TMDB id is rejected"""
+        db_session.add(Movie(tmdb_id=550, title="Fight Club (duplicate)"))
+        with pytest.raises(IntegrityError):
+            db_session.commit()
+        db_session.rollback()
 
     def test_cascade_delete_behavior(self, db_session, sample_movie, sample_cast):
-        """Test cascade delete behavior (documents expected behavior)"""
+        """Deleting a movie deletes its cast rows (delete-orphan cascade)"""
         movie_id = sample_movie.id
         cast_id = sample_cast.id
 
@@ -278,7 +278,6 @@ class TestDataIntegrity:
         deleted_movie = db_session.query(Movie).filter_by(id=movie_id).first()
         assert deleted_movie is None
 
-        # Check cascade behavior for cast
-        # (Actual behavior depends on database constraints)
         orphaned_cast = db_session.query(Cast).filter_by(id=cast_id).first()
+        assert orphaned_cast is None
         # This documents the actual behavior in your schema

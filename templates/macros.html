@@ -43,24 +43,24 @@
 {% endfor %}
 {% set suffix = ('&' ~ extra|join('&')) if extra else '' %}
 <nav aria-label="{{ label }}" class="mt-4">
-    <ul class="pagination justify-content-center">
+    <ul class="pagination justify-content-center flex-wrap">
         {% if page > 1 %}
-        <li class="page-item">
-            <a class="page-link" href="?page={{ page - 1 }}{{ suffix }}">Previous</a>
+        <li class="page-item page-prev">
+            <a class="page-link" href="?page={{ page - 1 }}{{ suffix }}" aria-label="Previous page">Previous</a>
         </li>
         {% endif %}
         {% for p in range(1, total_pages + 1) %}
             {% if p == page %}
-            <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+            <li class="page-item active page-number" aria-current="page"><span class="page-link">{{ p }}</span></li>
             {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
-            <li class="page-item"><a class="page-link" href="?page={{ p }}{{ suffix }}">{{ p }}</a></li>
+            <li class="page-item page-number"><a class="page-link" href="?page={{ p }}{{ suffix }}" aria-label="Page {{ p }}">{{ p }}</a></li>
             {% elif p == page - 3 or p == page + 3 %}
-            <li class="page-item disabled"><span class="page-link">...</span></li>
+            <li class="page-item disabled page-gap" aria-hidden="true"><span class="page-link">...</span></li>
             {% endif %}
         {% endfor %}
         {% if page < total_pages %}
-        <li class="page-item">
-            <a class="page-link" href="?page={{ page + 1 }}{{ suffix }}">Next</a>
+        <li class="page-item page-next">
+            <a class="page-link" href="?page={{ page + 1 }}{{ suffix }}" aria-label="Next page">Next</a>
         </li>
         {% endif %}
     </ul>
@@ -88,4 +88,16 @@
         {% endfor %}
     </ol>
 </nav>
+{% endmacro %}
+
+{% macro chart_library() %}
+{# Chart.js, loaded only on pages that draw charts (pinned version, SRI-checked) #}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
+        integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g" crossorigin="anonymous"></script>
+{% endmacro %}
+
+{% macro initials_avatar(name, css_class="", style="") %}
+{# Local initials avatar (replaces ui-avatars.com, which received every name) #}
+{% set parts = (name or "?").split() %}
+<span class="avatar-initials {{ css_class }}" role="img" aria-label="{{ name }}" style="{{ style }}">{{ (parts[0][:1] ~ (parts[1][:1] if parts|length > 1 else ''))|upper }}</span>
 {% endmacro %}

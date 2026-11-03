@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import breadcrumbs %}
+{% from "macros.html" import breadcrumbs, initials_avatar %}
 
 {% block title %}{{ current_user.username }}'s Profile - Movie Analytics Dashboard{% endblock %}
 
@@ -14,10 +14,7 @@
                 <div class="card-body">
                     <div class="d-flex align-items-center gap-4 flex-wrap">
                         <!-- Avatar -->
-                        <img src="https://ui-avatars.com/api/?name={{ current_user.username|urlencode }}&size=120&background=0D8ABC&color=fff&bold=true&font-size=0.4"
-                             class="rounded-circle shadow"
-                             alt="{{ current_user.username }}"
-                             style="width: 100px; height: 100px;">
+                        {{ initials_avatar(current_user.username, "shadow", "width:100px;height:100px;font-size:2.25rem;") }}
 
                         <!-- User Info -->
                         <div>
@@ -37,10 +34,33 @@
                                 <i class="bi bi-bookmark-fill me-1"></i>Watchlist
                             </a>
                             <a href="{{ url_for('recommendations') }}" class="btn btn-outline-success btn-sm">
-                                <i class="bi bi-lightbulb me-1"></i>Recommendations
+                                <i class="bi bi-lightbulb me-1" aria-hidden="true"></i>Recommendations
+                            </a>
+                            <a href="{{ url_for('year_in_review') }}" class="btn btn-outline-info btn-sm">
+                                <i class="bi bi-calendar3 me-1" aria-hidden="true"></i>Year in Review
                             </a>
                         </div>
                     </div>
+
+                    <!-- Activity feed visibility -->
+                    <form method="post" action="{{ url_for('set_activity_visibility') }}"
+                          class="mt-3 pt-3 border-top d-flex align-items-center gap-3 flex-wrap" id="activity-visibility">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="hidden" value="{{ 'false' if current_user.hide_activity else 'true' }}">
+                        <span class="small">
+                            <i class="bi bi-activity me-1" aria-hidden="true"></i>
+                            {% if current_user.hide_activity %}
+                            Your ratings and reviews are <strong>hidden</strong> from the public
+                            <a href="{{ url_for('activity_feed') }}">activity feed</a>.
+                            {% else %}
+                            Your ratings and reviews <strong>appear</strong> in the public
+                            <a href="{{ url_for('activity_feed') }}">activity feed</a>.
+                            {% endif %}
+                        </span>
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">
+                            {{ 'Show my activity' if current_user.hide_activity else 'Hide my activity' }}
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>

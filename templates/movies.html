@@ -1,5 +1,7 @@
 {% extends "base.html" %}
-{% from "macros.html" import breadcrumbs %}
+{% from "macros.html" import breadcrumbs, pagination %}
+
+{% block title %}Movies - Movie Analytics Dashboard{% endblock %}
 
 {% block content %}
 {{ breadcrumbs([("Home", url_for('index')), ("Movies", none)]) }}
@@ -39,6 +41,7 @@
                             <option value="popularity" {% if current_sort == 'popularity' %}selected{% endif %}>Popularity</option>
                             <option value="rating" {% if current_sort == 'rating' %}selected{% endif %}>Rating</option>
                             <option value="release_date" {% if current_sort == 'release_date' %}selected{% endif %}>Release Date</option>
+                            <option value="upcoming" {% if current_sort == 'upcoming' %}selected{% endif %}>Upcoming (soonest first)</option>
                             <option value="title" {% if current_sort == 'title' %}selected{% endif %}>Title (A-Z)</option>
                         </select>
                     </div>
@@ -71,15 +74,15 @@
 
                     <!-- Rating Range -->
                     <div class="col-md-6">
-                        <label class="form-label">Rating Range</label>
-                        <div class="row g-2">
+                        <span class="form-label d-block" id="ratingRangeLabel">Rating Range</span>
+                        <div class="row g-2" role="group" aria-labelledby="ratingRangeLabel">
                             <div class="col-6">
-                                <input type="number" class="form-control" name="rating_min"
+                                <input type="number" class="form-control" name="rating_min" aria-label="Minimum rating"
                                        placeholder="Min (0.0)" min="0" max="10" step="0.1"
                                        value="{% if selected_rating_min %}{{ selected_rating_min }}{% endif %}">
                             </div>
                             <div class="col-6">
-                                <input type="number" class="form-control" name="rating_max"
+                                <input type="number" class="form-control" name="rating_max" aria-label="Maximum rating"
                                        placeholder="Max (10.0)" min="0" max="10" step="0.1"
                                        value="{% if selected_rating_max %}{{ selected_rating_max }}{% endif %}">
                             </div>
@@ -88,15 +91,15 @@
 
                     <!-- Runtime Range -->
                     <div class="col-md-6">
-                        <label class="form-label">Runtime (minutes)</label>
-                        <div class="row g-2">
+                        <span class="form-label d-block" id="runtimeRangeLabel">Runtime (minutes)</span>
+                        <div class="row g-2" role="group" aria-labelledby="runtimeRangeLabel">
                             <div class="col-6">
-                                <input type="number" class="form-control" name="runtime_min"
+                                <input type="number" class="form-control" name="runtime_min" aria-label="Minimum runtime in minutes"
                                        placeholder="Min" min="0"
                                        value="{% if selected_runtime_min %}{{ selected_runtime_min }}{% endif %}">
                             </div>
                             <div class="col-6">
-                                <input type="number" class="form-control" name="runtime_max"
+                                <input type="number" class="form-control" name="runtime_max" aria-label="Maximum runtime in minutes"
                                        placeholder="Max" min="0"
                                        value="{% if selected_runtime_max %}{{ selected_runtime_max }}{% endif %}">
                             </div>
@@ -112,6 +115,7 @@
                             <option value="50" {% if selected_min_vote_count == 50 %}selected{% endif %}>50+</option>
                             <option value="100" {% if selected_min_vote_count == 100 %}selected{% endif %}>100+</option>
                             <option value="500" {% if selected_min_vote_count == 500 %}selected{% endif %}>500+</option>
+                            <option value="1000" {% if selected_min_vote_count == 1000 %}selected{% endif %}>1,000+</option>
                         </select>
                     </div>
 
@@ -188,171 +192,107 @@
 <!-- Movies Count -->
 {% if movies %}
 <p class="text-muted mb-3">
-    <i class="bi bi-film me-1"></i>
+    <i class="bi bi-film me-1" aria-hidden="true"></i>
     Showing {{ ((page - 1) * 20) + 1 }} - {{ [page * 20, total_movies]|min }} of {{ total_movies }} movies
 </p>
 {% endif %}
 
-<!-- Scroll metadata for JS -->
+{% set filter_params = {
+    'sort': current_sort if current_sort != 'popularity' else '',
+    'genre': current_genre, 'year': selected_year, 'decade': selected_decade,
+    'rating_min': selected_rating_min, 'rating_max': selected_rating_max,
+    'runtime_min': selected_runtime_min, 'runtime_max': selected_runtime_max,
+    'min_vote_count': selected_min_vote_count, 'status': selected_status,
+} %}
+
+<!-- Scroll metadata for JS. Infinite scroll only runs when the list starts
+     at page 1; a deep link to ?page=N keeps normal pagination. -->
 <div id="scroll-meta"
      data-page="{{ page }}"
      data-total-pages="{{ total_pages }}"
-     style="display:none;"></div>
+     data-exclude-mature="{{ '1' if family_friendly else '' }}"
+     hidden></div>
+
+{% macro movie_card(movie, config) %}
+<div class="col-md-2 col-sm-4 col-6 mb-3">
+    <div class="movie-card-wrapper">
+        <button type="button" class="compare-toggle"
+                data-movie-id="{{ movie.id }}"
+                data-movie-title="{{ movie.title }}"
+                data-poster="{{ movie.poster_path or '' }}"
+                title="Add to compare" aria-label="Add {{ movie.title }} to compare" aria-pressed="false">
+            <i class="bi bi-plus-lg" aria-hidden="true"></i>
+        </button>
+        <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
+            <div class="card movie-card h-100">
+                {% if movie.poster_path %}
+                <img src="{{ config.get_poster_url(movie.poster_path, 'w342') }}" class="card-img-top" alt="{{ movie.title }}" loading="lazy">
+                {% else %}
+                <div class="card-img-top poster-placeholder bg-secondary d-flex align-items-center justify-content-center">
+                    <i class="bi bi-film" aria-hidden="true"></i>
+                </div>
+                {% endif %}
+                <div class="card-body p-2">
+                    <h2 class="card-title small mb-1 fs-6">{{ movie.title }}</h2>
+                    <p class="card-text small text-muted mb-1">
+                        {% if movie.release_date %}{{ movie.release_date.year }}{% endif %}
+                        {% if movie.runtime %} • {{ movie.runtime }}m{% endif %}
+                    </p>
+                    <span class="badge bg-warning text-dark">
+                        <i class="bi bi-star-fill" aria-hidden="true"></i>
+                        {% if movie.vote_count %}{{ "%.1f"|format(movie.vote_average) }}{% else %}N/A{% endif %}
+                    </span>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+{% endmacro %}
 
 <!-- Movie Grid -->
 <div class="row" id="movie-grid">
     {% if movies %}
-        {% for movie in movies %}
-        <div class="col-md-2 col-sm-4 col-6 mb-3">
-            <div class="movie-card-wrapper">
-                <button class="compare-toggle"
-                        data-movie-id="{{ movie.id }}"
-                        data-movie-title="{{ movie.title }}"
-                        data-poster="{{ movie.poster_path or '' }}"
-                        title="Add to compare">
-                    <i class="bi bi-plus-lg"></i>
-                </button>
-                <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
-                    <div class="card movie-card h-100">
-                        {% if movie.poster_path %}
-                        <img src="{{ config.get_poster_url(movie.poster_path, 'w300') }}" class="card-img-top" alt="{{ movie.title }}" loading="lazy">
-                        {% else %}
-                        <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center" style="height: 450px;">
-                            <i class="bi bi-film" style="font-size: 3rem; color: #666;"></i>
-                        </div>
-                        {% endif %}
-                        <div class="card-body p-2">
-                            <h6 class="card-title small mb-1">{{ movie.title }}</h6>
-                            <p class="card-text small text-muted mb-1">
-                                {% if movie.release_date %}
-                                {{ movie.release_date.year }}
-                                {% endif %}
-                                {% if movie.runtime %}
-                                • {{ movie.runtime }}m
-                                {% endif %}
-                            </p>
-                            <span class="badge bg-warning text-dark">
-                                <i class="bi bi-star-fill"></i> {{ "%.1f"|format(movie.vote_average) }}
-                            </span>
-                        </div>
-                    </div>
-                </a>
-            </div>
-        </div>
-        {% endfor %}
+        {% for movie in movies %}{{ movie_card(movie, config) }}{% endfor %}
     {% else %}
         <div class="col-12">
             <div class="alert alert-warning" role="alert">
-                <i class="bi bi-exclamation-triangle"></i> No movies found matching your filters. Try adjusting your search criteria.
+                <i class="bi bi-exclamation-triangle" aria-hidden="true"></i> No movies found matching your filters. Try adjusting your search criteria.
             </div>
         </div>
     {% endif %}
 </div>
 
-<!-- Feature 4: Enhanced Pagination Controls -->
-{% if total_pages > 1 %}
-<div class="pagination-wrapper mt-5 mb-4" style="display:none;">
-    <!-- Page Info - Top -->
-    <div class="text-center mb-3">
-        <p class="text-muted mb-0">
-            Page <strong>{{ page }}</strong> of <strong>{{ total_pages }}</strong>
-        </p>
-    </div>
-
-    <!-- Pagination Navigation -->
-    <nav aria-label="Movie pagination">
-        <ul class="pagination justify-content-center flex-wrap">
-
-            <!-- First Page -->
-            <li class="page-item {% if page == 1 %}disabled{% endif %}">
-                {% if page > 1 %}
-                    <a class="page-link"
-                       href="?page=1&sort={{ current_sort }}{% if current_genre %}&genre={{ current_genre }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_decade %}&decade={{ selected_decade }}{% endif %}{% if selected_rating_min %}&rating_min={{ selected_rating_min }}{% endif %}{% if selected_rating_max %}&rating_max={{ selected_rating_max }}{% endif %}{% if selected_runtime_min %}&runtime_min={{ selected_runtime_min }}{% endif %}{% if selected_runtime_max %}&runtime_max={{ selected_runtime_max }}{% endif %}"
-                       title="First page">
-                        <i class="bi bi-chevron-double-left"></i>
-                    </a>
-                {% else %}
-                    <span class="page-link">
-                        <i class="bi bi-chevron-double-left"></i>
-                    </span>
-                {% endif %}
-            </li>
-
-            <!-- Previous Button -->
-            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-                {% if page > 1 %}
-                    <a class="page-link"
-                       href="?page={{ page - 1 }}&sort={{ current_sort }}{% if current_genre %}&genre={{ current_genre }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_decade %}&decade={{ selected_decade }}{% endif %}{% if selected_rating_min %}&rating_min={{ selected_rating_min }}{% endif %}{% if selected_rating_max %}&rating_max={{ selected_rating_max }}{% endif %}{% if selected_runtime_min %}&runtime_min={{ selected_runtime_min }}{% endif %}{% if selected_runtime_max %}&runtime_max={{ selected_runtime_max }}{% endif %}"
-                       title="Previous page">
-                        <i class="bi bi-chevron-left"></i> <span class="d-none d-sm-inline">Previous</span>
-                    </a>
-                {% else %}
-                    <span class="page-link">
-                        <i class="bi bi-chevron-left"></i> <span class="d-none d-sm-inline">Previous</span>
-                    </span>
-                {% endif %}
-            </li>
-
-            <!-- Page Numbers -->
-            {% for p in range(1, total_pages + 1) %}
-                {% if p == page %}
-                    <!-- Current Page -->
-                    <li class="page-item active" aria-current="page">
-                        <span class="page-link">
-                            {{ p }}
-                            <span class="visually-hidden">(current)</span>
+<!-- Card markup infinite scroll clones, so loaded cards match the ones above -->
+<template id="movie-card-template">
+    <div class="col-md-2 col-sm-4 col-6 mb-3">
+        <div class="movie-card-wrapper">
+            <button type="button" class="compare-toggle" title="Add to compare" aria-pressed="false">
+                <i class="bi bi-plus-lg" aria-hidden="true"></i>
+            </button>
+            <a class="text-decoration-none movie-link">
+                <div class="card movie-card h-100">
+                    <img class="card-img-top movie-poster" loading="lazy" alt="">
+                    <div class="card-img-top poster-placeholder bg-secondary d-flex align-items-center justify-content-center d-none">
+                        <i class="bi bi-film" aria-hidden="true"></i>
+                    </div>
+                    <div class="card-body p-2">
+                        <h2 class="card-title small mb-1 fs-6 movie-title"></h2>
+                        <p class="card-text small text-muted mb-1 movie-meta"></p>
+                        <span class="badge bg-warning text-dark">
+                            <i class="bi bi-star-fill" aria-hidden="true"></i> <span class="movie-rating"></span>
                         </span>
-                    </li>
-                {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
-                    <!-- Other Pages (show first, last, and 2 around current) -->
-                    <li class="page-item">
-                        <a class="page-link"
-                           href="?page={{ p }}&sort={{ current_sort }}{% if current_genre %}&genre={{ current_genre }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_decade %}&decade={{ selected_decade }}{% endif %}{% if selected_rating_min %}&rating_min={{ selected_rating_min }}{% endif %}{% if selected_rating_max %}&rating_max={{ selected_rating_max }}{% endif %}{% if selected_runtime_min %}&runtime_min={{ selected_runtime_min }}{% endif %}{% if selected_runtime_max %}&runtime_max={{ selected_runtime_max }}{% endif %}">
-                            {{ p }}
-                        </a>
-                    </li>
-                {% elif p == page - 3 or p == page + 3 %}
-                    <!-- Ellipsis -->
-                    <li class="page-item disabled">
-                        <span class="page-link">...</span>
-                    </li>
-                {% endif %}
-            {% endfor %}
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+</template>
 
-            <!-- Next Button -->
-            <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
-                {% if page < total_pages %}
-                    <a class="page-link"
-                       href="?page={{ page + 1 }}&sort={{ current_sort }}{% if current_genre %}&genre={{ current_genre }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_decade %}&decade={{ selected_decade }}{% endif %}{% if selected_rating_min %}&rating_min={{ selected_rating_min }}{% endif %}{% if selected_rating_max %}&rating_max={{ selected_rating_max }}{% endif %}{% if selected_runtime_min %}&runtime_min={{ selected_runtime_min }}{% endif %}{% if selected_runtime_max %}&runtime_max={{ selected_runtime_max }}{% endif %}"
-                       title="Next page">
-                        <span class="d-none d-sm-inline">Next</span> <i class="bi bi-chevron-right"></i>
-                    </a>
-                {% else %}
-                    <span class="page-link">
-                        <span class="d-none d-sm-inline">Next</span> <i class="bi bi-chevron-right"></i>
-                    </span>
-                {% endif %}
-            </li>
-
-            <!-- Last Page -->
-            <li class="page-item {% if page == total_pages %}disabled{% endif %}">
-                {% if page < total_pages %}
-                    <a class="page-link"
-                       href="?page={{ total_pages }}&sort={{ current_sort }}{% if current_genre %}&genre={{ current_genre }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_decade %}&decade={{ selected_decade }}{% endif %}{% if selected_rating_min %}&rating_min={{ selected_rating_min }}{% endif %}{% if selected_rating_max %}&rating_max={{ selected_rating_max }}{% endif %}{% if selected_runtime_min %}&runtime_min={{ selected_runtime_min }}{% endif %}{% if selected_runtime_max %}&runtime_max={{ selected_runtime_max }}{% endif %}"
-                       title="Last page">
-                        <i class="bi bi-chevron-double-right"></i>
-                    </a>
-                {% else %}
-                    <span class="page-link">
-                        <i class="bi bi-chevron-double-right"></i>
-                    </span>
-                {% endif %}
-            </li>
-
-        </ul>
-    </nav>
+<!-- Page links: always in the HTML (works without JavaScript); hidden by
+     infinite-scroll.js only when it takes over from page 1 -->
+<div class="pagination-wrapper mt-5 mb-4">
+    {{ pagination(page, total_pages, label="Movies pagination", query_params=filter_params) }}
 </div>
-{% endif %}
 
 <script>
 // Auto-clear year when decade is selected and vice versa

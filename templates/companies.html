@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import breadcrumbs %}
+{% from "macros.html" import breadcrumbs, pagination %}
 
 {% block title %}Production Companies - Movie Analytics Dashboard{% endblock %}
 
@@ -15,33 +15,34 @@
         </div>
     </div>
 
-    <!-- Search and Sort -->
-    <div class="row mb-4">
+    <!-- Search and Sort (applied on the server, across every studio) -->
+    <form class="row mb-4 g-2" method="get" action="{{ url_for('companies') }}" role="search">
         <div class="col-md-6">
+            <label for="companySearch" class="visually-hidden">Search studios</label>
             <div class="input-group">
-                <span class="input-group-text"><i class="bi bi-search"></i></span>
-                <input type="text" class="form-control" id="companySearch"
-                       placeholder="Search companies...">
+                <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
+                <input type="search" class="form-control" id="companySearch" name="q"
+                       value="{{ search }}" placeholder="Search companies...">
             </div>
         </div>
-        <div class="col-md-3">
-            <select class="form-select" id="sortBy">
-                <option value="movies">Most Movies</option>
-                <option value="avg_rating">Highest Avg Rating</option>
-                <option value="total_revenue">Total Revenue</option>
-                <option value="name">Name (A-Z)</option>
+        <div class="col-md-4">
+            <label for="sortBy" class="visually-hidden">Sort studios</label>
+            <select class="form-select" id="sortBy" name="sort">
+                <option value="movies" {{ 'selected' if sort_by == 'movies' }}>Most Movies</option>
+                <option value="avg_rating" {{ 'selected' if sort_by == 'avg_rating' }}>Highest Avg Rating</option>
+                <option value="total_revenue" {{ 'selected' if sort_by == 'total_revenue' }}>Total Revenue</option>
+                <option value="name" {{ 'selected' if sort_by == 'name' }}>Name (A-Z)</option>
             </select>
         </div>
-    </div>
+        <div class="col-md-2 d-grid">
+            <button type="submit" class="btn btn-primary">Apply</button>
+        </div>
+    </form>
 
     <!-- Companies Grid -->
     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" id="companiesGrid">
         {% for company in companies %}
-        <div class="col company-card"
-             data-name="{{ company.name|lower }}"
-             data-movies="{{ company.movie_count }}"
-             data-rating="{{ company.avg_rating }}"
-             data-revenue="{{ company.total_revenue }}">
+        <div class="col company-card">
             <div class="card h-100 shadow-sm">
                 <div class="card-body">
                     <!-- Company Header -->
@@ -100,7 +101,7 @@
                         <div class="small">
                             {% for movie in company.top_movies %}
                             <div class="mb-1">
-                                <a href="/movie/{{ movie.id }}" class="text-decoration-none">
+                                <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
                                     <i class="bi bi-film"></i>
                                     {{ movie.title }}{% if movie.year %} ({{ movie.year }}){% endif %}
                                     {% if movie.vote_average %}
@@ -115,7 +116,7 @@
                     </div>
                     {% endif %}
 
-                    <a href="/company/{{ company.id }}" class="btn btn-primary btn-sm w-100">
+                    <a href="{{ url_for('company_detail', company_id=company.id) }}" class="btn btn-primary btn-sm w-100">
                         <i class="bi bi-arrow-right-circle"></i> View Filmography
                     </a>
                 </div>
@@ -134,31 +135,7 @@
     {% endif %}
 
     <!-- Pagination -->
-    {% if total_pages > 1 %}
-    <nav aria-label="Companies pagination" class="mt-4">
-        <ul class="pagination justify-content-center">
-            {% if page > 1 %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ page - 1 }}">Previous</a>
-            </li>
-            {% endif %}
-            {% for p in range(1, total_pages + 1) %}
-                {% if p == page %}
-                <li class="page-item active"><span class="page-link">{{ p }}</span></li>
-                {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
-                <li class="page-item"><a class="page-link" href="?page={{ p }}">{{ p }}</a></li>
-                {% elif p == page - 3 or p == page + 3 %}
-                <li class="page-item disabled"><span class="page-link">...</span></li>
-                {% endif %}
-            {% endfor %}
-            {% if page < total_pages %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ page + 1 }}">Next</a>
-            </li>
-            {% endif %}
-        </ul>
-    </nav>
-    {% endif %}
+    {{ pagination(page, total_pages, label="Studios pagination", query_params={'q': search, 'sort': sort_by if sort_by != 'movies' else ''}) }}
 </div>
 
 <style>
@@ -193,40 +170,8 @@
 
 .company-card { transition: transform 0.2s; }
 .company-card:hover { transform: translateY(-4px); }
-.card { transition: box-shadow 0.2s; }
-.card:hover { box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important; }
+.company-card .card { transition: box-shadow 0.2s; }
+.company-card .card:hover { box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important; }
 </style>
 
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const searchInput = document.getElementById('companySearch');
-    const sortBy = document.getElementById('sortBy');
-    const grid = document.getElementById('companiesGrid');
-
-    function filterAndSort() {
-        const term = searchInput.value.toLowerCase();
-        const sort = sortBy.value;
-        const cards = Array.from(grid.querySelectorAll('.company-card'));
-
-        cards.forEach(card => {
-            card.style.display = card.dataset.name.includes(term) ? '' : 'none';
-        });
-
-        const visible = cards.filter(c => c.style.display !== 'none');
-        visible.sort((a, b) => {
-            switch (sort) {
-                case 'movies':    return parseInt(b.dataset.movies) - parseInt(a.dataset.movies);
-                case 'avg_rating':return parseFloat(b.dataset.rating) - parseFloat(a.dataset.rating);
-                case 'total_revenue': return parseInt(b.dataset.revenue) - parseInt(a.dataset.revenue);
-                case 'name':      return a.dataset.name.localeCompare(b.dataset.name);
-                default: return 0;
-            }
-        });
-        visible.forEach(card => grid.appendChild(card));
-    }
-
-    searchInput.addEventListener('input', filterAndSort);
-    sortBy.addEventListener('change', filterAndSort);
-});
-</script>
 {% endblock %}

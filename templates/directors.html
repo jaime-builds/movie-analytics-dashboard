@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import breadcrumbs %}
+{% from "macros.html" import breadcrumbs, pagination %}
 
 {% block title %}Directors - Movie Analytics Dashboard{% endblock %}
 
@@ -15,40 +15,45 @@
         </div>
     </div>
 
-    <!-- Search and Filter -->
-    <div class="row mb-4">
-        <div class="col-md-6">
+    <!-- Search and Filter (applied on the server, across every director) -->
+    <form class="row mb-4 g-2" method="get" action="{{ url_for('directors') }}" role="search">
+        <div class="col-md-5">
+            <label for="directorSearch" class="visually-hidden">Search directors</label>
             <div class="input-group">
-                <span class="input-group-text"><i class="bi bi-search"></i></span>
-                <input type="text" class="form-control" id="directorSearch"
-                       placeholder="Search directors...">
+                <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
+                <input type="search" class="form-control" id="directorSearch" name="q"
+                       value="{{ search }}" placeholder="Search directors...">
             </div>
         </div>
         <div class="col-md-3">
-            <select class="form-select" id="sortBy">
-                <option value="movies">Most Movies</option>
-                <option value="avg_rating">Highest Avg Rating</option>
-                <option value="total_revenue">Total Revenue</option>
-                <option value="name">Name (A-Z)</option>
+            <label for="sortBy" class="visually-hidden">Sort directors</label>
+            <select class="form-select" id="sortBy" name="sort">
+                <option value="movies" {{ 'selected' if sort_by == 'movies' }}>Most Movies</option>
+                <option value="avg_rating" {{ 'selected' if sort_by == 'avg_rating' }}>Highest Avg Rating</option>
+                <option value="total_revenue" {{ 'selected' if sort_by == 'total_revenue' }}>Total Revenue</option>
+                <option value="name" {{ 'selected' if sort_by == 'name' }}>Name (A-Z)</option>
             </select>
         </div>
-        <div class="col-md-3">
-            <select class="form-select" id="minMovies">
-                <option value="1">1+ Movies</option>
-                <option value="3" selected>3+ Movies</option>
-                <option value="5">5+ Movies</option>
-                <option value="10">10+ Movies</option>
+        <div class="col-md-2">
+            <label for="minMovies" class="visually-hidden">Minimum movies</label>
+            <select class="form-select" id="minMovies" name="min_movies">
+                {% for n in min_movie_options %}
+                <option value="{{ n }}" {{ 'selected' if min_movies == n }}>{{ n }}+ Movies</option>
+                {% endfor %}
             </select>
         </div>
-    </div>
+        <div class="col-md-2 d-grid">
+            <button type="submit" class="btn btn-primary">Apply</button>
+        </div>
+        <div class="col-12">
+            <small class="text-muted">{{ total }} director{{ 's' if total != 1 }} found</small>
+        </div>
+    </form>
 
     <!-- Directors Grid -->
     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" id="directorsGrid">
         {% for director in directors %}
-        <div class="col director-card"
-             data-name="{{ director.name|lower }}"
-             data-movies="{{ director.movie_count }}"
-             data-rating="{{ director.avg_rating }}">
+        <div class="col director-card">
             <div class="card h-100 shadow-sm">
                 <div class="card-body">
                     <h5 class="card-title">
@@ -89,9 +94,9 @@
                         <div class="small">
                             {% for movie in director.top_movies[:3] %}
                             <div class="mb-1">
-                                <a href="/movie/{{ movie.id }}" class="text-decoration-none">
+                                <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none">
                                     <i class="bi bi-film"></i>
-                                    {{ movie.title }} ({{ movie.year }})
+                                    {{ movie.title }}{% if movie.year %} ({{ movie.year }}){% endif %}
                                     {% if movie.vote_average %}
                                     <span class="badge bg-warning text-dark">
                                         {{ "%.1f"|format(movie.vote_average) }}
@@ -104,7 +109,7 @@
                     </div>
                     {% endif %}
 
-                    <a href="/director/{{ director.id }}" class="btn btn-primary btn-sm w-100">
+                    <a href="{{ url_for('director_detail', director_id=director.id) }}" class="btn btn-primary btn-sm w-100">
                         <i class="bi bi-arrow-right-circle"></i>
                         View Filmography
                     </a>
@@ -124,39 +129,7 @@
     {% endif %}
 
     <!-- Pagination -->
-    {% if total_pages > 1 %}
-    <nav aria-label="Directors pagination" class="mt-4">
-        <ul class="pagination justify-content-center">
-            {% if page > 1 %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ page - 1 }}">Previous</a>
-            </li>
-            {% endif %}
-
-            {% for p in range(1, total_pages + 1) %}
-                {% if p == page %}
-                <li class="page-item active">
-                    <span class="page-link">{{ p }}</span>
-                </li>
-                {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
-                <li class="page-item">
-                    <a class="page-link" href="?page={{ p }}">{{ p }}</a>
-                </li>
-                {% elif p == page - 3 or p == page + 3 %}
-                <li class="page-item disabled">
-                    <span class="page-link">...</span>
-                </li>
-                {% endif %}
-            {% endfor %}
-
-            {% if page < total_pages %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ page + 1 }}">Next</a>
-            </li>
-            {% endif %}
-        </ul>
-    </nav>
-    {% endif %}
+    {{ pagination(page, total_pages, label="Directors pagination", query_params={'q': search, 'sort': sort_by if sort_by != 'movies' else '', 'min_movies': min_movies if min_movies != 3 else ''}) }}
 </div>
 
 <style>
@@ -167,7 +140,7 @@
 .stat-value {
     font-size: 1.2rem;
     font-weight: bold;
-    color: #2c3e50;
+    color: var(--bs-emphasis-color);
 }
 
 .stat-label {
@@ -184,70 +157,13 @@
     transform: translateY(-5px);
 }
 
-.card {
+.director-card .card {
     transition: box-shadow 0.2s;
 }
 
-.card:hover {
+.director-card .card:hover {
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
 }
 </style>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const searchInput = document.getElementById('directorSearch');
-    const sortBy = document.getElementById('sortBy');
-    const minMovies = document.getElementById('minMovies');
-    const grid = document.getElementById('directorsGrid');
-
-    function filterAndSort() {
-        const searchTerm = searchInput.value.toLowerCase();
-        const minMovieCount = parseInt(minMovies.value);
-        const sortOption = sortBy.value;
-
-        // Get all director cards
-        const cards = Array.from(grid.querySelectorAll('.director-card'));
-
-        // Filter and sort
-        cards.forEach(card => {
-            const name = card.dataset.name;
-            const movieCount = parseInt(card.dataset.movies);
-
-            // Check if card matches filter
-            const matchesSearch = name.includes(searchTerm);
-            const matchesMin = movieCount >= minMovieCount;
-
-            if (matchesSearch && matchesMin) {
-                card.style.display = '';
-            } else {
-                card.style.display = 'none';
-            }
-        });
-
-        // Sort visible cards
-        const visibleCards = cards.filter(card => card.style.display !== 'none');
-
-        visibleCards.sort((a, b) => {
-            switch(sortOption) {
-                case 'movies':
-                    return parseInt(b.dataset.movies) - parseInt(a.dataset.movies);
-                case 'avg_rating':
-                    return parseFloat(b.dataset.rating) - parseFloat(a.dataset.rating);
-                case 'name':
-                    return a.dataset.name.localeCompare(b.dataset.name);
-                default:
-                    return 0;
-            }
-        });
-
-        // Reorder DOM
-        visibleCards.forEach(card => grid.appendChild(card));
-    }
-
-    // Event listeners
-    searchInput.addEventListener('input', filterAndSort);
-    sortBy.addEventListener('change', filterAndSort);
-    minMovies.addEventListener('change', filterAndSort);
-});
-</script>
 {% endblock %}

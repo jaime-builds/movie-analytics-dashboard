@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import breadcrumbs %}
+{% from "macros.html" import breadcrumbs, initials_avatar %}
 
 {% block title %}{{ actor.name }} — Collaboration Network{% endblock %}
 
@@ -15,15 +15,13 @@
                  class="an-actor-thumb"
                  alt="{{ actor.name }}">
             {% else %}
-            <img src="https://ui-avatars.com/api/?name={{ actor.name|urlencode }}&size=80&background=0D8ABC&color=fff&bold=true"
-                 class="an-actor-thumb"
-                 alt="{{ actor.name }}">
+            {{ initials_avatar(actor.name, "an-actor-thumb", "font-size:1.5rem;") }}
             {% endif %}
             <div>
                 <p class="an-header-eyebrow">Collaboration Network</p>
                 <h1 class="an-header-name">{{ actor.name }}</h1>
                 <p class="an-header-meta">
-                    {{ collaborator_count }} collaborator{{ 's' if collaborator_count != 1 }}
+                    {% if collaborators_capped %}Top {{ collaborator_count }} collaborators{% else %}{{ collaborator_count }} collaborator{{ 's' if collaborator_count != 1 }}{% endif %}
                     &middot; based on shared cast credits
                 </p>
             </div>
@@ -53,10 +51,24 @@
 
 <!-- ===================== GRAPH ===================== -->
 <div class="an-graph-wrap" id="an-graph-wrap">
-    <svg id="an-svg"></svg>
+    <svg id="an-svg" role="img" aria-label="Collaboration graph for {{ actor.name }}. The same information is listed below."></svg>
     <!-- Tooltip -->
     <div class="an-tooltip" id="an-tooltip" style="display:none;"></div>
 </div>
+
+<!-- The graph is mouse-driven; this list gives the same data to keyboard,
+     touch and screen-reader users -->
+<details class="mt-3 an-list">
+    <summary>Collaborators as a list</summary>
+    <ul class="list-unstyled mt-2 mb-0">
+        {% for node in graph_data.nodes if not node.focal %}
+        <li class="mb-1">
+            <a href="{{ url_for('actor_detail', actor_id=node.id) }}">{{ node.name }}</a>
+            <span class="text-muted small">: {{ node.shared_movies }} shared film{{ 's' if node.shared_movies != 1 }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+</details>
 
 {% else %}
 <div class="an-empty">
@@ -73,12 +85,24 @@
 
 {% block scripts %}
 {% if graph_data.nodes | length > 1 %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"
+        integrity="sha384-su5kReKyYlIFrI62mbQRKXHzFobMa7BHp1cK6julLPbnYcCW9NIZKJiTODjLPeDh" crossorigin="anonymous"></script>
 <script>
 (function () {
     // ── Data ──────────────────────────────────────────────────────────────
     const graphData = {{ graph_data | tojson }};
     const focalId   = {{ actor.id }};
+    // Initials avatar drawn locally as an SVG data URL (no third-party image service)
+    function initialsAvatar(name, color) {
+        const letters = (name || "?").split(/\s+/).filter(Boolean).slice(0, 2)
+            .map(part => part[0].toUpperCase()).join("");
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64">` +
+            `<rect width="64" height="64" fill="${color}"/>` +
+            `<text x="50%" y="50%" dy=".35em" text-anchor="middle" font-family="sans-serif" ` +
+            `font-size="26" font-weight="700" fill="#fff">${letters.replace(/[<>&"]/g, "")}</text></svg>`;
+        return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+    }
+
     const TMDB_BASE = "https://image.tmdb.org/t/p/w185";
 
     // ── Theme-aware colours ───────────────────────────────────────────────
@@ -124,7 +148,7 @@
     const sim = d3.forceSimulation(graphData.nodes)
         .force("link", d3.forceLink(graphData.links)
             .id(d => d.id)
-            .distance(d => 120 - d.value * 8)   // more shared = closer
+            .distance(d => Math.max(40, 120 - d.value * 8))   // more shared = closer, never collapsing
             .strength(0.6))
         .force("charge",  d3.forceManyBody().strength(-280))
         .force("center",  d3.forceCenter(W / 2, H / 2))
@@ -187,7 +211,7 @@
     node.append("image")
         .attr("href", d => d.profile_path
             ? TMDB_BASE + d.profile_path
-            : `https://ui-avatars.com/api/?name=${encodeURIComponent(d.name)}&size=64&background=${d.focal ? "4f86f7" : "6366f1"}&color=fff&bold=true`)
+            : initialsAvatar(d.name, d.focal ? "#4f86f7" : "#6366f1"))
         .attr("width",  d => d.focal ? R_FOCAL * 2 - 4  : R_COLLAB * 2 - 4)
         .attr("height", d => d.focal ? R_FOCAL * 2 - 4  : R_COLLAB * 2 - 4)
         .attr("x",      d => d.focal ? -(R_FOCAL - 2)   : -(R_COLLAB - 2))
@@ -237,11 +261,24 @@
     linkHit.on("mouseenter", function (event, d) {
         clearEdgeHighlight();
         const rect      = wrap.getBoundingClientRect();
-        const movieList = (d.movies && d.movies.length)
-            ? d.movies.map(t => `<span class="an-tt-movie">${t}</span>`).join("")
-            : "<span class='an-tt-sub'>No title data</span>";
-        tooltip.innerHTML =
-            `<strong>${d.value} shared film${d.value !== 1 ? "s" : ""}</strong><br>${movieList}`;
+        // Titles come from TMDB, so they are added as text, never as HTML
+        tooltip.replaceChildren();
+        const heading = document.createElement("strong");
+        heading.textContent = `${d.value} shared film${d.value !== 1 ? "s" : ""}`;
+        tooltip.append(heading, document.createElement("br"));
+        if (d.movies && d.movies.length) {
+            d.movies.forEach(t => {
+                const span = document.createElement("span");
+                span.className = "an-tt-movie";
+                span.textContent = t;
+                tooltip.appendChild(span);
+            });
+        } else {
+            const none = document.createElement("span");
+            none.className = "an-tt-sub";
+            none.textContent = "No title data";
+            tooltip.appendChild(none);
+        }
         tooltip.style.left    = (event.clientX - rect.left + 14) + "px";
         tooltip.style.top     = (event.clientY - rect.top  - 10) + "px";
         tooltip.style.display = "block";
@@ -269,10 +306,15 @@
         const x    = event.clientX - rect.left + 14;
         const y    = event.clientY - rect.top  - 10;
 
-        tooltip.innerHTML = d.focal
-            ? `<strong>${d.name}</strong><br><span class="an-tt-sub">Focal actor</span>`
-            : `<strong>${d.name}</strong><br>
-               <span class="an-tt-sub">${d.shared_movies} shared film${d.shared_movies !== 1 ? "s" : ""}</span>`;
+        tooltip.replaceChildren();
+        const nameEl = document.createElement("strong");
+        nameEl.textContent = d.name;
+        const sub = document.createElement("span");
+        sub.className = "an-tt-sub";
+        sub.textContent = d.focal
+            ? "Focal actor"
+            : `${d.shared_movies} shared film${d.shared_movies !== 1 ? "s" : ""}`;
+        tooltip.append(nameEl, document.createElement("br"), sub);
 
         tooltip.style.left    = x + "px";
         tooltip.style.top     = y + "px";
@@ -323,23 +365,29 @@
             });
     }
 
-    // ── Re-colour on dark-mode toggle ─────────────────────────────────────
-    const themeToggle = document.getElementById("darkModeToggle");
-    if (themeToggle) {
-        themeToggle.addEventListener("click", () => {
-            setTimeout(() => {
-                const c = colours();
-                link.attr("stroke", c.linkColor);
-                d3.selectAll(".an-node circle")
-                    .attr("fill",   d => d.focal ? c.focalFill   : c.collabFill)
-                    .attr("stroke", d => d.focal ? c.focalStroke : c.collabStroke);
-                d3.selectAll(".an-node-label")
-                    .attr("fill",   c.labelColor)
-                    .attr("stroke", c.labelShadow);
-                svg.style("background", c.bg);
-            }, 50);
-        });
-    }
+    // ── Re-colour on dark-mode toggle (base.html fires "themechange") ─────
+    document.addEventListener("themechange", () => {
+        const c = colours();
+        link.attr("stroke", c.linkColor);
+        d3.selectAll(".an-node circle")
+            .attr("fill",   d => d.focal ? c.focalFill   : c.collabFill)
+            .attr("stroke", d => d.focal ? c.focalStroke : c.collabStroke);
+        d3.selectAll(".an-node-label")
+            .attr("fill",   c.labelColor)
+            .attr("stroke", c.labelShadow);
+        svg.style("background", c.bg);
+    });
+
+    // ── Keep the graph sized to its container when the window resizes ─────
+    let resizeTimer = null;
+    window.addEventListener("resize", () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            const width = wrap.clientWidth || W;
+            svg.attr("width", width);
+            sim.force("center", d3.forceCenter(width / 2, H / 2)).alpha(0.3).restart();
+        }, 200);
+    });
 })();
 </script>
 {% endif %}

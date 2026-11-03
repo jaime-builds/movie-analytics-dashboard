@@ -1,5 +1,5 @@
 """
-Tests for routes not previously covered:
+Discovery and profile pages (formerly tests/test_new_routes.py):
 - /hidden-gems
 - /top-actors
 - /actor/<id>
@@ -9,6 +9,7 @@ Tests for routes not previously covered:
 - /profile
 """
 
+import re
 from datetime import date
 
 import pytest
@@ -23,6 +24,19 @@ from src.models import (
     Review,
     User,
 )
+
+
+def _stat_shown(html, css_class, value):
+    """True if `value` is the whole text of an element with `css_class`."""
+    pattern = (
+        r'class="[^"]*(?<![\w-])'
+        + re.escape(css_class)
+        + r'(?![\w-])[^"]*">\s*'
+        + re.escape(str(value))
+        + r"\s*<"
+    )
+    return re.search(pattern, html) is not None
+
 
 # ============================================
 # Additional fixtures needed for these tests
@@ -232,8 +246,7 @@ class TestActorDetailRoute:
     def test_actor_detail_shows_stats(self, client, sample_person, sample_cast):
         response = client.get(f"/actor/{sample_person.id}")
         assert response.status_code == 200
-        # Should show movie count stat
-        assert b"1" in response.data
+        assert _stat_shown(response.get_data(as_text=True), "display-5", 1)
 
 
 # ============================================
@@ -285,8 +298,7 @@ class TestDirectorDetailRoute:
     def test_director_detail_shows_stats(self, client, sample_director):
         response = client.get(f"/director/{sample_director.id}")
         assert response.status_code == 200
-        # Should show 3 movies in stats
-        assert b"3" in response.data
+        assert _stat_shown(response.get_data(as_text=True), "display-4", 3)
 
     def test_director_detail_404_for_invalid_id(self, client):
         response = client.get("/director/999999")
@@ -407,14 +419,11 @@ class TestProfileRoute:
     """Tests for /profile"""
 
     def test_profile_requires_login(self, client):
-        response = client.get("/profile", follow_redirects=True)
-        assert response.status_code == 200
-        assert b"log in" in response.data.lower()
-
-    def test_profile_redirects_to_login_without_auth(self, client):
         response = client.get("/profile", follow_redirects=False)
         assert response.status_code == 302
         assert "/login" in response.location
+        followed = client.get("/profile", follow_redirects=True)
+        assert b"log in" in followed.data.lower()
 
     def test_profile_loads_when_logged_in(self, client, logged_in_user):
         response = client.get("/profile")

@@ -14,6 +14,7 @@
   var debounceTimer = null;
   var activeIndex = -1;
   var currentResults = [];
+  var pending = null; // AbortController for the request in flight
 
   function debounce(fn, ms) {
     return function () {
@@ -27,14 +28,20 @@
     dropdown.innerHTML = "";
     activeIndex = -1;
     currentResults = [];
+    input.setAttribute("aria-expanded", "false");
+    input.removeAttribute("aria-activedescendant");
   }
 
   function setActive(index) {
     var items = dropdown.querySelectorAll(".autocomplete-item");
     items.forEach(function (el, i) {
       el.classList.toggle("active", i === index);
+      el.setAttribute("aria-selected", i === index ? "true" : "false");
     });
     activeIndex = index;
+    if (items[index]) {
+      input.setAttribute("aria-activedescendant", items[index].id);
+    }
   }
 
   function renderResults(movies) {
@@ -53,14 +60,16 @@
       var item = document.createElement("a");
       item.href = "/movie/" + movie.id;
       item.className = "autocomplete-item d-flex align-items-center text-decoration-none";
+      item.id = "autocomplete-option-" + i;
+      item.setAttribute("role", "option");
+      item.setAttribute("aria-selected", "false");
       item.dataset.index = i;
 
       var posterHtml;
       if (movie.poster_path) {
         posterHtml =
           '<img src="' +
-          TMDB_IMG +
-          movie.poster_path +
+          escapeHtml(TMDB_IMG + movie.poster_path) +
           '" alt="" class="autocomplete-poster" loading="lazy">';
       } else {
         posterHtml =
@@ -95,6 +104,7 @@
     });
 
     dropdown.style.display = "block";
+    input.setAttribute("aria-expanded", "true");
     activeIndex = -1;
   }
 
@@ -111,16 +121,25 @@
       return;
     }
 
-    fetch("/api/v1/movies/search?q=" + encodeURIComponent(q) + "&per_page=" + MAX_RESULTS)
+    // Cancel the previous request so an older reply can't overwrite a newer one
+    if (pending) pending.abort();
+    pending = new AbortController();
+
+    fetch("/api/v1/movies/search?q=" + encodeURIComponent(q) + "&per_page=" + MAX_RESULTS, {
+      signal: pending.signal,
+    })
       .then(function (res) {
+        // A 429 (rate limit) or 5xx just means no suggestions this time
+        if (!res.ok) throw new Error("HTTP " + res.status);
         return res.json();
       })
       .then(function (data) {
-        if (input.value.trim() !== q) return; // stale response
+        // Stale: the text changed, or the user left the box (Escape, blur)
+        if (input.value.trim() !== q || document.activeElement !== input) return;
         renderResults(data.movies || []);
       })
-      .catch(function () {
-        closeDropdown();
+      .catch(function (err) {
+        if (err.name !== "AbortError") closeDropdown();
       });
   }
 
@@ -144,6 +163,7 @@
         window.location.href = "/movie/" + currentResults[activeIndex].id;
       }
     } else if (e.key === "Escape") {
+      if (pending) pending.abort();
       closeDropdown();
       input.blur();
     }

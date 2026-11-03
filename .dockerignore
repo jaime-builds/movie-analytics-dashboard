@@ -1,4 +1,5 @@
 venv/
+.venv/
 __pycache__/
 *.pyc
 *.pyo
@@ -7,6 +8,7 @@ __pycache__/
 *.db
 *.sqlite3
 .env
+**/.env
 *.egg-info/
 dist/
 build/
@@ -14,7 +16,7 @@ htmlcov/
 .coverage
 coverage.xml
 .pytest_cache/
-logs/*.log
+logs/
 .git/
 .gitignore
 .github/
@@ -24,3 +26,11 @@ docs/
 .vscode/
 .claude/
 node_modules/
+requirements-dev.*
+tests/
+conftest.py
+pytest.ini
+.coveragerc
+.flake8
+.pre-commit-config.yaml
+docker-compose.yml

@@ -1,15 +1,29 @@
 """
-Tests for sprint apr-2026 features:
+Studios, decades and collections (formerly tests/test_sprint_apr2026.py):
 - /companies and /company/<id> (production companies)
 - /decades and /decade/<id> (decade overview)
 - /collections, /collection/<id>, add/remove, API (movie collections)
 """
 
+import re
 from datetime import date
 
 import pytest
 
-from src.models import Collection, Movie, ProductionCompany, User
+from src.models import Collection, Movie, User
+
+
+def _stat_shown(html, css_class, value):
+    """True if `value` is the whole text of an element with `css_class`."""
+    pattern = (
+        r'class="[^"]*(?<![\w-])'
+        + re.escape(css_class)
+        + r'(?![\w-])[^"]*">\s*'
+        + re.escape(str(value))
+        + r"\s*<"
+    )
+    return re.search(pattern, html) is not None
+
 
 # ============================================
 # Helpers / extra fixtures
@@ -141,11 +155,11 @@ class TestCompanyDetailRoute:
 
     def test_company_detail_shows_stats(self, client, company_with_movies):
         response = client.get(f"/company/{company_with_movies.id}")
-        assert b"3" in response.data
+        assert _stat_shown(response.get_data(as_text=True), "display-5", 3)
 
     def test_company_detail_shows_origin_country(self, client, company_with_movies):
         response = client.get(f"/company/{company_with_movies.id}")
-        assert b"US" in response.data
+        assert re.search(r'bi-globe2"></i>\s*US\s*<', response.get_data(as_text=True))
 
     def test_company_detail_404_invalid_id(self, client):
         response = client.get("/company/999999")
@@ -180,7 +194,7 @@ class TestDecadesRoute:
     def test_decades_shows_movie_count(self, client, decade_movies):
         response = client.get("/decades")
         assert response.status_code == 200
-        assert b"10" in response.data
+        assert _stat_shown(response.get_data(as_text=True), "stat-value", 10)
 
 
 # ============================================
@@ -205,7 +219,7 @@ class TestDecadeDetailRoute:
 
     def test_decade_detail_shows_stats(self, client, decade_movies):
         response = client.get("/decade/1990")
-        assert b"10" in response.data
+        assert _stat_shown(response.get_data(as_text=True), "display-5", 10)
 
     def test_decade_detail_shows_genre_breakdown(self, client, decade_movies):
         response = client.get("/decade/1990")
@@ -234,13 +248,11 @@ class TestCollectionsRoute:
     """Tests for /collections"""
 
     def test_collections_requires_login(self, client):
-        response = client.get("/collections", follow_redirects=True)
-        assert b"log in" in response.data.lower()
-
-    def test_collections_redirects_without_auth(self, client):
         response = client.get("/collections", follow_redirects=False)
         assert response.status_code == 302
         assert "/login" in response.location
+        followed = client.get("/collections", follow_redirects=True)
+        assert b"log in" in followed.data.lower()
 
     def test_collections_loads_when_logged_in(self, client, logged_in_user):
         response = client.get("/collections")
@@ -271,10 +283,11 @@ class TestCollectionsRoute:
 class TestCreateCollection:
     """Tests for POST /collections/create"""
 
-    def test_create_collection_requires_login(self, client):
-        response = client.post("/collections/create", data={"name": "Test"}, follow_redirects=True)
-        assert response.status_code == 401
-        assert b"unauthorized" in response.data.lower()
+    def test_create_collection_requires_login(self, client, db_session):
+        response = client.post("/collections/create", data={"name": "Test"})
+        assert response.status_code == 302
+        assert response.headers["Location"].startswith("/login")
+        assert db_session.query(Collection).filter_by(name="Test").first() is None
 
     def test_create_collection_success(self, client, logged_in_user, db_session):
         response = client.post(
@@ -380,8 +393,14 @@ class TestCollectionDetailRoute:
         with client.session_transaction() as sess:
             sess["user_id"] = other_user.id
 
-        response = client.get(f"/collection/{sample_collection.id}", follow_redirects=True)
-        assert b"not found" in response.data.lower() or response.status_code in [302, 200]
+        collection_name = sample_collection.name
+        response = client.get(f"/collection/{sample_collection.id}")
+        assert response.status_code == 302
+        assert response.headers["Location"] == "/collections"
+
+        followed = client.get(f"/collection/{sample_collection.id}", follow_redirects=True)
+        assert b"Collection not found" in followed.data
+        assert collection_name.encode() not in followed.data
 
 
 # ============================================
@@ -392,10 +411,12 @@ class TestCollectionDetailRoute:
 class TestDeleteCollection:
     """Tests for POST /collection/<id>/delete"""
 
-    def test_delete_collection_requires_login(self, client, sample_collection):
-        response = client.post(f"/collection/{sample_collection.id}/delete", follow_redirects=True)
-        assert response.status_code == 401
-        assert b"unauthorized" in response.data.lower()
+    def test_delete_collection_requires_login(self, client, sample_collection, db_session):
+        collection_id = sample_collection.id
+        response = client.post(f"/collection/{collection_id}/delete")
+        assert response.status_code == 302
+        assert response.headers["Location"].startswith("/login")
+        assert db_session.query(Collection).filter_by(id=collection_id).first() is not None
 
     def test_delete_collection_success(self, client, logged_in_user, sample_collection, db_session):
         collection_id = sample_collection.id

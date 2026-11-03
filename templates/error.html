@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Movie Analytics Dashboard{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center my-5">
+    <div class="col-md-8 col-lg-6 text-center">
+        <p class="display-1 fw-bold text-muted mb-0">{{ status_code }}</p>
+        <h1 class="h2 mb-3">{{ title }}</h1>
+        <p class="lead text-muted mb-4">{{ message }}</p>
+        <div class="d-flex justify-content-center gap-2 flex-wrap">
+            <a href="{{ url_for('index') }}" class="btn btn-primary">
+                <i class="bi bi-house me-1" aria-hidden="true"></i>Home
+            </a>
+            <a href="{{ url_for('movies') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-film me-1" aria-hidden="true"></i>Browse movies
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,18 +1,22 @@
 {% extends "base.html" %}
-{% from "macros.html" import breadcrumbs %}
+{% from "macros.html" import breadcrumbs, initials_avatar, pagination %}
+
+{% block title %}Top Actors - Movie Analytics Dashboard{% endblock %}
 
 {% block content %}
 {{ breadcrumbs([("Home", url_for('index')), ("Top Actors", none)]) }}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>Top Actors</h1>
-    <div>
-        <select class="form-select" id="sortSelect" onchange="window.location.href='?sort=' + this.value + '&page=1'">
+    <form method="get" action="{{ url_for('top_actors') }}" class="d-flex gap-2 align-items-center">
+        <label for="sortSelect" class="visually-hidden">Sort actors</label>
+        <select class="form-select" id="sortSelect" name="sort" onchange="this.form.submit()">
             <option value="movie_count" {% if sort_by == 'movie_count' %}selected{% endif %}>Most Movies</option>
             <option value="avg_rating" {% if sort_by == 'avg_rating' %}selected{% endif %}>Highest Rated</option>
             <option value="avg_popularity" {% if sort_by == 'avg_popularity' %}selected{% endif %}>Most Popular</option>
             <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Name (A-Z)</option>
         </select>
-    </div>
+        <noscript><button type="submit" class="btn btn-primary">Sort</button></noscript>
+    </form>
 </div>
 
 <p class="text-muted mb-4">
@@ -37,11 +41,7 @@
                          loading="lazy">
                     {% else %}
                     <!-- Use initials-based avatar -->
-                    <img src="https://ui-avatars.com/api/?name={{ actor.person.name|urlencode }}&size=300&background=0D8ABC&color=fff&bold=true"
-                         class="card-img-top"
-                         alt="{{ actor.person.name }}"
-                         style="object-fit: cover; height: 300px;"
-                         loading="lazy">
+                    {{ initials_avatar(actor.person.name, "card-img-top avatar-square", "height:300px;font-size:4rem;") }}
                     {% endif %}
                     <div class="card-body p-3">
                         <h6 class="card-title mb-2">{{ actor.person.name }}</h6>
@@ -70,50 +70,7 @@
 </div>
 
 <!-- Pagination Controls -->
-{% if total_pages > 1 %}
-<nav aria-label="Actor pagination" class="mt-4">
-    <div class="d-flex justify-content-between align-items-center">
-        <p class="text-muted mb-0">
-            Page {{ page }} of {{ total_pages }}
-        </p>
-
-        <ul class="pagination mb-0">
-            <!-- Previous Button -->
-            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-                <a class="page-link" href="?page={{ page - 1 }}&sort={{ sort_by }}">
-                    Previous
-                </a>
-            </li>
-
-            <!-- Page Numbers -->
-            {% for p in range(1, total_pages + 1) %}
-                {% if p == page %}
-                    <li class="page-item active">
-                        <span class="page-link">{{ p }}</span>
-                    </li>
-                {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ p }}&sort={{ sort_by }}">
-                            {{ p }}
-                        </a>
-                    </li>
-                {% elif p == page - 3 or p == page + 3 %}
-                    <li class="page-item disabled">
-                        <span class="page-link">...</span>
-                    </li>
-                {% endif %}
-            {% endfor %}
-
-            <!-- Next Button -->
-            <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
-                <a class="page-link" href="?page={{ page + 1 }}&sort={{ sort_by }}">
-                    Next
-                </a>
-            </li>
-        </ul>
-    </div>
-</nav>
-{% endif %}
+{{ pagination(page, total_pages, label="Actor pagination", query_params={'sort': sort_by if sort_by != 'movie_count' else ''}) }}
 
 <style>
 .actor-card {

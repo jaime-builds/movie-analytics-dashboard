@@ -1,7 +1,9 @@
 {% extends "base.html" %}
-{% from "macros.html" import breadcrumbs %}
+{% from "macros.html" import breadcrumbs, chart_library %}
 
 {% block title %}Compare Movies - Movie Analytics Dashboard{% endblock %}
+
+{% block chart_library %}{{ chart_library() }}{% endblock %}
 
 {% block content %}
 {{ breadcrumbs([("Home", url_for('index')), ("Compare", none)]) }}
@@ -170,6 +172,7 @@
 <div class="row g-4">
     {% set has_ratings = movies | selectattr('vote_average') | list | length > 0 %}
     {% set has_financials = movies | selectattr('budget') | list | length > 0 %}
+    {% set has_runtimes = movies | selectattr('runtime') | list | length > 0 %}
 
     {% if has_ratings %}
     <div class="col-md-6">
@@ -182,7 +185,8 @@
     </div>
     {% endif %}
 
-    {% if has_financials %}
+    {# Runtime is known far more often than budget, so it gets its own check #}
+    {% if has_runtimes %}
     <div class="col-md-6">
         <div class="card">
             <div class="card-body">

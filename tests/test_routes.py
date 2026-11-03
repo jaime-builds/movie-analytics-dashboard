@@ -2,7 +2,6 @@
 Tests for Flask application routes
 """
 
-from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -79,7 +78,10 @@ class TestMoviesRoute:
         """Test pagination shows correct number of movies per page"""
         response = client.get("/movies?page=1")
         assert response.status_code == 200
-        # Should show max 20 movies per page
+        html = response.get_data(as_text=True)
+        grid = html[html.index('id="movie-grid"') : html.index('id="movie-card-template"')]
+        assert grid.count('class="movie-card-wrapper"') == 20  # 25 movies, 20 per page
+        assert "Showing 1 - 20 of 25 movies" in html
 
 
 class TestMovieDetailRoute:
@@ -537,14 +539,20 @@ class TestAnalyticsExport:
 class TestStaticFiles:
     """Tests for static file serving"""
 
-    def test_css_files_exist(self, client):
-        """Test that CSS files are accessible"""
-        response = client.get("/static/css/style.css")
-        # Should be 200 if file exists, 404 if not (both are OK for this test)
-        assert response.status_code in [200, 404]
-
-    def test_js_files_exist(self, client):
-        """Test that JS files are accessible"""
-        response = client.get("/static/js/theme.js")
-        # Should be 200 if file exists, 404 if not (both are OK for this test)
-        assert response.status_code in [200, 404]
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/static/css/style.css",
+            "/static/css/mobile.css",
+            "/static/js/compare.js",
+            "/static/js/autocomplete.js",
+            "/static/js/infinite-scroll.js",
+            "/static/js/toasts.js",
+        ],
+    )
+    def test_static_assets_used_by_templates_are_served(self, client, path):
+        response = client.get(path)
+        try:
+            assert response.status_code == 200
+        finally:
+            response.close()

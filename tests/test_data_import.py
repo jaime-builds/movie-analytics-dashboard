@@ -15,7 +15,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.data_import import DataImporter
-from src.models import Base, Cast, Crew, Genre, Movie, Person
+from src.models import Cast, Crew, Genre, Movie, Person
 
 
 @pytest.fixture

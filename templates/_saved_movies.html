@@ -1,0 +1,82 @@
+{#
+    Shared grid for My Favorites and My Watchlist.
+
+    Expects: movies, remove_url_template (with __ID__ in place of the movie id),
+    noun ("favorite movie" / "movie in your watchlist"), button_class, icon.
+    The link covers the poster and title only; the Remove button sits outside
+    it, so it is a real button for keyboards and screen readers.
+#}
+{% from "macros.html" import poster_img %}
+<p class="text-muted mb-4" id="savedCount" data-count="{{ movies|length }}"
+   data-singular="{{ singular }}" data-plural="{{ plural }}">
+    You have {{ movies|length }} {{ singular if movies|length == 1 else plural }}
+</p>
+
+<div class="row" id="savedGrid">
+    {% for movie in movies %}
+    <div class="col-md-3 col-sm-6 mb-4 saved-movie">
+        <div class="card h-100 shadow-sm hover-card">
+            <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none text-reset">
+                {{ poster_img(movie, config, css_class='card-img-top', placeholder_height='400px') }}
+            </a>
+            <div class="card-body d-flex flex-column">
+                <h2 class="h5 card-title">
+                    <a href="{{ url_for('movie_detail', movie_id=movie.id) }}" class="text-decoration-none text-reset">{{ movie.title }}</a>
+                </h2>
+                <p class="card-text">
+                    <small class="text-muted">
+                        {% if movie.release_date %}{{ movie.release_date.year }}{% endif %}
+                        {% if movie.genres %} • {{ movie.genres[0].name }}{% endif %}
+                    </small>
+                </p>
+                <div class="d-flex justify-content-between align-items-center mt-auto">
+                    {% if movie.vote_average is not none %}
+                    <span class="badge bg-warning text-dark">
+                        <i class="bi bi-star-fill" aria-hidden="true"></i> {{ "%.1f"|format(movie.vote_average) }}
+                    </span>
+                    {% else %}
+                    <span></span>
+                    {% endif %}
+                    <button type="button" class="btn btn-sm {{ button_class }} remove-saved"
+                            data-url="{{ remove_url_template|replace('__ID__', movie.id|string) }}"
+                            aria-label="Remove {{ movie.title }}">
+                        <i class="bi {{ icon }}" aria-hidden="true"></i> Remove
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+(function () {
+    const grid = document.getElementById('savedGrid');
+    const countEl = document.getElementById('savedCount');
+    if (!grid) return;
+
+    grid.addEventListener('click', async function (event) {
+        const button = event.target.closest('.remove-saved');
+        if (!button) return;
+        button.disabled = true;
+        try {
+            const res = await csrfFetch(button.dataset.url, { method: 'POST' });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            button.closest('.saved-movie').remove();
+
+            const remaining = grid.querySelectorAll('.saved-movie').length;
+            if (remaining === 0) {
+                location.reload(); // show the empty-state message
+                return;
+            }
+            countEl.textContent = 'You have ' + remaining + ' ' +
+                (remaining === 1 ? countEl.dataset.singular : countEl.dataset.plural);
+        } catch (err) {
+            button.disabled = false;
+            if (window.showToast) {
+                window.showToast('Could not remove that movie. Reload the page and try again.');
+            }
+        }
+    });
+})();
+</script>
